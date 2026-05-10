@@ -15,6 +15,7 @@
     "prisma:generate": "prisma generate",
     "metadata:backfill": "tsx scripts/backfill-game-metadata.ts",
     "sandbox:build-opengame": "tsx scripts/build-opengame-snapshot.ts",
+    "worker:github-opengame": "tsx scripts/run-github-opengame-job.ts",
     "smoke:opengame": "tsx scripts/smoke-opengame.ts",
     "smoke:sandbox": "tsx scripts/smoke-sandbox.ts"
   },
@@ -25,6 +26,7 @@
     "@vercel/blob": "^2.3.3",
     "@vercel/sandbox": "^0.0.21",
     "ai": "^6.0.177",
+    "e2b": "^2.19.5",
     "lucide-react": "^0.468.0",
     "next": "^15.5.18",
     "react": "^19.2.6",

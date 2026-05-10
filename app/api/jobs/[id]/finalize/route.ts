@@ -4,6 +4,7 @@ import { uploadSandboxGame, uploadSourceArchive } from "@/lib/blob";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { generateCoverImage } from "@/lib/minimax";
 import { hasPlayableBuild, sandboxPaths, stopSandbox } from "@/lib/sandbox";
+import { describeSandboxError } from "@/lib/vercel-sandbox-auth";
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
   let timeout: NodeJS.Timeout;
@@ -25,6 +26,10 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
 
   if (job.status === "DONE" && job.game.playUrl) {
     return NextResponse.json({ ok: true, playUrl: job.game.playUrl });
+  }
+
+  if (job.sandboxId?.startsWith("github:")) {
+    return NextResponse.json({ error: "GitHub Actions worker 会直接发布结果。" }, { status: 409 });
   }
 
   if (!job.sandboxId) {
@@ -112,7 +117,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     await stopSandbox(job.sandboxId).catch(() => undefined);
     return NextResponse.json({ ok: true, playUrl });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "发布收尾失败。";
+    const message = describeSandboxError(error);
     await prisma.job.update({
       where: { id: job.id },
       data: { status: "FAILED", errorMsg: message, finishedAt: new Date() },

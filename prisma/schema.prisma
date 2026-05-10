@@ -77,16 +77,19 @@ enum Role {
 }
 
 model Job {
-  id         String    @id @default(cuid())
-  gameId     String
-  game       Game      @relation(fields: [gameId], references: [id])
-  status     JobStatus @default(QUEUED)
-  sandboxId  String?
-  prompt     String    @db.Text
-  errorMsg   String?   @db.Text
-  startedAt  DateTime?
-  finishedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id          String    @id @default(cuid())
+  gameId      String
+  game        Game      @relation(fields: [gameId], references: [id])
+  status      JobStatus @default(QUEUED)
+  sandboxId   String?
+  prompt      String    @db.Text
+  log         String?   @db.Text
+  sourceUrl   String?   @db.Text
+  useContinue Boolean  @default(false)
+  errorMsg    String?   @db.Text
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([gameId, createdAt])
 }

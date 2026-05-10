@@ -1,9 +1,14 @@
 import { prisma } from "@/lib/db";
+import { maybeTriggerGithubOpenGameWorkflow } from "@/lib/github-actions";
 import { buildPlayabilityValidatorScript } from "@/lib/playability-validator-script";
 import { tailLines } from "@/lib/status";
-import { describeSandboxAuthError, isSandboxAuthError, sandboxCredentialsFromEnv } from "@/lib/vercel-sandbox-auth";
+import {
+  describeSandboxError,
+  isSandboxUnrecoverableProvisioningError,
+  sandboxCredentialsFromEnv,
+} from "@/lib/vercel-sandbox-auth";
 
-const WORKSPACE_ROOT = "/vercel/sandbox";
+const WORKSPACE_ROOT = "/tmp/opengame-workspace";
 const OPENGAME_ROOT = `${WORKSPACE_ROOT}/opengame`;
 const GENERATED_DIR = `${WORKSPACE_ROOT}/game`;
 const PROGRESS_LOG = `${WORKSPACE_ROOT}/progress.log`;
@@ -18,6 +23,8 @@ const VALIDATOR_SCRIPT = `${WORKSPACE_ROOT}/validate-playable.mjs`;
 const MAX_JOB_MS = 30 * 60 * 1000;
 const MAX_REPAIR_ATTEMPTS = 2;
 
+type SandboxProvider = "github" | "e2b" | "vercel";
+
 type SandboxHandle = {
   sandboxId?: string;
   runCommand: (input: unknown) => Promise<unknown>;
@@ -28,12 +35,190 @@ type SandboxHandle = {
   stop?: () => Promise<unknown>;
 };
 
+type CommandInput = {
+  cmd?: unknown;
+  args?: unknown;
+  env?: unknown;
+  detached?: unknown;
+};
+
+function sandboxProviderFromEnv(): SandboxProvider {
+  const provider = (process.env.SANDBOX_PROVIDER || "github").trim().toLowerCase();
+  if (provider === "github") return "github";
+  if (provider === "vercel") return "vercel";
+  return "e2b";
+}
+
+function encodeSandboxId(provider: SandboxProvider, sandboxId: string) {
+  return `${provider}:${sandboxId}`;
+}
+
+function decodeSandboxId(value: string): { provider: SandboxProvider; sandboxId: string } {
+  const [provider, ...rest] = value.split(":");
+  if (provider === "github" || provider === "e2b" || provider === "vercel") {
+    return { provider, sandboxId: rest.join(":") };
+  }
+
+  return { provider: "vercel", sandboxId: value };
+}
+
 async function loadSandboxSdk() {
   const mod = await import("@vercel/sandbox");
   return (mod as unknown as { Sandbox: unknown }).Sandbox as {
     create: (input?: unknown) => Promise<SandboxHandle>;
     get: (input: { sandboxId: string }) => Promise<SandboxHandle>;
   };
+}
+
+function commandInputToShell(input: unknown) {
+  if (typeof input === "string") return input;
+  if (!input || typeof input !== "object") return "";
+
+  const command = input as CommandInput;
+  const cmd = typeof command.cmd === "string" ? command.cmd : "";
+  const args = Array.isArray(command.args) ? command.args.map((arg) => String(arg)) : [];
+  return [cmd, ...args].filter(Boolean).map(shellQuote).join(" ");
+}
+
+function commandEnv(input: unknown) {
+  if (!input || typeof input !== "object") return undefined;
+  const env = (input as CommandInput).env;
+  if (!env || typeof env !== "object") return undefined;
+  return Object.fromEntries(
+    Object.entries(env as Record<string, unknown>)
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      .map(([key, value]) => [key, value]),
+  );
+}
+
+function commandDetached(input: unknown) {
+  return Boolean(input && typeof input === "object" && (input as CommandInput).detached);
+}
+
+function arrayBufferFromBuffer(buffer: Buffer) {
+  return new Uint8Array(buffer).buffer;
+}
+
+async function loadE2BSandboxSdk() {
+  const mod = await import("e2b");
+  return (mod as unknown as { Sandbox: unknown }).Sandbox as {
+    create: (templateOrOpts?: unknown, opts?: unknown) => Promise<unknown>;
+    connect: (sandboxId: string, opts?: unknown) => Promise<unknown>;
+  };
+}
+
+function normalizeE2BCommandError(error: unknown) {
+  if (!error || typeof error !== "object") return null;
+  const data = error as Record<string, unknown>;
+  const exitCode = data.exitCode;
+  const stdout = data.stdout;
+  const stderr = data.stderr;
+
+  if (typeof exitCode !== "number") return null;
+  return {
+    exitCode,
+    stdout: typeof stdout === "string" ? stdout : "",
+    stderr: typeof stderr === "string" ? stderr : error instanceof Error ? error.message : "",
+    error: typeof data.error === "string" ? data.error : error instanceof Error ? error.message : undefined,
+  };
+}
+
+function wrapE2BSandbox(sandbox: unknown): SandboxHandle {
+  const e2bSandbox = sandbox as {
+    sandboxId: string;
+    commands: {
+      run: (cmd: string, opts?: unknown) => Promise<unknown>;
+    };
+    files: {
+      read: (path: string, opts?: unknown) => Promise<unknown>;
+      write: (files: Array<{ path: string; data: ArrayBuffer }>, opts?: unknown) => Promise<unknown>;
+    };
+    kill: () => Promise<unknown>;
+  };
+
+  return {
+    sandboxId: encodeSandboxId("e2b", e2bSandbox.sandboxId),
+    async runCommand(input: unknown) {
+      const background = commandDetached(input);
+      const command = commandInputToShell(input);
+      const envs = commandEnv(input);
+
+      try {
+        const result = (await e2bSandbox.commands.run(command, {
+          background,
+          ...(envs ? { envs } : {}),
+          timeoutMs: background ? MAX_JOB_MS : 10 * 60 * 1000,
+          requestTimeoutMs: 60_000,
+        })) as { disconnect?: () => Promise<void> };
+
+        if (background) {
+          await result.disconnect?.();
+        }
+
+        return result;
+      } catch (error) {
+        const normalized = normalizeE2BCommandError(error);
+        if (normalized) return normalized;
+        throw error;
+      }
+    },
+    async readFile(file) {
+      const path = typeof file === "string" ? file : file.path;
+      return e2bSandbox.files.read(path, { format: "bytes", requestTimeoutMs: 60_000 }) as Promise<Uint8Array>;
+    },
+    async writeFiles(files) {
+      await e2bSandbox.files.write(
+        files.map((file) => ({
+          path: file.path,
+          data: arrayBufferFromBuffer(file.content),
+        })),
+        { requestTimeoutMs: 60_000 },
+      );
+    },
+    async stop() {
+      await e2bSandbox.kill();
+    },
+  };
+}
+
+function wrapVercelSandbox(sandbox: SandboxHandle): SandboxHandle {
+  return {
+    sandboxId: sandbox.sandboxId ? encodeSandboxId("vercel", sandbox.sandboxId) : undefined,
+    runCommand: (input) => sandbox.runCommand(input),
+    readFile: sandbox.readFile ? (file) => sandbox.readFile!(file) : undefined,
+    writeFiles: sandbox.writeFiles ? (files) => sandbox.writeFiles!(files) : undefined,
+    stop: sandbox.stop ? () => sandbox.stop!() : undefined,
+  };
+}
+
+async function createE2BSandbox() {
+  if (!process.env.E2B_API_KEY) {
+    throw new Error("Missing E2B_API_KEY.");
+  }
+
+  const Sandbox = await loadE2BSandboxSdk();
+  const template = process.env.E2B_TEMPLATE_ID?.trim();
+  const opts = {
+    apiKey: process.env.E2B_API_KEY,
+    timeoutMs: MAX_JOB_MS,
+    metadata: { app: "opengame-studio" },
+  };
+  const sandbox = template ? await Sandbox.create(template, opts) : await Sandbox.create(opts);
+  return wrapE2BSandbox(sandbox);
+}
+
+async function connectE2BSandbox(sandboxId: string) {
+  if (!process.env.E2B_API_KEY) {
+    throw new Error("Missing E2B_API_KEY.");
+  }
+
+  const Sandbox = await loadE2BSandboxSdk();
+  return wrapE2BSandbox(
+    await Sandbox.connect(sandboxId, {
+      apiKey: process.env.E2B_API_KEY,
+      timeoutMs: MAX_JOB_MS,
+    }),
+  );
 }
 
 function shellQuote(value: string) {
@@ -140,8 +325,8 @@ async function commandStdout(result: unknown) {
   return "";
 }
 
-function buildOpenGameScript() {
-  const opengameGitUrl = process.env.OPENGAME_GIT_URL ?? "https://github.com/leigest519/OpenGame.git";
+export function buildOpenGameScript() {
+  const opengameGitUrl = process.env.OPENGAME_GIT_URL?.trim() || "https://github.com/leigest519/OpenGame.git";
 
   return `#!/usr/bin/env bash
 set +e
@@ -166,8 +351,7 @@ set_phase() {
 
 ensure_tools() {
   local missing_core=""
-  local browser_deps="nspr nss atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage libXfixes libXrandr mesa-libgbm pango cairo alsa-lib libxcb gtk3"
-  for tool in git zip unzip; do
+  for tool in git zip unzip node npm; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       missing_core="$missing_core $tool"
     fi
@@ -175,16 +359,23 @@ ensure_tools() {
 
   if [ -n "$missing_core" ]; then
     echo "[setup] Installing sandbox system tools..."
-    sudo dnf install -y $missing_core || return $?
+    if command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update || return $?
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git zip unzip nodejs npm curl ca-certificates || return $?
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y git zip unzip nodejs npm curl-minimal || return $?
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y git zip unzip nodejs npm curl || return $?
+    else
+      echo "[setup] No supported package manager found for missing tools:$missing_core" >&2
+      return 1
+    fi
   fi
 
   if ! command -v curl >/dev/null 2>&1; then
-    echo "[setup] Installing curl-minimal..."
-    sudo dnf install -y curl-minimal || return $?
+    echo "[setup] curl is still unavailable after installing core tools." >&2
+    return 1
   fi
-
-  echo "[setup] Installing browser runtime dependencies..."
-  sudo dnf install -y $browser_deps || return $?
 
   if command -v chromium >/dev/null 2>&1; then
     export CHROME_BIN="$(command -v chromium)"
@@ -202,10 +393,11 @@ ensure_tools() {
     if [ ! -f package.json ]; then
       npm init -y >/dev/null 2>&1 || return $?
     fi
-    export PLAYWRIGHT_BROWSERS_PATH=0
-    npm install --no-save playwright-chromium@1.49.1 || return $?
-    export CHROME_BIN="$(node -e "const { chromium } = require('playwright-chromium'); console.log(chromium.executablePath())")"
-  fi
+	    export PLAYWRIGHT_BROWSERS_PATH=0
+	    npm install --no-save playwright-chromium@1.49.1 || return $?
+	    npx playwright install-deps chromium >/dev/null 2>&1 || true
+	    export CHROME_BIN="$(node -e "const { chromium } = require('playwright-chromium'); console.log(chromium.executablePath())")"
+	  fi
 
   if [ ! -x "$CHROME_BIN" ]; then
     echo "[setup] Browser executable was not found at $CHROME_BIN." >&2
@@ -386,7 +578,7 @@ exit "$status"
 `;
 }
 
-function buildPlayablePrompt(prompt: string) {
+export function buildPlayablePrompt(prompt: string) {
   return [
     "Build a playable HTML5 game from the user's creative request.",
     "",
@@ -403,35 +595,57 @@ function buildPlayablePrompt(prompt: string) {
   ].join("\n");
 }
 
-export async function createSandboxFromSnapshot() {
+async function createVercelSandboxFromSnapshot() {
   const snapshotId = process.env.OPENGAME_SNAPSHOT_ID;
   const Sandbox = await loadSandboxSdk();
 
   if (snapshotId) {
     try {
-      return await Sandbox.create({
+      const sandbox = await Sandbox.create({
         ...sandboxCredentialsFromEnv(),
         timeout: MAX_JOB_MS,
         resources: { vcpus: 2 },
         source: { type: "snapshot", snapshotId },
       });
+      return wrapVercelSandbox(sandbox);
     } catch (error) {
-      if (isSandboxAuthError(error)) throw error;
+      if (isSandboxUnrecoverableProvisioningError(error)) throw error;
       console.warn("Failed to create Sandbox from OPENGAME_SNAPSHOT_ID; falling back to cold setup.", error);
     }
   }
 
-  return Sandbox.create({
+  const sandbox = await Sandbox.create({
     ...sandboxCredentialsFromEnv(),
     runtime: "node22",
     timeout: MAX_JOB_MS,
     resources: { vcpus: 2 },
   });
+  return wrapVercelSandbox(sandbox);
+}
+
+export async function createSandboxFromSnapshot() {
+  if (sandboxProviderFromEnv() === "vercel") {
+    return createVercelSandboxFromSnapshot();
+  }
+
+  if (sandboxProviderFromEnv() === "github") {
+    throw new Error("GitHub Actions provider does not create an interactive sandbox.");
+  }
+
+  return createE2BSandbox();
 }
 
 export async function getSandbox(sandboxId: string) {
+  const decoded = decodeSandboxId(sandboxId);
+  if (decoded.provider === "github") {
+    throw new Error("GitHub Actions jobs do not expose a live sandbox filesystem.");
+  }
+  if (decoded.provider === "e2b") {
+    return connectE2BSandbox(decoded.sandboxId);
+  }
+
   const Sandbox = await loadSandboxSdk();
-  return Sandbox.get({ ...sandboxCredentialsFromEnv(), sandboxId });
+  return Sandbox.get({ ...sandboxCredentialsFromEnv(), sandboxId: decoded.sandboxId });
 }
 
 export async function startOpenGameJob({
@@ -447,6 +661,29 @@ export async function startOpenGameJob({
   sourceUrl?: string | null;
   useContinue?: boolean;
 }) {
+  if (sandboxProviderFromEnv() === "github") {
+    const sandboxId = encodeSandboxId("github", jobId);
+    const dispatch = await maybeTriggerGithubOpenGameWorkflow({ jobId });
+    await prisma.job.update({
+      where: { id: jobId },
+      data: {
+        sandboxId,
+        status: "QUEUED",
+        sourceUrl: sourceUrl ?? null,
+        useContinue,
+        log: dispatch
+          ? `Queued GitHub Actions workflow ${dispatch.workflow} on ${dispatch.repo}@${dispatch.ref}.`
+          : "Queued for the next scheduled GitHub Actions worker run.",
+      },
+    });
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { status: "GENERATING" },
+    });
+
+    return sandboxId;
+  }
+
   if (!process.env.MINIMAX_API_KEY) {
     throw new Error("Missing MINIMAX_API_KEY.");
   }
@@ -455,12 +692,12 @@ export async function startOpenGameJob({
   try {
     sandbox = await createSandboxFromSnapshot();
   } catch (error) {
-    throw new Error(describeSandboxAuthError(error));
+    throw new Error(describeSandboxError(error));
   }
   const sandboxId = sandbox.sandboxId;
 
   if (!sandboxId) {
-    throw new Error("Vercel Sandbox did not return a sandboxId.");
+    throw new Error("Sandbox did not return a sandboxId.");
   }
 
   const env = {
@@ -488,7 +725,13 @@ export async function startOpenGameJob({
 
   await prisma.job.update({
     where: { id: jobId },
-    data: { sandboxId, status: "RUNNING", startedAt: new Date() },
+    data: {
+      sandboxId,
+      status: "RUNNING",
+      sourceUrl: sourceUrl ?? null,
+      useContinue,
+      startedAt: new Date(),
+    },
   });
   await prisma.game.update({
     where: { id: gameId },
@@ -531,8 +774,26 @@ export async function hasPlayableBuild(sandboxId: string) {
   return playableMarkerExists && indexHtml.trim().length > 0;
 }
 
-async function readSandboxPhase(sandboxId: string) {
-  return (await readSandboxText(sandboxId, PHASE_FILE).catch(() => "")).trim();
+async function readSandboxTextOrEmpty(sandboxId: string, path: string) {
+  try {
+    return await readSandboxText(sandboxId, path);
+  } catch (error) {
+    if (isSandboxUnrecoverableProvisioningError(error)) throw error;
+    return "";
+  }
+}
+
+async function readSandboxPhaseOrEmpty(sandboxId: string) {
+  return (await readSandboxTextOrEmpty(sandboxId, PHASE_FILE)).trim();
+}
+
+async function hasPlayableBuildOrFalse(sandboxId: string) {
+  try {
+    return await hasPlayableBuild(sandboxId);
+  } catch (error) {
+    if (isSandboxUnrecoverableProvisioningError(error)) throw error;
+    return false;
+  }
 }
 
 async function failJob(jobId: string, gameId: string, errorMsg: string) {
@@ -549,12 +810,24 @@ async function failJob(jobId: string, gameId: string, errorMsg: string) {
 
 export async function getJobProgress(jobId: string) {
   const job = await prisma.job.findUniqueOrThrow({ where: { id: jobId } });
-  if (!job.sandboxId) {
-    return { status: job.status.toLowerCase(), log: "", errorMsg: job.errorMsg };
+  if (!job.sandboxId || job.sandboxId.startsWith("github:")) {
+    if (
+      job.sandboxId?.startsWith("github:") &&
+      job.startedAt &&
+      job.status !== "DONE" &&
+      job.status !== "FAILED" &&
+      Date.now() - job.startedAt.getTime() > MAX_JOB_MS
+    ) {
+      const errorMsg = "Generation timed out after 30 minutes.";
+      await failJob(job.id, job.gameId, errorMsg);
+      return { status: "failed", log: tailLines(job.log ?? "", 40), errorMsg };
+    }
+
+    return { status: job.status.toLowerCase(), log: tailLines(job.log ?? "", 40), errorMsg: job.errorMsg };
   }
 
   if (job.status === "DONE" || job.status === "FAILED") {
-    return { status: job.status.toLowerCase(), log: "", errorMsg: job.errorMsg };
+    return { status: job.status.toLowerCase(), log: tailLines(job.log ?? "", 40), errorMsg: job.errorMsg };
   }
 
   if (job.startedAt && Date.now() - job.startedAt.getTime() > MAX_JOB_MS) {
@@ -564,13 +837,26 @@ export async function getJobProgress(jobId: string) {
     return { status: "failed", log: "", errorMsg };
   }
 
-  const [log, err, validationLog, phase, hasPlayable] = await Promise.all([
-    readSandboxText(job.sandboxId, PROGRESS_LOG).catch(() => ""),
-    readSandboxText(job.sandboxId, ERROR_LOG).catch(() => ""),
-    readSandboxText(job.sandboxId, VALIDATION_LOG).catch(() => ""),
-    readSandboxPhase(job.sandboxId),
-    hasPlayableBuild(job.sandboxId).catch(() => false),
-  ]);
+  let log = "";
+  let err = "";
+  let validationLog = "";
+  let phase = "";
+  let hasPlayable = false;
+
+  try {
+    [log, err, validationLog, phase, hasPlayable] = await Promise.all([
+      readSandboxTextOrEmpty(job.sandboxId, PROGRESS_LOG),
+      readSandboxTextOrEmpty(job.sandboxId, ERROR_LOG),
+      readSandboxTextOrEmpty(job.sandboxId, VALIDATION_LOG),
+      readSandboxPhaseOrEmpty(job.sandboxId),
+      hasPlayableBuildOrFalse(job.sandboxId),
+    ]);
+  } catch (error) {
+    const errorMsg = describeSandboxError(error);
+    await failJob(job.id, job.gameId, errorMsg);
+    await stopSandbox(job.sandboxId).catch(() => undefined);
+    return { status: "failed", log: "", errorMsg };
+  }
 
   const combinedLog = [log, validationLog ? `[validation log]\n${validationLog}` : ""].filter(Boolean).join("\n");
 
@@ -579,7 +865,15 @@ export async function getJobProgress(jobId: string) {
     return { status: "finishing", log: tailLines(combinedLog, 40), errorMsg: null };
   }
 
-  const exitCode = await readSandboxText(job.sandboxId, EXIT_CODE_FILE).catch(() => "");
+  let exitCode = "";
+  try {
+    exitCode = await readSandboxTextOrEmpty(job.sandboxId, EXIT_CODE_FILE);
+  } catch (error) {
+    const errorMsg = describeSandboxError(error);
+    await failJob(job.id, job.gameId, errorMsg);
+    await stopSandbox(job.sandboxId).catch(() => undefined);
+    return { status: "failed", log: tailLines(combinedLog, 40), errorMsg };
+  }
   const hasExited = exitCode.trim().length > 0;
 
   if (hasExited || /(401|429|authentication|unauthorized|invalid api key|ECONNREFUSED)/i.test(err)) {
@@ -602,13 +896,22 @@ export async function getJobProgress(jobId: string) {
 }
 
 export async function stopSandbox(sandboxId: string) {
+  if (sandboxId.startsWith("github:")) return;
   const sandbox = await getSandbox(sandboxId);
   await sandbox.stop?.();
 }
 
 export const sandboxPaths = {
+  workspaceRoot: WORKSPACE_ROOT,
+  opengameRoot: OPENGAME_ROOT,
   generatedDir: GENERATED_DIR,
   progressLog: PROGRESS_LOG,
   errorLog: ERROR_LOG,
   validationLog: VALIDATION_LOG,
+  exitCodeFile: EXIT_CODE_FILE,
+  phaseFile: PHASE_FILE,
+  validationReport: VALIDATION_REPORT,
+  playableMarker: PLAYABLE_MARKER,
+  runScript: RUN_SCRIPT,
+  validatorScript: VALIDATOR_SCRIPT,
 };

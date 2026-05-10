@@ -1,0 +1,48 @@
+name: OpenGame Generate
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Prisma Job id to generate"
+        required: false
+        type: string
+  schedule:
+    - cron: "*/5 * * * *"
+
+concurrency:
+  group: opengame-${{ inputs.job_id || 'poll' }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate playable game
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+      MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
+      MINIMAX_TEXT_MODEL: ${{ vars.MINIMAX_TEXT_MODEL }}
+      OPENGAME_GIT_URL: ${{ vars.OPENGAME_GIT_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run OpenGame worker
+        run: npx tsx scripts/run-github-opengame-job.ts "${{ inputs.job_id }}"

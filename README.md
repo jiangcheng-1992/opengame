@@ -6,11 +6,11 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 
 1. 使用 Node.js 20 或更高版本
 2. 安装依赖：`npm install`
-3. 配置环境变量：复制 `.env.example` 为 `.env`，填入真实值；本地 Vercel Sandbox 认证推荐先执行 `vercel link`，再执行 `vercel env pull` 生成/刷新 `.env.local`
+3. 配置环境变量：复制 `.env.example` 为 `.env`，填入真实值；默认生成运行时使用 GitHub Actions，需要配置 `GITHUB_DISPATCH_TOKEN`
 4. 生成 Prisma Client：`npm run prisma:generate`
 5. 启动：`npm run dev`
 
-可选：如果当前 Vercel Sandbox SDK/账号支持 snapshot，先跑 `npm run sandbox:build-opengame` 预构建 OpenGame + Chromium 环境，再把输出的 `OPENGAME_SNAPSHOT_ID` 写入环境变量。
+可选：如果显式设置 `SANDBOX_PROVIDER=e2b`，可把预构建模板 ID 写入 `E2B_TEMPLATE_ID`。如果显式设置 `SANDBOX_PROVIDER=vercel`，且当前 Vercel Sandbox SDK/账号支持 snapshot，可先跑 `npm run sandbox:build-opengame` 预构建 OpenGame + Chromium 环境，再把输出的 `OPENGAME_SNAPSHOT_ID` 写入环境变量。
 
 ## 关键环境变量
 
@@ -20,8 +20,15 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `MINIMAX_BASE_URL`
 - `MINIMAX_TEXT_BASE_URL`：可选；流式头脑风暴和游戏标题、摘要、标签等元数据包装使用，缺失时复用 `MINIMAX_BASE_URL`
 - `MINIMAX_TEXT_MODEL`：可选；默认 `MiniMax-M2.7`
+- `SANDBOX_PROVIDER`：可选；默认 `github`；显式设为 `e2b` 或 `vercel` 时使用对应 Sandbox 兼容路径
+- `GITHUB_DISPATCH_TOKEN`：可选；配置后 Vercel 会即时触发 GitHub Actions workflow；缺失时等待 GitHub 定时 worker 轮询 `QUEUED` 任务
+- `GITHUB_DISPATCH_REPO`：默认 `zhang1590424-rgb/opengame-astrocade-mvp`
+- `GITHUB_DISPATCH_WORKFLOW`：默认 `opengame-generate.yml`
+- `GITHUB_DISPATCH_REF`：默认 `main`
+- `E2B_API_KEY`：仅 `SANDBOX_PROVIDER=e2b` 时必需
+- `E2B_TEMPLATE_ID`：可选；有预构建 E2B OpenGame 环境时使用
 - `OPENGAME_SNAPSHOT_ID`：可选；有预构建 OpenGame Sandbox snapshot 时使用
-- `OPENGAME_GIT_URL`：可选；没有 snapshot 时，Sandbox 会在任务内冷启动安装 OpenGame
+- `OPENGAME_GIT_URL`：可选；GitHub Actions 和 Sandbox 冷启动都会按它安装 OpenGame
 - `VERCEL_OIDC_TOKEN` 或 `VERCEL_TOKEN` + `VERCEL_TEAM_ID` + `VERCEL_PROJECT_ID`；本地优先使用 `VERCEL_OIDC_TOKEN`，它会过期，出现 Sandbox 403 / OIDC refresh 错误时重新执行 `vercel env pull`
 
 真实密钥只放本地 `.env` 或 Vercel Environment Variables，不提交到仓库。
@@ -30,19 +37,20 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 
 - GitHub 仓库可以保持私有；Vercel 生产部署会生成公开的 `*.vercel.app` 地址供任何人试玩。
 - 生产部署前先在 Vercel Project Settings 配置上面的环境变量，或用 `vercel env add` 写入；不要把真实密钥提交到仓库。
+- GitHub Actions worker 需要在仓库 Secrets 配置 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY`；可选配置 `MINIMAX_BASE_URL`，仓库 Variables 可选配置 `MINIMAX_TEXT_MODEL`、`OPENGAME_GIT_URL`。
 - 根目录 `vercel.json` 固定 `"framework": "nextjs"`，覆盖 Vercel 项目里可能残留的 `Other` preset，避免只发布 `public/` 静态文件而让 App Router 页面 404。
 - 根目录 `.vercelignore` 明确排除 `.env`、`.env.*`、`node_modules` 和 `.next`，避免本地密钥或构建产物被 CLI 当作源码上传。
 - 部署命令：`vercel deploy --prod`。部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
 - 匿名身份由服务端按需写入 `anon_id` cookie；公开试玩页不经过全局 middleware，避免 Vercel middleware 故障影响静态游戏。
-- 没有数据库或生成凭据时，公开站点仍会展示并播放内置精选游戏；真实创建新游戏需要 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 和 Vercel Sandbox 凭据齐全。
+- 没有数据库或生成凭据时，公开站点仍会展示并播放内置精选游戏；真实创建新游戏需要 Vercel 侧 `DATABASE_URL`，以及 GitHub Secrets 侧 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 齐全。配置 `GITHUB_DISPATCH_TOKEN` 后生成会更快启动。
 
 ## 功能闭环
 
 - 匿名用户通过 `anon_id` httpOnly cookie 创建作品，不做登录。
 - 作品广场内置 21 款“内置精选”可玩游戏：这些游戏来自 `public/builtin-games/` 的静态 HTML 和位图封面，用于新用户直接试玩；它们不写入 Prisma，不代表 OpenGame 真生成结果。
-- 创建页先进入流式头脑风暴，AI 问齐核心玩法、操作方式、胜负目标、视觉/题材风格后，用户确认最终 brief 才启动 Vercel Sandbox 中的 OpenGame 任务。
+- 创建页先进入流式头脑风暴，AI 问齐核心玩法、操作方式、胜负目标、视觉/题材风格后，用户确认最终 brief 才启动 GitHub Actions 中的 OpenGame 任务。
 - 头脑风暴草稿使用 `Game.DRAFT` 和 `Message` 全程落库；草稿显示在“我的作品”，不进入公共 Gallery。
-- OpenGame 产出的任意 HTML 会归一化为 `index.html`，但不会立刻发布；Sandbox 会用 Headless Chromium 自动试玩，验证加载、点击开始、键盘输入和画面/状态变化。
+- OpenGame 产出的任意 HTML 会归一化为 `index.html`，但不会立刻发布；GitHub Actions worker 会用 Headless Chromium 自动试玩，验证加载、点击开始、键盘输入和画面/状态变化。
 - 自动试玩失败时，系统会把验证报告交回 OpenGame 最多修复 2 轮；仍失败则标记失败，不进入可玩作品流。
 - 只有通过自动试玩的产物才会上传到 Vercel Blob 并进入 `READY`；详情页通过同源 `/api/games/:id/files/...` 代理播放，避免 Blob 默认 CSP 拦截内联脚本导致游戏白屏。
 - 详情页支持 Like、playCount 和继续修改；继续修改失败时保留旧版本可玩入口。
@@ -63,8 +71,9 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `npm run build`
 - `npx prisma generate`
 - `npm run smoke:opengame`
+- `npm run worker:github-opengame <jobId>`
 - `npm run smoke:sandbox`
 
-`smoke:opengame` 需要本机可执行 `opengame` 或设置 `OPENGAME_BIN`。`smoke:sandbox` 需要可用的 Vercel Sandbox 凭据；脚本会读取 `.env` 后再读取 `.env.local`，方便使用 `vercel env pull` 刷新的 OIDC token。没有 `OPENGAME_SNAPSHOT_ID` 时，应用运行时会走冷启动安装 OpenGame 的路径。
+`smoke:opengame` 需要本机可执行 `opengame` 或设置 `OPENGAME_BIN`。`worker:github-opengame` 需要传入真实 `Job` id，并要求 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 可用。`smoke:sandbox` 仅用于 `e2b` / `vercel` 兼容路径；脚本会读取 `.env` 后再读取 `.env.local`。
 
-涉及 `JobStatus` 枚举变更后，需要对目标数据库执行 Prisma schema 同步，例如本地开发库运行 `npx prisma db push`。
+涉及 `Job` 字段或 `JobStatus` 枚举变更后，需要对目标数据库执行 Prisma schema 同步，例如本地开发库运行 `npx prisma db push`。

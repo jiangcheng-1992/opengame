@@ -6,15 +6,16 @@
 
 ## 执行原则
 - 规则先行：新增目录、脚本、接口前先确认是否符合本文件；需要改规则时先改本文件。
-- 密钥不进代码：`MINIMAX_API_KEY`、`BLOB_READ_WRITE_TOKEN`、`DATABASE_URL`、`VERCEL_OIDC_TOKEN`、`VERCEL_TOKEN` 只通过环境变量提供。
+- 密钥不进代码：`MINIMAX_API_KEY`、`BLOB_READ_WRITE_TOKEN`、`DATABASE_URL`、`GITHUB_DISPATCH_TOKEN`、`E2B_API_KEY`、`VERCEL_OIDC_TOKEN`、`VERCEL_TOKEN` 只通过环境变量提供。
 - 本地 env 不上传：`.env`、`.env.local`、`.env.*` 既不能进 Git，也不能被 Vercel CLI 当作源码上传；根目录 `.vercelignore` 必须持续排除这些文件，线上密钥只配到 Vercel Environment Variables。
-- 不用 mock 冒充完成：生成链路默认走 Vercel Sandbox + MiniMax + OpenGame 真接口。没有凭据时允许实现代码和本地构建，但必须明确标注未跑真实冒烟；页面可以显示真实依赖不可用状态，但不能用假作品冒充数据。
+- 不用 mock 冒充完成：生成链路默认走 GitHub Actions + MiniMax + OpenGame 真接口；`SANDBOX_PROVIDER=e2b` 或 `SANDBOX_PROVIDER=vercel` 时才走对应 Sandbox 兼容路径。没有凭据时允许实现代码和本地构建，但必须明确标注未跑真实冒烟；页面可以显示真实依赖不可用状态，但不能用假作品冒充数据。
 - 改完要验证：至少跑 `npm run lint`、`npm run build`、`npx prisma generate`。涉及 UI 时启动本地服务并打开页面验。
 
 ## 工程约定
 - Next.js App Router 代码放在 `app/`。
 - 复用 UI 组件放在 `components/`。
 - 服务端能力和第三方集成放在 `lib/`，不要把外部 SDK 细节散落到 route handler。
+- GitHub Actions 生成 worker 放在 `.github/workflows/opengame-generate.yml` 和 `scripts/run-github-opengame-job.ts`；Vercel 只负责创建 Job 并 dispatch workflow，不在 route handler 里内嵌生成脚本。
 - 内置可玩游戏放在 `public/builtin-games/`：每款游戏一个 `<slug>/index.html` 和一张生成位图封面 `cover.png`，共享运行时代码放在 `public/builtin-games/shared/`；`scripts/generate-builtin-games.ts` 读取共享 `engine.js` 生成入口页，不要把整段引擎重新内嵌回脚本。
 - 内置游戏清单放在 `lib/builtin-games.ts`，只有同时具备 `index.html` 和 `cover.png` 的完成项才能进入清单；半成品目录必须删除或保持不被引用。
 - Prisma schema 放在 `prisma/schema.prisma`，数据库变更先改 schema，再写业务。
@@ -35,7 +36,7 @@
 - 详情页播放必须走同源 `/api/games/:id/files/...` 代理；不要直接把 Blob HTML URL 塞进 iframe，因为 Blob 默认 CSP 会拦截内联脚本，导致很多单文件游戏白屏。
 - 封面图生成失败不能阻塞游戏可玩。
 - 内置精选游戏是 onboarding 内容，不代表 OpenGame 真生成结果；页面必须明确标记“内置精选”，不能用它们冒充真实生成作品。
-- `OPENGAME_SNAPSHOT_ID` 是加速项，不是硬依赖；缺失或不可用时允许 Sandbox 内按 `OPENGAME_GIT_URL` 冷启动安装 OpenGame。
+- GitHub Actions 默认按 `OPENGAME_GIT_URL` 冷启动安装 OpenGame；`E2B_TEMPLATE_ID` / `OPENGAME_SNAPSHOT_ID` 是 Sandbox 兼容路径的加速项，不是硬依赖。`OPENGAME_SNAPSHOT_ID` 仅用于 Vercel Sandbox 兼容路径。
 
 ## 验证约定
 - 本地基础验证：`npm run lint`、`npm run build`、`npx prisma generate`。

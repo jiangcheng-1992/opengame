@@ -1,5 +1,11 @@
+import { execFile } from "node:child_process";
+import { readdir, readFile, rm } from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
 import { put } from "@vercel/blob";
 import { getSandbox } from "@/lib/sandbox";
+
+const execFileAsync = promisify(execFile);
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -91,6 +97,34 @@ async function sandboxFileToBuffer(sandboxId: string, path: string) {
   return Buffer.from(await commandStdout(result), "base64");
 }
 
+function isIgnoredLocalPath(file: string) {
+  return (
+    file === "node_modules" ||
+    file === ".git" ||
+    file === "playwright-report" ||
+    file === "test-results" ||
+    file.endsWith(".log")
+  );
+}
+
+async function listLocalFiles(root: string, prefix = ""): Promise<string[]> {
+  const entries = await readdir(path.join(root, prefix), { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    if (isIgnoredLocalPath(entry.name)) continue;
+
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...(await listLocalFiles(root, relativePath)));
+    } else if (entry.isFile()) {
+      files.push(relativePath);
+    }
+  }
+
+  return files;
+}
+
 export async function listSandboxFiles(sandboxId: string, root: string) {
   const sandbox = await getSandbox(sandboxId);
   const result = await sandbox.runCommand({
@@ -103,6 +137,31 @@ export async function listSandboxFiles(sandboxId: string, root: string) {
     .map((line) => line.trim())
     .filter(Boolean)
     .filter((line) => !line.includes("node_modules/"));
+}
+
+export async function uploadLocalGame({ gameId, root }: { gameId: string; root: string }) {
+  const files = await listLocalFiles(root);
+  let playUrl: string | null = null;
+
+  for (const file of files) {
+    const body = await readFile(path.join(root, file));
+    const blob = await put(`games/${gameId}/play/${file}`, body, {
+      access: "public",
+      contentType: CONTENT_TYPES[extname(file)] ?? "application/octet-stream",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+
+    if (file === "index.html") {
+      playUrl = blob.url;
+    }
+  }
+
+  if (!playUrl) {
+    throw new Error("Generated game does not include index.html.");
+  }
+
+  return { playUrl, fileCount: files.length };
 }
 
 export async function uploadSandboxGame({
@@ -136,6 +195,45 @@ export async function uploadSandboxGame({
   }
 
   return { playUrl, fileCount: files.length };
+}
+
+export async function uploadLocalSourceArchive({ gameId, root }: { gameId: string; root: string }) {
+  const archivePath = path.join("/tmp", `${gameId}.zip`);
+
+  await rm(archivePath, { force: true });
+  await execFileAsync(
+    "zip",
+    [
+      "-qr",
+      archivePath,
+      ".",
+      "-x",
+      "node_modules/*",
+      "-x",
+      "*/node_modules/*",
+      "-x",
+      ".git/*",
+      "-x",
+      "*/.git/*",
+      "-x",
+      "playwright-report/*",
+      "-x",
+      "test-results/*",
+      "-x",
+      "*.log",
+    ],
+    { cwd: root },
+  );
+
+  const body = await readFile(archivePath);
+  const blob = await put(`games/${gameId}/source.zip`, body, {
+    access: "public",
+    contentType: "application/zip",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+
+  return blob.url;
 }
 
 export async function uploadSourceArchive({
