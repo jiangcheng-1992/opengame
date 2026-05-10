@@ -15,9 +15,10 @@
 - Next.js App Router 代码放在 `app/`。
 - 复用 UI 组件放在 `components/`。
 - 服务端能力和第三方集成放在 `lib/`，不要把外部 SDK 细节散落到 route handler。
-- 内置可玩游戏放在 `public/builtin-games/`：每款游戏一个 `<slug>/index.html` 和一张生成位图封面 `cover.png`，共享运行时代码放在 `public/builtin-games/shared/`。
+- 内置可玩游戏放在 `public/builtin-games/`：每款游戏一个 `<slug>/index.html` 和一张生成位图封面 `cover.png`，共享运行时代码放在 `public/builtin-games/shared/`；`scripts/generate-builtin-games.ts` 读取共享 `engine.js` 生成入口页，不要把整段引擎重新内嵌回脚本。
 - 内置游戏清单放在 `lib/builtin-games.ts`，只有同时具备 `index.html` 和 `cover.png` 的完成项才能进入清单；半成品目录必须删除或保持不被引用。
 - Prisma schema 放在 `prisma/schema.prisma`，数据库变更先改 schema，再写业务。
+- 根 `middleware.ts` 在 Vercel 上使用 `runtime: "nodejs"`；不要随手改回 Edge runtime，当前 Next/Vercel Edge Middleware 会在生产包里触发 `__dirname is not defined`。
 - 设计和决策文档放在 `docs/`，命名格式为 `YYYY-MM-DD-<topic>-design.md`。
 - 脚本放在 `scripts/`，脚本必须可重复执行，失败时输出明确原因。
 

@@ -5,6 +5,7 @@ node_modules
 .env.vercel
 .env*.local
 *.log
+tsconfig.tsbuildinfo
 dist
 coverage
 prisma/*.db

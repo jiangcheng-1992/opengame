@@ -32,6 +32,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - 生产部署前先在 Vercel Project Settings 配置上面的环境变量，或用 `vercel env add` 写入；不要把真实密钥提交到仓库。
 - 根目录 `.vercelignore` 明确排除 `.env`、`.env.*`、`node_modules` 和 `.next`，避免本地密钥或构建产物被 CLI 当作源码上传。
 - 部署命令：`vercel deploy --prod`。部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
+- 匿名身份中间件在 Vercel 上使用 Node.js runtime，避免 Edge Middleware 生产包触发 `__dirname is not defined`。
 - 没有数据库或生成凭据时，公开站点仍会展示并播放内置精选游戏；真实创建新游戏需要 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 和 Vercel Sandbox 凭据齐全。
 
 ## 功能闭环
@@ -51,7 +52,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 ## 内置精选游戏
 
 - 当前保留 21 款完成项；完成标准是 `public/builtin-games/<slug>/index.html` 和 `public/builtin-games/<slug>/cover.png` 同时存在，并且 `lib/builtin-games.ts` 有对应元数据。
-- `public/builtin-games/shared/engine.js` 是共享 Canvas 运行时；每款游戏入口由 `npm run builtin:generate` 根据 `lib/builtin-games.ts` 生成。
+- `public/builtin-games/shared/engine.js` 是共享 Canvas 运行时和内置游戏引擎单一事实源；每款游戏入口由 `npm run builtin:generate` 读取该引擎并根据 `lib/builtin-games.ts` 生成。
 - 封面是生图技能生成的位图资产，直接保存为 `cover.png`；不要用 SVG 占位封面冒充完成。
 - 如果删除半成品游戏，必须同步删除静态目录并从 `lib/builtin-games.ts` 移除，避免首页出现缺封面的卡片。
 
