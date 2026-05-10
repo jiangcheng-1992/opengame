@@ -1,4 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import * as nextServer from "next/server.js";
+import type { NextRequest } from "next/server";
+
+const { NextResponse } = nextServer as typeof import("next/server");
 
 const ANON_COOKIE = "anon_id";
 const ANON_HEADER = "x-anon-id";
