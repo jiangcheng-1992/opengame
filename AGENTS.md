@@ -19,6 +19,7 @@
 - 内置游戏清单放在 `lib/builtin-games.ts`，只有同时具备 `index.html` 和 `cover.png` 的完成项才能进入清单；半成品目录必须删除或保持不被引用。
 - Prisma schema 放在 `prisma/schema.prisma`，数据库变更先改 schema，再写业务。
 - 匿名身份在 `lib/auth.ts` 按需读取/写入 `anon_id` cookie；不要为此恢复全局 `middleware.ts`，避免 Vercel middleware 拦截静态试玩页。
+- Vercel 部署框架必须由根目录 `vercel.json` 固定为 `nextjs`；不要删除该文件，否则项目设置里的 `Other` preset 会把站点当静态 `public` 输出处理，导致 App Router 动态路由 404。
 - 设计和决策文档放在 `docs/`，命名格式为 `YYYY-MM-DD-<topic>-design.md`。
 - 脚本放在 `scripts/`，脚本必须可重复执行，失败时输出明确原因。
 

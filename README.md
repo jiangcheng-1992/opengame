@@ -30,6 +30,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 
 - GitHub 仓库可以保持私有；Vercel 生产部署会生成公开的 `*.vercel.app` 地址供任何人试玩。
 - 生产部署前先在 Vercel Project Settings 配置上面的环境变量，或用 `vercel env add` 写入；不要把真实密钥提交到仓库。
+- 根目录 `vercel.json` 固定 `"framework": "nextjs"`，覆盖 Vercel 项目里可能残留的 `Other` preset，避免只发布 `public/` 静态文件而让 App Router 页面 404。
 - 根目录 `.vercelignore` 明确排除 `.env`、`.env.*`、`node_modules` 和 `.next`，避免本地密钥或构建产物被 CLI 当作源码上传。
 - 部署命令：`vercel deploy --prod`。部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
 - 匿名身份由服务端按需写入 `anon_id` cookie；公开试玩页不经过全局 middleware，避免 Vercel middleware 故障影响静态游戏。
