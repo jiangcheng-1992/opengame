@@ -201,4 +201,9 @@ npm run dev
 
 ## 当前结论
 
-本次内置游戏 FC 化升级已进入可验证状态。上线前需要完成基础验证和浏览器抽测，确认至少首页、内置游戏静态入口、详情页 iframe 均可公开访问和交互。
+2026-05-10 已完成上线验证。生产域名 `https://opengame-astrocade-mvp.vercel.app/`、内置游戏详情页 `/games/builtin-neon-bricks` 和静态入口 `/builtin-games/neon-bricks/index.html` 均返回 200；浏览器抽测确认详情页 iframe 内有 1 个游戏 canvas，可点击并接收方向键输入。
+
+部署修复要点：
+
+- 公开试玩链路不再依赖全局 `middleware.ts`；匿名身份在 `lib/auth.ts` 中按需读取/写入 `anon_id` cookie。
+- Vercel framework 由根目录 `vercel.json` 固定为 `nextjs`，避免项目设置中的 `Other` preset 只发布 `public/` 静态目录，导致 App Router 首页和详情页 404。
