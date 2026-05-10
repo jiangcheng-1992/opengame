@@ -1767,6 +1767,7 @@ h3 {
 }
 
 .create-chat-workbench {
+  align-items: stretch;
   gap: 18px;
   min-height: calc(100dvh - 44px);
 }
@@ -1792,6 +1793,25 @@ h3 {
   font-weight: 620;
 }
 
+.chat-topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-status-pill {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 560;
+}
+
 .chat-messages {
   min-height: 420px;
   max-height: calc(100dvh - 248px);
@@ -1804,6 +1824,24 @@ h3 {
 
 .chat-row {
   gap: 10px;
+}
+
+.chat-row.user {
+  justify-content: flex-end;
+}
+
+.chat-message-stack {
+  max-width: min(690px, 78%);
+  display: grid;
+  gap: 8px;
+}
+
+.chat-row.user .chat-message-stack {
+  justify-items: end;
+}
+
+.chat-row.user .chat-bubble {
+  text-align: left;
 }
 
 .chat-avatar {
@@ -1819,7 +1857,7 @@ h3 {
 }
 
 .chat-bubble {
-  max-width: min(690px, 78%);
+  max-width: 100%;
   border-color: rgba(38, 35, 30, 0.1);
   border-radius: 12px;
   padding: 12px 13px;
@@ -1846,7 +1884,16 @@ h3 {
 }
 
 .chat-row.pending .chat-bubble {
-  min-width: 66px;
+  min-width: 152px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.typing-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 560;
 }
 
 .typing-dot {
@@ -1858,6 +1905,19 @@ h3 {
 .suggestion-grid {
   padding: 0 18px 14px;
   gap: 8px;
+}
+
+.suggestion-grid.chat-suggestions {
+  width: min(100%, 640px);
+  padding: 0;
+  grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
+}
+
+.chat-suggestions .suggestion-label {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 560;
 }
 
 .suggestion-grid button,
@@ -1873,6 +1933,13 @@ h3 {
   font-weight: 560;
 }
 
+.chat-suggestions button {
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .suggestion-grid button:hover:not(:disabled),
 .quick-prompts button:hover:not(:disabled) {
   border-color: rgba(201, 100, 66, 0.42);
@@ -1881,6 +1948,12 @@ h3 {
 
 .quick-prompts.compact button {
   min-height: 38px;
+  font-size: 12px;
+}
+
+.composer-hint {
+  margin: 10px 18px 7px;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -1922,8 +1995,8 @@ h3 {
 }
 
 .brief-panel {
-  width: 376px;
-  flex: 0 0 376px;
+  width: 324px;
+  flex: 0 0 324px;
   padding: 18px;
   top: 18px;
   background: rgba(255, 253, 248, 0.94);
@@ -1952,6 +2025,10 @@ h3 {
 .brief-card.muted {
   border-color: var(--line);
   background: var(--surface-2);
+}
+
+.current-step-card {
+  margin-bottom: 12px;
 }
 
 .brief-card-label {
@@ -1983,6 +2060,12 @@ h3 {
   color: #287b69;
 }
 
+.slot-list li.active {
+  border-color: rgba(201, 100, 66, 0.34);
+  background: #fff7f2;
+  color: var(--primary);
+}
+
 .slot-list li.pending {
   color: #9a6725;
 }
@@ -2008,6 +2091,10 @@ h3 {
   color: var(--primary);
   background: #fff7f2;
   border-color: rgba(201, 100, 66, 0.28);
+}
+
+.finalize-panel {
+  margin-top: 14px;
 }
 
 .generation-pipeline {
@@ -2413,16 +2500,34 @@ h3 {
   }
 
   .chat-bubble {
-    max-width: 88%;
+    max-width: 100%;
     font-size: 14px;
+  }
+
+  .chat-message-stack {
+    max-width: 92%;
+  }
+
+  .chat-status-pill {
+    display: none;
   }
 
   .chat-composer {
     margin: 0 14px 14px;
   }
 
+  .composer-hint {
+    margin: 8px 14px 7px;
+  }
+
   .suggestion-grid {
     padding: 0 14px 12px;
+  }
+
+  .suggestion-grid.chat-suggestions {
+    width: 100%;
+    padding: 0;
+    grid-template-columns: 1fr;
   }
 
   .brief-panel {
