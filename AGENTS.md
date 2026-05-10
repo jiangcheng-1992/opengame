@@ -16,6 +16,7 @@
 - 复用 UI 组件放在 `components/`。
 - 服务端能力和第三方集成放在 `lib/`，不要把外部 SDK 细节散落到 route handler。
 - GitHub Actions 生成 worker 放在 `.github/workflows/opengame-generate.yml` 和 `scripts/run-github-opengame-job.ts`；Vercel 负责创建 Job、可选 dispatch workflow，并通过 `/api/github-worker/*` 代理 MiniMax、Blob 上传和 Prisma 回写，避免把生产密钥复制到 GitHub Secrets。
+- 生产环境 `https://opengame.zz-fancy.cloud` 依赖 Vercel Production 的 `GITHUB_DISPATCH_TOKEN` 即时触发 GitHub Actions；2026-05-10 已配置并验证。排查线上生成延迟时，详情页日志应优先确认是否出现 `Queued GitHub Actions workflow ... @main`；若变成定时 worker fallback，检查 token 是否缺失或过期，并在修复 env 后重新部署。
 - 内置可玩游戏放在 `public/builtin-games/`：每款游戏一个 `<slug>/index.html` 和一张生成位图封面 `cover.png`，共享运行时代码放在 `public/builtin-games/shared/`；`scripts/generate-builtin-games.ts` 读取共享 `engine.js` 生成入口页，不要把整段引擎重新内嵌回脚本。
 - 内置游戏清单放在 `lib/builtin-games.ts`，只有同时具备 `index.html` 和 `cover.png` 的完成项才能进入清单；半成品目录必须删除或保持不被引用。
 - Prisma schema 放在 `prisma/schema.prisma`，数据库变更先改 schema，再写业务。
@@ -41,4 +42,5 @@
 ## 验证约定
 - 本地基础验证：`npm run lint`、`npm run build`、`npx prisma generate`。
 - 真链路冒烟：最小 prompt 生成一个单屏游戏，确认同源代理 playUrl 可 iframe 播放。
+- 生产变更冒烟：至少创建 2-3 个真实作品，覆盖键盘动作、鼠标点击、复杂状态/胜负；确认 GitHub Actions run 为 `workflow_dispatch` 且成功、作品进入 `READY`、详情页 iframe/canvas 可交互、公共 Gallery 可见。
 - Sandbox 使用后必须停止释放，除非为了排查失败临时保留，并在日志/文档中说明。

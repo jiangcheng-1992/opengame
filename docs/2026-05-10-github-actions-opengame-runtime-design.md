@@ -33,7 +33,7 @@ Use GitHub Actions as the default low-frequency generation worker.
 Vercel environment variables:
 
 - `SANDBOX_PROVIDER=github`
-- Optional: `GITHUB_DISPATCH_TOKEN`
+- `GITHUB_DISPATCH_TOKEN` for immediate `workflow_dispatch`; without it the app can only wait for the scheduled poller. Use a fine-grained GitHub token when possible, limited to `zhang1590424-rgb/opengame-astrocade-mvp` with `Actions: Read and write`.
 - `GITHUB_DISPATCH_REPO=zhang1590424-rgb/opengame-astrocade-mvp`
 - `GITHUB_DISPATCH_WORKFLOW=opengame-generate.yml`
 - `GITHUB_DISPATCH_REF=main`
@@ -53,3 +53,25 @@ Local validation remains:
 - `npm run build`
 
 True smoke validation requires the workflow file to be pushed and the Vercel/GitHub secrets above to be configured, then creating one minimal game from the production UI.
+
+## Production Status on 2026-05-10
+
+Production alias:
+
+- `https://opengame.zz-fancy.cloud`
+
+Deployment and configuration:
+
+- Vercel Production has `GITHUB_DISPATCH_TOKEN` configured as an encrypted environment variable.
+- A production redeploy was completed after adding the variable, so Serverless Functions read the new value.
+- New generation jobs now log `Queued GitHub Actions workflow opengame-generate.yml on zhang1590424-rgb/opengame-astrocade-mvp@main.` instead of the scheduled-worker fallback.
+
+Real user flow smoke cases:
+
+| Case | Game ID | GitHub run | Result |
+| --- | --- | --- | --- |
+| Stealth heist with rooms, patrol vision, keys, vault, timer | `cmozk14z00001l404p2rao5ac` | `25624918394` | `workflow_dispatch` succeeded; detail page READY; iframe canvas accepted click and keyboard input with 0 fatal browser errors |
+| Alchemy chain reaction with 7x7 grid, element spread rules, recipe goals | `cmozk2e4c0007jo04b18m9brs` | `25624949459` | `workflow_dispatch` succeeded; automatic playable validation passed after longer OpenGame self-test; detail page READY; iframe canvas accepted clicks with 0 fatal browser errors |
+| Boss bullet-hell with 3 phases, slow movement, shooting, boss HP | `cmozk4hbm000fjo04xlr72h8y` | `25624980275` | `workflow_dispatch` succeeded; detail page READY; iframe canvas accepted click and keyboard input with 0 fatal browser errors |
+
+All three public works appeared in Gallery after publishing.

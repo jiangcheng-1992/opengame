@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { CalendarDays, Gamepad2, Heart, Play } from "lucide-react";
 
 type GameCardProps = {
@@ -17,6 +18,7 @@ type GameCardProps = {
     ownedByMe?: boolean;
     isBuiltin?: boolean;
   };
+  priority?: boolean;
 };
 
 function formatCount(value: number) {
@@ -74,7 +76,7 @@ function displayLabel(label: string) {
   return labels[key] ?? label;
 }
 
-export function GameCard({ game }: GameCardProps) {
+export function GameCard({ game, priority = false }: GameCardProps) {
   const isReady = game.status === "ready";
   const isDraft = game.status === "draft";
   const tags = visibleTags(game);
@@ -91,11 +93,13 @@ export function GameCard({ game }: GameCardProps) {
     >
       <div className="card-media">
         {game.coverUrl ? (
-          <span
+          <Image
+            src={game.coverUrl}
+            alt={`${game.title} 封面`}
+            fill
+            sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1180px) calc((100vw - 252px - 24px) / 2), 260px"
             className="card-cover"
-            role="img"
-            aria-label={`${game.title} 封面`}
-            style={{ backgroundImage: `url(${game.coverUrl})` }}
+            priority={priority}
           />
         ) : (
           <span className="card-placeholder" aria-hidden>

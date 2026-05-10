@@ -1,27 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, Send, WandSparkles } from "lucide-react";
-
-function errorMessage(payload: unknown, fallback: string) {
-  if (typeof payload === "string") return payload;
-  if (!payload || typeof payload !== "object") return fallback;
-  if ("error" in payload) {
-    const error = payload.error;
-    if (typeof error === "string") return error;
-    if (error && typeof error === "object") {
-      if ("formErrors" in error && Array.isArray(error.formErrors) && error.formErrors[0]) {
-        return String(error.formErrors[0]);
-      }
-      if ("fieldErrors" in error && error.fieldErrors && typeof error.fieldErrors === "object") {
-        const first = Object.values(error.fieldErrors).flat()[0];
-        if (first) return String(first);
-      }
-    }
-  }
-  return fallback;
-}
+import { Heart, PencilLine, WandSparkles } from "lucide-react";
 
 export function GameActions({
   gameId,
@@ -37,8 +19,6 @@ export function GameActions({
   canContinue: boolean;
 }) {
   const router = useRouter();
-  const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState("");
   const [likedNow, setLikedNow] = useState(liked);
   const [isPending, startTransition] = useTransition();
   const likeStorageKey = `builtin-like:${gameId}`;
@@ -70,24 +50,6 @@ export function GameActions({
     });
   }
 
-  function continueGame() {
-    setError("");
-    startTransition(async () => {
-      const response = await fetch(`/api/games/${gameId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setError(errorMessage(payload, "继续修改失败。"));
-        return;
-      }
-      router.push(`/games/${gameId}?job=${payload.jobId}`);
-      router.refresh();
-    });
-  }
-
   return (
     <section className="panel action-panel" aria-label="游戏操作">
       <div className="action-head">
@@ -107,25 +69,17 @@ export function GameActions({
 
       <div className="action-fields">
         {ownedByMe ? (
-          <div className="field">
-            <label htmlFor="continue">继续修改</label>
-            <input
-              id="continue"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="比如：增加第二关和更明显的失败提示"
-              disabled={!canContinue}
-            />
-            <button
-              className="button primary"
-              type="button"
-              onClick={continueGame}
-              disabled={isPending || !canContinue || prompt.length < 4}
-            >
-              <Send size={16} aria-hidden />
-              提交修改
+          canContinue ? (
+            <Link className="button primary" href={`/games/${gameId}/edit`}>
+              <PencilLine size={17} aria-hidden />
+              进入修改工作台
+            </Link>
+          ) : (
+            <button className="button secondary" type="button" disabled>
+              <PencilLine size={17} aria-hidden />
+              生成完成后可修改
             </button>
-          </div>
+          )
         ) : null}
       </div>
       {!ownedByMe ? (
@@ -134,7 +88,6 @@ export function GameActions({
           {isBuiltin ? "内置精选只用于试玩示例。" : "继续修改只开放给作者。"}
         </p>
       ) : null}
-      {error ? <p className="error">{error}</p> : null}
     </section>
   );
 }

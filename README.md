@@ -2,6 +2,12 @@
 
 OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML5 游戏，并支持公共 Gallery、我的作品、详情播放、继续修改和 Like。
 
+## 生产环境
+
+- 当前公开生产入口：`https://opengame.zz-fancy.cloud`。Vercel 每次生产部署仍会生成对应的 `*.vercel.app` 地址，但对外验证优先使用这个别名。
+- 2026-05-10 已确认 Vercel Production 配置了 `GITHUB_DISPATCH_TOKEN`，创建作品后会即时触发 GitHub Actions `opengame-generate.yml`，详情页日志应出现 `Queued GitHub Actions workflow ... @main`。
+- 如果线上详情页日志退化为 `Queued for the next scheduled GitHub Actions worker run.`，优先检查 `GITHUB_DISPATCH_TOKEN` 是否缺失或过期；修复环境变量后必须重新 `vercel deploy --prod`，旧部署不会自动读取新值。
+
 ## 本地启动
 
 1. 使用 Node.js 20 或更高版本
@@ -21,7 +27,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `MINIMAX_TEXT_BASE_URL`：可选；流式头脑风暴和游戏标题、摘要、标签等元数据包装使用，缺失时复用 `MINIMAX_BASE_URL`
 - `MINIMAX_TEXT_MODEL`：可选；默认 `MiniMax-M2.7`
 - `SANDBOX_PROVIDER`：可选；默认 `github`；显式设为 `e2b` 或 `vercel` 时使用对应 Sandbox 兼容路径
-- `GITHUB_DISPATCH_TOKEN`：可选；配置后 Vercel 会即时触发 GitHub Actions workflow；缺失时等待 GitHub 定时 worker 轮询 `QUEUED` 任务
+- `GITHUB_DISPATCH_TOKEN`：可选但生产建议必配；配置后 Vercel 会即时触发 GitHub Actions workflow；缺失时等待 GitHub 定时 worker 轮询 `QUEUED` 任务。推荐使用 fine-grained token，只授权本仓库 `Actions: Read and write`
 - `GITHUB_DISPATCH_REPO`：默认 `zhang1590424-rgb/opengame-astrocade-mvp`
 - `GITHUB_DISPATCH_WORKFLOW`：默认 `opengame-generate.yml`
 - `GITHUB_DISPATCH_REF`：默认 `main`
@@ -43,6 +49,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - 部署命令：`vercel deploy --prod`。部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
 - 匿名身份由服务端按需写入 `anon_id` cookie；公开试玩页不经过全局 middleware，避免 Vercel middleware 故障影响静态游戏。
 - 没有数据库或生成凭据时，公开站点仍会展示并播放内置精选游戏；真实创建新游戏需要 Vercel 侧 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 齐全。配置 `GITHUB_DISPATCH_TOKEN` 后生成会更快启动；缺失时 GitHub 定时 worker 最多延迟约 5 分钟领取任务。
+- 生产环境变量变更后必须重新部署；只执行 `vercel env add` / `vercel env rm` 不会改变已经在线的 Serverless Function 环境。
 
 ## 功能闭环
 
@@ -77,3 +84,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 `smoke:opengame` 需要本机可执行 `opengame` 或设置 `OPENGAME_BIN`。`worker:github-opengame` 需要传入真实 `Job` id，并要求 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 可用。`smoke:sandbox` 仅用于 `e2b` / `vercel` 兼容路径；脚本会读取 `.env` 后再读取 `.env.local`。
 
 涉及 `Job` 字段或 `JobStatus` 枚举变更后，需要对目标数据库执行 Prisma schema 同步，例如本地开发库运行 `npx prisma db push`。
+
+### 2026-05-10 线上冒烟记录
+
+在 `https://opengame.zz-fancy.cloud` 完成 3 个复杂真实用户流程：潜入盗宝、炼金连锁、Boss 弹幕。三个作品均从线上创建页启动，GitHub Actions 以 `workflow_dispatch` 即时领取，自动试玩通过后进入 `READY`；详情页 iframe 内均有 canvas，点击或键盘输入后浏览器 fatal error 日志为 0，并已进入公共 Gallery。
