@@ -32,7 +32,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - 生产部署前先在 Vercel Project Settings 配置上面的环境变量，或用 `vercel env add` 写入；不要把真实密钥提交到仓库。
 - 根目录 `.vercelignore` 明确排除 `.env`、`.env.*`、`node_modules` 和 `.next`，避免本地密钥或构建产物被 CLI 当作源码上传。
 - 部署命令：`vercel deploy --prod`。部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
-- 匿名身份中间件在 Vercel 上使用 Node.js runtime，避免 Edge Middleware 生产包触发 `__dirname is not defined`。
+- 匿名身份由服务端按需写入 `anon_id` cookie；公开试玩页不经过全局 middleware，避免 Vercel middleware 故障影响静态游戏。
 - 没有数据库或生成凭据时，公开站点仍会展示并播放内置精选游戏；真实创建新游戏需要 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 和 Vercel Sandbox 凭据齐全。
 
 ## 功能闭环

@@ -1,12 +1,36 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export const ANON_COOKIE = "anon_id";
-export const ANON_HEADER = "x-anon-id";
+export const ANON_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function anonCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    maxAge: ANON_COOKIE_MAX_AGE,
+    path: "/",
+  };
+}
+
+export async function getExistingAnonId() {
+  const jar = await cookies();
+  return jar.get(ANON_COOKIE)?.value ?? null;
+}
 
 export async function getAnonId() {
-  const [jar, requestHeaders] = await Promise.all([cookies(), headers()]);
-  const anonId = jar.get(ANON_COOKIE)?.value ?? requestHeaders.get(ANON_HEADER) ?? crypto.randomUUID();
+  const jar = await cookies();
+  const existingAnonId = jar.get(ANON_COOKIE)?.value;
+  const anonId = existingAnonId ?? crypto.randomUUID();
+
+  if (!existingAnonId) {
+    try {
+      jar.set(ANON_COOKIE, anonId, anonCookieOptions());
+    } catch {
+      // Server Components can read cookies but cannot mutate response cookies.
+    }
+  }
 
   await prisma.anonUser.upsert({
     where: { id: anonId },
