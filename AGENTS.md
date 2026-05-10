@@ -15,7 +15,7 @@
 - Next.js App Router 代码放在 `app/`。
 - 复用 UI 组件放在 `components/`。
 - 服务端能力和第三方集成放在 `lib/`，不要把外部 SDK 细节散落到 route handler。
-- GitHub Actions 生成 worker 放在 `.github/workflows/opengame-generate.yml` 和 `scripts/run-github-opengame-job.ts`；Vercel 只负责创建 Job 并 dispatch workflow，不在 route handler 里内嵌生成脚本。
+- GitHub Actions 生成 worker 放在 `.github/workflows/opengame-generate.yml` 和 `scripts/run-github-opengame-job.ts`；Vercel 负责创建 Job、可选 dispatch workflow，并通过 `/api/github-worker/*` 代理 MiniMax、Blob 上传和 Prisma 回写，避免把生产密钥复制到 GitHub Secrets。
 - 内置可玩游戏放在 `public/builtin-games/`：每款游戏一个 `<slug>/index.html` 和一张生成位图封面 `cover.png`，共享运行时代码放在 `public/builtin-games/shared/`；`scripts/generate-builtin-games.ts` 读取共享 `engine.js` 生成入口页，不要把整段引擎重新内嵌回脚本。
 - 内置游戏清单放在 `lib/builtin-games.ts`，只有同时具备 `index.html` 和 `cover.png` 的完成项才能进入清单；半成品目录必须删除或保持不被引用。
 - Prisma schema 放在 `prisma/schema.prisma`，数据库变更先改 schema，再写业务。
