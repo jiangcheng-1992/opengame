@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>数字开锁</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; background: #030609; overflow: hidden; }
+    body { display: grid; place-items: center; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; background: #10131f; touch-action: none; }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="960" height="600" aria-label="数字开锁"></canvas>
+  <script>window.BUILTIN_GAME_CONFIG = {"title":"数字开锁","summary":"根据反馈调整密码盘，越少尝试破解越高分。","gameType":"lock","theme":{"primary":"#ffd166","secondary":"#06d6a0","accent":"#ef476f","background":"#10131f"}};</script>
+  <script src="../shared/engine.js"></script>
+</body>
+</html>

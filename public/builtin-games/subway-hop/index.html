@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>地铁跳跃</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; background: #030609; overflow: hidden; }
+    body { display: grid; place-items: center; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; background: #120f17; touch-action: none; }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="960" height="600" aria-label="地铁跳跃"></canvas>
+  <script>window.BUILTIN_GAME_CONFIG = {"title":"地铁跳跃","summary":"在地铁维修区跳过护栏，低头滑过信号门，连击不断加速。","gameType":"runner","theme":{"primary":"#f72585","secondary":"#4cc9f0","accent":"#ffd166","background":"#120f17"}};</script>
+  <script src="../shared/engine.js"></script>
+</body>
+</html>

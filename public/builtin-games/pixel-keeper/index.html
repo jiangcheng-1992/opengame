@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>像素守门员</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; background: #030609; overflow: hidden; }
+    body { display: grid; place-items: center; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; background: #092013; touch-action: none; }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="960" height="600" aria-label="像素守门员"></canvas>
+  <script>window.BUILTIN_GAME_CONFIG = {"title":"像素守门员","summary":"守住复古球门，判断来球角度，把连续射门挡出去。","gameType":"goalie","theme":{"primary":"#7bf07b","secondary":"#4aa3ff","accent":"#fff275","background":"#092013"}};</script>
+  <script src="../shared/engine.js"></script>
+</body>
+</html>

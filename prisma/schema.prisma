@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AnonUser {
+  id        String     @id
+  createdAt DateTime   @default(now())
+  lastSeen  DateTime   @default(now())
+  games     Game[]
+  reactions Reaction[]
+}
+
+model Game {
+  id           String     @id @default(cuid())
+  ownerId      String
+  owner        AnonUser   @relation(fields: [ownerId], references: [id])
+  title        String     @default("Untitled")
+  summary      String?    @db.Text
+  genre        String?
+  tags         String[]   @default([])
+  controls     String[]   @default([])
+  coverPrompt  String?    @db.Text
+  coverUrl     String?
+  status       GameStatus @default(DRAFT)
+  visibility   Visibility @default(PUBLIC)
+  playUrl      String?
+  sourceUrl    String?
+  version      Int        @default(1)
+  parentGameId String?
+  parent       Game?      @relation("Remix", fields: [parentGameId], references: [id])
+  remixes      Game[]     @relation("Remix")
+  playCount    Int        @default(0)
+  likeCount    Int        @default(0)
+  messages     Message[]
+  jobs         Job[]
+  reactions    Reaction[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([visibility, createdAt])
+  @@index([ownerId, createdAt])
+}
+
+enum GameStatus {
+  DRAFT
+  GENERATING
+  READY
+  FAILED
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id])
+  role      Role
+  content   String   @db.Text
+  jobId     String?
+  createdAt DateTime @default(now())
+
+  @@index([gameId, createdAt])
+}
+
+enum Role {
+  USER
+  AGENT
+  SYSTEM
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  gameId     String
+  game       Game      @relation(fields: [gameId], references: [id])
+  status     JobStatus @default(QUEUED)
+  sandboxId  String?
+  prompt     String    @db.Text
+  errorMsg   String?   @db.Text
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([gameId, createdAt])
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  VALIDATING
+  REPAIRING
+  FINISHING
+  DONE
+  FAILED
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  gameId    String
+  game      Game         @relation(fields: [gameId], references: [id])
+  anonId    String
+  anon      AnonUser     @relation(fields: [anonId], references: [id])
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  @@unique([gameId, anonId, type])
+}
+
+enum ReactionType {
+  LIKE
+}
+
+model UsageBucket {
+  id          String   @id @default(cuid())
+  key         String
+  count       Int      @default(0)
+  windowStart DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, windowStart])
+}

@@ -1,0 +1,44 @@
+{
+  "name": "opengame-astrocade-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --ext .ts,.tsx",
+    "builtin:generate": "tsx scripts/generate-builtin-games.ts",
+    "prisma:generate": "prisma generate",
+    "metadata:backfill": "tsx scripts/backfill-game-metadata.ts",
+    "sandbox:build-opengame": "tsx scripts/build-opengame-snapshot.ts",
+    "smoke:opengame": "tsx scripts/smoke-opengame.ts",
+    "smoke:sandbox": "tsx scripts/smoke-sandbox.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.47",
+    "@ai-sdk/react": "^3.0.179",
+    "@prisma/client": "^6.19.0",
+    "@vercel/blob": "^1.1.1",
+    "@vercel/sandbox": "^0.0.21",
+    "ai": "^6.0.177",
+    "lucide-react": "^0.468.0",
+    "next": "^15.5.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.0",
+    "postcss": "^8.4.49",
+    "prisma": "^6.19.0",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

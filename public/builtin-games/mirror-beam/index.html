@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>镜面光束</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; background: #030609; overflow: hidden; }
+    body { display: grid; place-items: center; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; background: #071b1d; touch-action: none; }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="960" height="600" aria-label="镜面光束"></canvas>
+  <script>window.BUILTIN_GAME_CONFIG = {"title":"镜面光束","summary":"旋转镜面，把激光导向能量核心，避开会吸收光线的暗格。","gameType":"beam","theme":{"primary":"#80ffdb","secondary":"#64dfdf","accent":"#ffd166","background":"#071b1d"}};</script>
+  <script src="../shared/engine.js"></script>
+</body>
+</html>
