@@ -4,10 +4,11 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 
 ## 本地启动
 
-1. 安装依赖：`npm install`
-2. 配置环境变量：复制 `.env.example` 为 `.env`，填入真实值；本地 Vercel Sandbox 认证推荐先执行 `vercel link`，再执行 `vercel env pull` 生成/刷新 `.env.local`
-3. 生成 Prisma Client：`npm run prisma:generate`
-4. 启动：`npm run dev`
+1. 使用 Node.js 20 或更高版本
+2. 安装依赖：`npm install`
+3. 配置环境变量：复制 `.env.example` 为 `.env`，填入真实值；本地 Vercel Sandbox 认证推荐先执行 `vercel link`，再执行 `vercel env pull` 生成/刷新 `.env.local`
+4. 生成 Prisma Client：`npm run prisma:generate`
+5. 启动：`npm run dev`
 
 可选：如果当前 Vercel Sandbox SDK/账号支持 snapshot，先跑 `npm run sandbox:build-opengame` 预构建 OpenGame + Chromium 环境，再把输出的 `OPENGAME_SNAPSHOT_ID` 写入环境变量。
 
@@ -24,6 +25,14 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `VERCEL_OIDC_TOKEN` 或 `VERCEL_TOKEN` + `VERCEL_TEAM_ID` + `VERCEL_PROJECT_ID`；本地优先使用 `VERCEL_OIDC_TOKEN`，它会过期，出现 Sandbox 403 / OIDC refresh 错误时重新执行 `vercel env pull`
 
 真实密钥只放本地 `.env` 或 Vercel Environment Variables，不提交到仓库。
+
+## 部署
+
+- GitHub 仓库可以保持私有；Vercel 生产部署会生成公开的 `*.vercel.app` 地址供任何人试玩。
+- 生产部署前先在 Vercel Project Settings 配置上面的环境变量，或用 `vercel env add` 写入；不要把真实密钥提交到仓库。
+- 根目录 `.vercelignore` 明确排除 `.env`、`.env.*`、`node_modules` 和 `.next`，避免本地密钥或构建产物被 CLI 当作源码上传。
+- 部署命令：`vercel deploy --prod`。部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
+- 没有数据库或生成凭据时，公开站点仍会展示并播放内置精选游戏；真实创建新游戏需要 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 和 Vercel Sandbox 凭据齐全。
 
 ## 功能闭环
 

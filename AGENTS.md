@@ -7,6 +7,7 @@
 ## 执行原则
 - 规则先行：新增目录、脚本、接口前先确认是否符合本文件；需要改规则时先改本文件。
 - 密钥不进代码：`MINIMAX_API_KEY`、`BLOB_READ_WRITE_TOKEN`、`DATABASE_URL`、`VERCEL_OIDC_TOKEN`、`VERCEL_TOKEN` 只通过环境变量提供。
+- 本地 env 不上传：`.env`、`.env.local`、`.env.*` 既不能进 Git，也不能被 Vercel CLI 当作源码上传；根目录 `.vercelignore` 必须持续排除这些文件，线上密钥只配到 Vercel Environment Variables。
 - 不用 mock 冒充完成：生成链路默认走 Vercel Sandbox + MiniMax + OpenGame 真接口。没有凭据时允许实现代码和本地构建，但必须明确标注未跑真实冒烟；页面可以显示真实依赖不可用状态，但不能用假作品冒充数据。
 - 改完要验证：至少跑 `npm run lint`、`npm run build`、`npx prisma generate`。涉及 UI 时启动本地服务并打开页面验。
 
