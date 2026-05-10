@@ -164,6 +164,45 @@ export async function uploadLocalGame({ gameId, root }: { gameId: string; root: 
   return { playUrl, fileCount: files.length };
 }
 
+function safeBlobPath(file: string) {
+  const normalized = file.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..") || normalized.startsWith(".")) {
+    throw new Error(`Unsafe generated file path: ${file}`);
+  }
+
+  return normalized;
+}
+
+export async function uploadGameFileBuffers({
+  gameId,
+  files,
+}: {
+  gameId: string;
+  files: Array<{ path: string; body: Buffer }>;
+}) {
+  let playUrl: string | null = null;
+
+  for (const file of files) {
+    const filePath = safeBlobPath(file.path);
+    const blob = await put(`games/${gameId}/play/${filePath}`, file.body, {
+      access: "public",
+      contentType: CONTENT_TYPES[extname(filePath)] ?? "application/octet-stream",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+
+    if (filePath === "index.html") {
+      playUrl = blob.url;
+    }
+  }
+
+  if (!playUrl) {
+    throw new Error("Generated game does not include index.html.");
+  }
+
+  return { playUrl, fileCount: files.length };
+}
+
 export async function uploadSandboxGame({
   sandboxId,
   gameId,
@@ -226,6 +265,17 @@ export async function uploadLocalSourceArchive({ gameId, root }: { gameId: strin
   );
 
   const body = await readFile(archivePath);
+  const blob = await put(`games/${gameId}/source.zip`, body, {
+    access: "public",
+    contentType: "application/zip",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+
+  return blob.url;
+}
+
+export async function uploadSourceArchiveBuffer({ gameId, body }: { gameId: string; body: Buffer }) {
   const blob = await put(`games/${gameId}/source.zip`, body, {
     access: "public",
     contentType: "application/zip",

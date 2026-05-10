@@ -10,7 +10,7 @@ Use GitHub Actions as the default low-frequency generation worker.
 
 - Vercel keeps serving the Next.js app, gallery, create flow, and polling APIs.
 - `SANDBOX_PROVIDER=github` makes the app queue a GitHub-backed job. If `GITHUB_DISPATCH_TOKEN` is configured, Vercel triggers `.github/workflows/opengame-generate.yml` immediately; otherwise the scheduled workflow polls queued jobs every five minutes.
-- The workflow runs `scripts/run-github-opengame-job.ts`, installs OpenGame in the runner, generates the HTML5 game, runs the same headless Chromium playability validator, uploads the playable files and source archive to Vercel Blob, and writes final status back to Prisma.
+- The workflow runs `scripts/run-github-opengame-job.ts`, installs OpenGame in the runner, generates the HTML5 game, and runs the same headless Chromium playability validator. The runner does not store production secrets; it calls Vercel `/api/github-worker/*` endpoints so MiniMax, Blob upload, and Prisma writes stay on Vercel.
 - Existing Vercel Sandbox and E2B code remains as compatibility paths for future paid/provisioned runtimes.
 
 ## Data Flow
@@ -18,8 +18,8 @@ Use GitHub Actions as the default low-frequency generation worker.
 1. User confirms a game brief.
 2. Vercel creates a `Job` with `QUEUED` status and stores prompt metadata.
 3. Vercel dispatches the GitHub Actions workflow with `job_id`, or the scheduled workflow picks up the oldest queued GitHub job.
-4. GitHub runner reads the job from Postgres, updates `Job.log` and `Job.status`, and runs OpenGame.
-5. The runner validates playability, uploads files to Blob, updates the `Game` to `READY`, and marks the job `DONE`.
+4. GitHub runner claims the job through Vercel, updates `Job.log` and `Job.status` through Vercel, and runs OpenGame.
+5. The runner validates playability, posts generated files back to Vercel, and Vercel uploads to Blob, updates the `Game` to `READY`, and marks the job `DONE`.
 6. The frontend keeps polling `/api/jobs/:id/progress`; it now reads database-backed progress for GitHub jobs.
 
 ## User Impact
@@ -38,15 +38,9 @@ Vercel environment variables:
 - `GITHUB_DISPATCH_WORKFLOW=opengame-generate.yml`
 - `GITHUB_DISPATCH_REF=main`
 
-GitHub repository secrets:
-
-- `DATABASE_URL`
-- `BLOB_READ_WRITE_TOKEN`
-- `MINIMAX_API_KEY`
-- Optional: `MINIMAX_BASE_URL`
-
 GitHub repository variables:
 
+- Optional: `APP_BASE_URL`
 - Optional: `MINIMAX_TEXT_MODEL`
 - Optional: `OPENGAME_GIT_URL`
 
