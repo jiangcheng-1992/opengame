@@ -185,6 +185,11 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
     setError("");
     setInput("");
 
+    if (gameId && brainstormState.isReady && /^(现在)?(开始|确认)?生成|生成可玩版本|可以生成/i.test(text)) {
+      generateGame();
+      return;
+    }
+
     if (gameId) {
       sendMessage({ text });
       return;

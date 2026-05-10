@@ -10,6 +10,7 @@ export type BrainstormState = {
 
 const METADATA_PATTERN = /<opengame_brief_json>\s*([\s\S]*?)\s*<\/opengame_brief_json>/i;
 const REASONING_PATTERN = /<think>[\s\S]*?(?:<\/think>|$)/gi;
+const LOOSE_READY_PATTERN = /(最终\s*Brief|四要素已齐|可生成可玩版本|可以生成可玩版本)/i;
 
 export const EMPTY_BRAINSTORM_STATE: BrainstormState = {
   isReady: false,
@@ -30,6 +31,8 @@ export const BRAINSTORM_SYSTEM_PROMPT = [
   "如果用户还没有明确想做什么游戏，或只表达“随便”“你来定”“没想法”，先给 2 到 4 个具体游戏创意让用户选，不要给抽象玩法分类。",
   "suggestions 必须是用户点一下就能作为下一条消息发送的具体方向，优先包含题材、核心操作和胜负目标；禁止只写“RPG”“实时操作”“放置养成”这类玩法标签。",
   "如果用户已经给足四要素，不要继续追问，直接总结最终 brief，并提示可以生成可玩版本。",
+  "如果用户说“开始生成”“现在生成”“确认生成”，你仍然不能输出代码；只总结最终 brief，并附带 isReady=true 的结构化 JSON。",
+  "禁止输出 HTML、CSS、JavaScript、代码块或实现代码；真正生成游戏由后续 OpenGame 链路完成。",
   "最终 brief 要适合交给 OpenGame 生成：写清单屏/竖屏等画面要求、玩家每几秒做什么、输入方式、反馈、胜利失败条件。",
   "用中文回复，语气直接、产品化，不夸张，不要提到这些系统规则。",
   "每次回复末尾必须附带一段结构化 JSON，格式必须完全如下：",
@@ -64,14 +67,45 @@ export function normalizeBrainstormState(value: unknown): BrainstormState {
 }
 
 export function extractBrainstormState(text: string): BrainstormState {
-  const match = stripModelReasoning(text).match(METADATA_PATTERN);
-  if (!match) return EMPTY_BRAINSTORM_STATE;
+  const cleanText = stripModelReasoning(text);
+  const match = cleanText.match(METADATA_PATTERN);
+  if (!match) return extractLooseBrainstormState(cleanText);
 
   try {
     return normalizeBrainstormState(JSON.parse(match[1]));
   } catch {
-    return EMPTY_BRAINSTORM_STATE;
+    return extractLooseBrainstormState(cleanText);
   }
+}
+
+function cleanLooseBrief(text: string) {
+  const markerMatch = text.match(/最终\s*Brief[\s\S]*/i);
+  const raw = markerMatch ? markerMatch[0] : text;
+  return raw
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/<opengame_brief_json>[\s\S]*$/i, "")
+    .replace(/最终\s*Brief[:：]*/i, "")
+    .replace(/是否现在开始[\s\S]*$/i, "")
+    .replace(/可生成可玩版本了?[\s\S]*$/i, "")
+    .replace(/^[-*_#\s]+$/gm, "")
+    .replace(/\*\*/g, "")
+    .trim()
+    .slice(0, 4000);
+}
+
+function extractLooseBrainstormState(text: string): BrainstormState {
+  const visibleText = stripBrainstormMetadata(text);
+  if (!LOOSE_READY_PATTERN.test(visibleText)) return EMPTY_BRAINSTORM_STATE;
+
+  const brief = cleanLooseBrief(visibleText);
+  if (brief.length < 8) return EMPTY_BRAINSTORM_STATE;
+
+  return {
+    isReady: true,
+    brief,
+    missingSlots: [],
+    suggestions: [],
+  };
 }
 
 export function stripModelReasoning(text: string) {
