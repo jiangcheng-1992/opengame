@@ -2,10 +2,11 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { Bot, CheckCircle2, CircleDashed, FileText, Globe2, Lock, Send, Sparkles, WandSparkles, XCircle } from "lucide-react";
+import { Bot, CheckCircle2, FileText, Globe2, Lock, Send, Sparkles, WandSparkles, XCircle } from "lucide-react";
 import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { JobWatcher } from "@/components/job-watcher";
+import { TaskProgressPanel, type TaskStep } from "@/components/task-progress-panel";
 import {
   INITIAL_BRAINSTORM_STATE,
   extractBrainstormState,
@@ -74,6 +75,53 @@ function slotIsMissing(slot: (typeof requiredSlots)[number], missingSlots: strin
     if (slot === "视觉风格") return missingSlot.includes("视觉") || missingSlot.includes("题材");
     return missingSlot.includes(slot);
   });
+}
+
+function normalizeJobStatus(status?: string | null) {
+  return status?.toLowerCase() ?? null;
+}
+
+function buildCreateTaskSteps(isReady: boolean, isLaunching: boolean, jobStatus: string | null): TaskStep[] {
+  const hasJob = Boolean(jobStatus);
+  const isFailed = jobStatus === "failed";
+  const isDone = jobStatus === "done";
+  const isInValidation = jobStatus === "validating" || jobStatus === "repairing";
+  const isPublishing = jobStatus === "finishing";
+  const hasGenerated = isInValidation || isPublishing || isDone;
+
+  return [
+    { label: "确认需求", state: isReady ? "done" : "active" },
+    { label: "创建任务", state: hasJob ? "done" : isLaunching ? "active" : "pending" },
+    {
+      label: "生成游戏",
+      state: isFailed ? "failed" : hasGenerated ? "done" : hasJob ? "active" : "pending",
+    },
+    {
+      label: "自动试玩",
+      state: isFailed ? "failed" : isDone || isPublishing ? "done" : isInValidation ? "active" : "pending",
+    },
+    {
+      label: "发布结果",
+      state: isFailed ? "failed" : isDone ? "done" : isPublishing ? "active" : "pending",
+    },
+  ];
+}
+
+function createTaskStatusLabel(isReady: boolean, isLaunching: boolean, jobStatus: string | null) {
+  if (jobStatus === "failed") return "失败";
+  if (jobStatus === "done") return "已完成";
+  if (jobStatus) return "生成中";
+  if (isLaunching) return "启动中";
+  if (isReady) return "等待生成";
+  return "准备中";
+}
+
+function createTaskResultLabel(isReady: boolean, isLaunching: boolean, jobStatus: string | null, errorMsg?: string | null) {
+  if (jobStatus === "failed") return errorMsg ?? "生成失败，展开运行日志查看原因。";
+  if (jobStatus === "done") return "可试玩版本已生成。";
+  if (jobStatus || isLaunching) return "生成完成后会进入试玩和继续修改工作台。";
+  if (isReady) return "等待你在左侧确认后启动生成。";
+  return "等待补齐核心玩法、操作、目标和视觉风格。";
 }
 
 function SuggestionReplies({
@@ -150,6 +198,17 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   const showSuggestions = Boolean(brainstormState.suggestions.length && !brainstormState.isReady && !isStreaming);
   const activeSlot = requiredSlots.find((slot) => !brainstormState.isReady && slotIsMissing(slot, brainstormState.missingSlots)) ?? null;
   const currentQuestion = brainstormState.isReady ? "确认生成设置" : activeSlot ? `继续确认：${activeSlot}` : "补充需求细节";
+  const draftJobStatus = activeJobId && draft?.latestJob?.id === activeJobId ? normalizeJobStatus(draft.latestJob.status) : activeJobId ? "queued" : null;
+  const activeJobInitialProgress = activeJobId
+    ? {
+        status: draftJobStatus ?? "queued",
+        errorMsg: draft?.latestJob?.id === activeJobId ? draft.latestJob.errorMsg : null,
+      }
+    : null;
+  const createTaskSteps = useMemo(() => buildCreateTaskSteps(brainstormState.isReady, isGenerating, draftJobStatus), [brainstormState.isReady, draftJobStatus, isGenerating]);
+  const createTaskStatus = createTaskStatusLabel(brainstormState.isReady, isGenerating, draftJobStatus);
+  const createTaskResult = createTaskResultLabel(brainstormState.isReady, isGenerating, draftJobStatus, activeJobInitialProgress?.errorMsg);
+  const createTaskResultTone = draftJobStatus === "failed" ? "danger" : draftJobStatus === "done" ? "success" : "muted";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -317,6 +376,70 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
               </div>
             </article>
           ) : null}
+
+          {brainstormState.isReady ? (
+            <article className="chat-row assistant brief-confirm-row">
+              <span className="chat-avatar" aria-hidden>
+                <Bot size={20} />
+              </span>
+              <div className="chat-message-stack brief-confirm-stack">
+                <section className="brief-confirm-card" aria-label="确认 Brief">
+                  <div className="brief-confirm-head">
+                    <div>
+                      <span className="brief-card-label">
+                        <FileText size={15} aria-hidden />
+                        确认 Brief
+                      </span>
+                      <h2>确认后开始生成可玩版本</h2>
+                    </div>
+                    <span className="task-status-pill">已收束</span>
+                  </div>
+
+                  <p className="brief-confirm-brief">{brainstormState.brief}</p>
+
+                  <ul className="slot-list readiness-list brief-confirm-slots" aria-label="需求槽位确认状态">
+                    {requiredSlots.map((slot) => (
+                      <li key={slot} className="done">
+                        <CheckCircle2 size={16} aria-hidden />
+                        <span>{slot}</span>
+                        <strong>已确认</strong>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="brief-confirm-actions">
+                    <div className="segmented" aria-label="可见性">
+                      <button
+                        className={visibility === "PUBLIC" ? "active" : ""}
+                        type="button"
+                        onClick={() => setVisibility("PUBLIC")}
+                        aria-pressed={visibility === "PUBLIC"}
+                        disabled={isGenerating || isGenerationActive}
+                      >
+                        <Globe2 size={16} aria-hidden />
+                        公开
+                      </button>
+                      <button
+                        className={visibility === "PRIVATE" ? "active" : ""}
+                        type="button"
+                        onClick={() => setVisibility("PRIVATE")}
+                        aria-pressed={visibility === "PRIVATE"}
+                        disabled={isGenerating || isGenerationActive}
+                      >
+                        <Lock size={16} aria-hidden />
+                        私密
+                      </button>
+                    </div>
+
+                    <button className="button primary wide" type="button" onClick={generateGame} disabled={!canGenerate || isGenerating || isGenerationActive}>
+                      <WandSparkles size={18} aria-hidden />
+                      {isGenerationActive ? "正在生成" : isGenerating ? "启动生成中" : "生成可玩版本"}
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </article>
+          ) : null}
         </div>
 
         <p className="composer-hint">Enter 发送 · Shift+Enter 换行，也可以点上方选项</p>
@@ -356,90 +479,34 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
         ) : null}
       </div>
 
-      <aside className="brief-panel" aria-label="需求进度">
-        <div className="mini-heading">
-          <Sparkles size={16} aria-hidden />
-          生成前只确认必要信息
-        </div>
-        <h2>{brainstormState.isReady ? "需求已经收束" : "需求进度"}</h2>
-        {brainstormState.isReady ? (
-          <div className="brief-card">
-            <span className="brief-card-label">
-              <FileText size={15} aria-hidden />
-              最终 Brief
-            </span>
-            <p>{brainstormState.brief}</p>
-          </div>
-        ) : (
-          <div className="brief-card muted current-step-card">
-            <span className="brief-card-label">
-              <CircleDashed size={15} aria-hidden />
-              当前问题
-            </span>
-            <p>{currentQuestion}</p>
-          </div>
-        )}
-
-        <ul className="slot-list readiness-list" aria-label="需求槽位确认状态">
-          {requiredSlots.map((slot) => {
-            const missing = !brainstormState.isReady && slotIsMissing(slot, brainstormState.missingSlots);
-            const active = missing && slot === activeSlot;
-            const stateLabel = active ? "进行中" : missing ? "待确认" : "已确认";
-            return (
-              <li key={slot} className={active ? "active" : missing ? "pending" : "done"}>
-                {missing ? <CircleDashed size={16} aria-hidden /> : <CheckCircle2 size={16} aria-hidden />}
-                <span>{slot}</span>
-                <strong>{stateLabel}</strong>
-              </li>
-            );
-          })}
-        </ul>
-
-        {brainstormState.isReady ? (
-          <div className="finalize-panel">
-            <div className="segmented" aria-label="可见性">
-              <button
-                className={visibility === "PUBLIC" ? "active" : ""}
-                type="button"
-                onClick={() => setVisibility("PUBLIC")}
-                aria-pressed={visibility === "PUBLIC"}
-              >
-                <Globe2 size={16} aria-hidden />
-                公开
-              </button>
-              <button
-                className={visibility === "PRIVATE" ? "active" : ""}
-                type="button"
-                onClick={() => setVisibility("PRIVATE")}
-                aria-pressed={visibility === "PRIVATE"}
-              >
-                <Lock size={16} aria-hidden />
-                私密
-              </button>
-            </div>
-            <p className="helper">公开作品生成成功后进入作品广场；草稿只会出现在你的“我的作品”。</p>
-
-            <button className="button primary wide" type="button" onClick={generateGame} disabled={!canGenerate || isGenerating || isGenerationActive}>
-              <WandSparkles size={18} aria-hidden />
-              {isGenerationActive ? "正在生成" : isGenerating ? "启动生成中" : "生成可玩版本"}
-            </button>
-
-            {activeJobId && gameId ? (
-              <Suspense fallback={null}>
-                <JobWatcher
-                  initialJobId={activeJobId}
-                  initialProgress={draft?.latestJob ? { status: draft.latestJob.status, errorMsg: draft.latestJob.errorMsg } : null}
-                  completionHref={`/games/${gameId}/edit`}
-                  failureHref={`/games/${gameId}/edit`}
-                  title="正在生成这个游戏"
-                  variant="inline"
-                />
-              </Suspense>
-            ) : isGenerating ? (
-              <p className="helper">正在启动真实生成链路，稍后会在这里显示进度。</p>
-            ) : null}
-          </div>
-        ) : null}
+      <aside className="brief-panel task-sidebar" aria-label="生成任务">
+        <TaskProgressPanel
+          eyebrow="任务"
+          title="新游戏创作"
+          status={createTaskStatus}
+          icon={<Sparkles size={16} aria-hidden />}
+          meta={[
+            { label: "当前", value: currentQuestion },
+            { label: "可见性", value: visibility === "PUBLIC" ? "公开" : "私密" },
+          ]}
+          steps={createTaskSteps}
+          result={{ label: createTaskResult, tone: createTaskResultTone }}
+        >
+          {activeJobId && gameId ? (
+            <Suspense fallback={null}>
+              <JobWatcher
+                initialJobId={activeJobId}
+                initialProgress={activeJobInitialProgress}
+                completionHref={`/games/${gameId}/edit`}
+                failureHref={`/games/${gameId}/edit`}
+                title="运行状态"
+                variant="inline"
+              />
+            </Suspense>
+          ) : isGenerating ? (
+            <p className="helper">正在启动真实生成链路，稍后会显示进度和运行日志。</p>
+          ) : null}
+        </TaskProgressPanel>
       </aside>
     </section>
   );

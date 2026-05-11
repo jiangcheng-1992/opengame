@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, Gamepad2, Heart, Play } from "lucide-react";
+import { Gamepad2, Heart, Play } from "lucide-react";
 
 type GameCardProps = {
   game: {
@@ -129,8 +129,8 @@ export function GameCard({ game, surface = "gallery", priority = false }: GameCa
   const isReady = game.status === "ready";
   const isDraft = game.status === "draft";
   const tags = visibleTags(game);
-  const ownerLabel = game.isBuiltin ? "内置精选" : game.ownedByMe ? "我" : "社区";
   const date = new Date(game.createdAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+  const infoChips = tags.length ? tags.map(displayLabel) : [date];
   const href = hrefForGame(game, surface);
   const revisionStatusText = surface === "studio" && isPlayableRevisionActive(game) ? latestJobLabel(game.latestJob!.status) : "";
   const statusText = game.isBuiltin ? "内置精选" : revisionStatusText || statusLabel(game.status);
@@ -138,7 +138,7 @@ export function GameCard({ game, surface = "gallery", priority = false }: GameCa
   return (
     <Link
       href={href}
-      className={`game-card ${isReady ? "ready" : ""} ${isDraft ? "draft" : ""} ${game.isBuiltin ? "builtin" : ""}`}
+      className={`game-card ${isReady ? "ready" : ""} ${isDraft ? "draft" : ""} ${game.isBuiltin ? "builtin" : ""} surface-${surface}`}
       aria-label={`打开 ${game.title}`}
     >
       <div className="card-media">
@@ -164,25 +164,16 @@ export function GameCard({ game, surface = "gallery", priority = false }: GameCa
             {formatCount(game.playCount)}
           </span>
         ) : null}
+        <h3 className="card-title-overlay">{game.title}</h3>
       </div>
       <div className="card-body">
-        <h3>{game.title}</h3>
-        <div className="creator-line">
-          <span className="creator-avatar" aria-hidden />
-          <span>{ownerLabel}</span>
-          <span className="dot" aria-hidden />
-          <CalendarDays size={13} aria-hidden />
-          <span>{date}</span>
-        </div>
-        {tags.length ? (
-          <div className="tag-row" aria-label="作品标签">
-            {tags.map((tag) => (
-              <span key={tag}>{displayLabel(tag)}</span>
+        <div className="card-info-line">
+          <div className="card-chip-row" aria-label={tags.length ? "作品标签" : "创建日期"}>
+            {infoChips.map((chip) => (
+              <span key={chip}>{chip}</span>
             ))}
           </div>
-        ) : null}
-        <div className="meta">
-          <span>
+          <span className="card-like">
             <Heart size={14} aria-hidden /> {formatCount(game.likeCount)}
           </span>
         </div>

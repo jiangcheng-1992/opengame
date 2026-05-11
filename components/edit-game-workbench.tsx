@@ -8,17 +8,14 @@ import {
   ArrowLeft,
   Bot,
   CheckCircle2,
-  CircleHelp,
   Clock3,
-  FileText,
   Gamepad2,
-  RotateCcw,
-  Send,
   ShieldCheck,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
 import { JobWatcher } from "@/components/job-watcher";
+import { TaskProgressPanel, type TaskStep } from "@/components/task-progress-panel";
 
 type EditableGame = {
   id: string;
@@ -75,7 +72,51 @@ const quickEdits = ["失败提示更明显", "降低第二关难度", "增强操
 const failedQuickEdits = ["先做单屏版本", "降低机制复杂度", "保留键盘移动", "减少敌人数量", "强化开始反馈"];
 
 function isActiveJobStatus(status?: string | null) {
-  return Boolean(status && ["queued", "running", "validating", "repairing", "finishing"].includes(status));
+  const normalizedStatus = status?.toLowerCase();
+  return Boolean(normalizedStatus && ["queued", "running", "validating", "repairing", "finishing"].includes(normalizedStatus));
+}
+
+function normalizeJobStatus(status?: string | null) {
+  return status?.toLowerCase() ?? null;
+}
+
+function compactText(value: string, maxLength = 34) {
+  const text = value.trim();
+  if (!text) return "";
+  const chars = Array.from(text);
+  return chars.length > maxLength ? `${chars.slice(0, maxLength).join("")}...` : text;
+}
+
+function buildEditTaskSteps(isSubmitting: boolean, jobStatus: string | null): TaskStep[] {
+  const hasJob = Boolean(jobStatus);
+  const isFailed = jobStatus === "failed";
+  const isDone = jobStatus === "done";
+  const isInValidation = jobStatus === "validating" || jobStatus === "repairing";
+  const isPublishing = jobStatus === "finishing";
+  const hasGenerated = isInValidation || isPublishing || isDone;
+
+  return [
+    { label: "提交修改", state: hasJob ? "done" : isSubmitting ? "active" : "pending" },
+    { label: "生成新版本", state: isFailed ? "failed" : hasGenerated ? "done" : hasJob ? "active" : "pending" },
+    { label: "自动试玩", state: isFailed ? "failed" : isDone || isPublishing ? "done" : isInValidation ? "active" : "pending" },
+    { label: "发布结果", state: isFailed ? "failed" : isDone ? "done" : isPublishing ? "active" : "pending" },
+  ];
+}
+
+function editTaskStatusLabel(isSubmitting: boolean, jobStatus: string | null) {
+  if (jobStatus === "failed") return "失败";
+  if (jobStatus === "done") return "已完成";
+  if (jobStatus) return "生成中";
+  if (isSubmitting) return "启动中";
+  return "准备中";
+}
+
+function editTaskResultLabel(isSubmitting: boolean, jobStatus: string | null, errorMsg?: string | null) {
+  if (jobStatus === "failed") return errorMsg ?? "生成失败，展开运行日志查看原因。";
+  if (jobStatus === "done") return "新版本已生成，可继续试玩。";
+  if (jobStatus) return "旧版本仍可玩，新版本通过自动试玩后再发布。";
+  if (isSubmitting) return "正在提交修改意图。";
+  return "等待明确修改意图。";
 }
 
 export function EditGameWorkbench({ game }: { game: EditableGame }) {
@@ -89,8 +130,20 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
   const canSubmit = hasPlayableVersion || isFailed;
   const isGenerationActive = Boolean(activeJobId);
   const suggestedEdits = isFailed ? failedQuickEdits : quickEdits;
-  const activeJobInitialProgress =
-    game.latestJob && activeJobId === game.latestJob.id ? { status: game.latestJob.status, errorMsg: game.latestJob.errorMsg } : null;
+  const editJobStatus = activeJobId && game.latestJob?.id === activeJobId ? normalizeJobStatus(game.latestJob.status) : activeJobId ? "queued" : null;
+  const activeJobInitialProgress = activeJobId
+    ? {
+        status: editJobStatus ?? "queued",
+        errorMsg: game.latestJob?.id === activeJobId ? game.latestJob.errorMsg : null,
+      }
+    : null;
+  const showEditTask = isPending || isGenerationActive;
+  const editTaskSteps = useMemo(() => buildEditTaskSteps(isPending, editJobStatus), [editJobStatus, isPending]);
+  const editTaskStatus = editTaskStatusLabel(isPending, editJobStatus);
+  const editTaskResult = editTaskResultLabel(isPending, editJobStatus, activeJobInitialProgress?.errorMsg);
+  const editTaskResultTone = editJobStatus === "failed" ? "danger" : editJobStatus === "done" ? "success" : "muted";
+  const compactPrompt = compactText(prompt) || (isFailed ? "修复失败版本" : "调整当前版本");
+  const latestFailedJob = !activeJobId && game.latestJob && normalizeJobStatus(game.latestJob.status) === "failed" ? game.latestJob : null;
 
   useEffect(() => {
     if (!activeJobId || game.latestJob?.id !== activeJobId) return;
@@ -222,16 +275,6 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
               </div>
             )}
           </div>
-          {isFailed && game.latestJob && !activeJobId ? (
-            <Suspense fallback={null}>
-              <JobWatcher
-                initialJobId={game.latestJob.id}
-                initialProgress={{ status: game.latestJob.status, errorMsg: game.latestJob.errorMsg }}
-                title="最近一次生成日志"
-                variant="inline"
-              />
-            </Suspense>
-          ) : null}
           <div className="edit-version-row" aria-label="版本信息">
             <span>
               <Gamepad2 size={15} aria-hidden />
@@ -248,147 +291,108 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
           </div>
         </main>
 
-        <aside className="edit-plan-panel" aria-label="修改计划">
-          <div className="edit-plan-card">
-            <div className="mini-heading">
-              <Sparkles size={16} aria-hidden />
-              修改计划
-            </div>
-            <h2>先定边界，再生成</h2>
-
-            <div className="plan-section preserve">
-              <h3>
-                <ShieldCheck size={16} aria-hidden />
-                保留项
-              </h3>
-              <div className="plan-chip-row">
-                {preserveItems.map((item) => (
-                  <span key={item}>{item}</span>
-                ))}
+        <aside className="edit-plan-panel" aria-label={showEditTask ? "生成任务" : "修改意图"}>
+          {showEditTask ? (
+            <TaskProgressPanel
+              eyebrow="任务"
+              title={isFailed ? "修复当前游戏" : "修改当前游戏"}
+              status={editTaskStatus}
+              icon={<Sparkles size={16} aria-hidden />}
+              meta={[
+                { label: "作品", value: game.title },
+                { label: "版本", value: `v${game.version}` },
+                { label: "本次修改", value: compactPrompt },
+              ]}
+              steps={editTaskSteps}
+              result={{ label: editTaskResult, tone: editTaskResultTone }}
+            >
+              {activeJobId ? (
+                <Suspense fallback={null}>
+                  <JobWatcher
+                    initialJobId={activeJobId}
+                    initialProgress={activeJobInitialProgress}
+                    completionHref={`/games/${game.id}/edit`}
+                    title="运行状态"
+                    variant="inline"
+                  />
+                </Suspense>
+              ) : (
+                <p className="helper">正在启动真实生成链路，稍后会显示进度和运行日志。</p>
+              )}
+              {error ? (
+                <p className="error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+            </TaskProgressPanel>
+          ) : (
+            <section className="edit-intent-card" aria-label="修改意图">
+              <div className="mini-heading">
+                <Sparkles size={16} aria-hidden />
+                修改意图
               </div>
-            </div>
+              <h2>{isFailed ? "重新生成前先说清修复方向" : "想改哪里？"}</h2>
 
-            <div className="plan-section changes">
-              <h3>
-                <FileText size={16} aria-hidden />
-                变更项
-              </h3>
-              {changeItems.length ? (
-                <ul className="plan-list">
-                  {changeItems.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="helper">{isFailed ? "在下方写清这次要怎么避开失败，必要时降低复杂度。" : "试玩左侧游戏后，在下方写下不符合预期的地方。"}</p>
-              )}
-            </div>
-
-            <div className="plan-section unknown">
-              <h3>
-                <CircleHelp size={16} aria-hidden />
-                待确认
-              </h3>
-              {unknownItems.length ? (
-                <div className="plan-chip-row muted">
-                  {unknownItems.map((item) => (
-                    <span key={item}>{item}</span>
-                  ))}
-                </div>
-              ) : (
-                <p className="helper">当前修改边界已经足够清楚。</p>
-              )}
-            </div>
-          </div>
-
-          <div className="edit-chat-card" aria-label="修改对话">
-            <div className="edit-card-title">
-              <Bot size={17} aria-hidden />
-              修改对话
-            </div>
-            <div className="edit-chat-thread">
-              <article className="chat-row assistant">
+              <div className="edit-intent-dialog">
                 <span className="chat-avatar" aria-hidden>
                   <Bot size={18} />
                 </span>
-                <div className="chat-message-stack">
-                  <div className="chat-bubble">
-                    <p>{isFailed ? "说清这次想怎么修复。我会把失败原因和你的调整合成新的生成 brief。" : "说清你刚试玩发现的问题。我会默认保留核心玩法，只整理这次要改的部分。"}</p>
-                  </div>
-                </div>
-              </article>
+                <p>{isFailed ? "写清这次要怎么避开失败；我会把失败原因一起带进生成。" : "写清刚试玩发现的问题；默认保留当前核心玩法，只改你说的部分。"}</p>
+              </div>
+
               {prompt.trim() ? (
-                <article className="chat-row user">
-                  <div className="chat-message-stack">
-                    <div className="chat-bubble">
-                      <p>{prompt.trim()}</p>
-                    </div>
-                  </div>
-                </article>
+                <div className="edit-intent-summary">
+                  <span>本次修改</span>
+                  <p>{prompt.trim()}</p>
+                </div>
               ) : null}
-            </div>
 
-            <div className="suggestion-grid chat-suggestions edit-suggestions" aria-label="常用修改方向">
-              <span className="suggestion-label">常用修改</span>
-              {suggestedEdits.map((edit) => (
-                <button key={edit} type="button" onClick={() => appendQuickEdit(edit)} disabled={isPending || isGenerationActive}>
-                  {edit}
-                </button>
-              ))}
-            </div>
+              <div className="suggestion-grid chat-suggestions edit-suggestions" aria-label="常用修改方向">
+                <span className="suggestion-label">常用修改</span>
+                {suggestedEdits.map((edit) => (
+                  <button key={edit} type="button" onClick={() => appendQuickEdit(edit)} disabled={isPending || isGenerationActive}>
+                    {edit}
+                  </button>
+                ))}
+              </div>
 
-            <label className="sr-only" htmlFor="edit-game-input">
-              描述要修改的内容
-            </label>
-            <div className="chat-composer edit-composer">
-              <textarea
-                id="edit-game-input"
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder={isFailed ? "比如：先做成单屏版本，减少敌人数量，保证键盘能移动和得分。" : "比如：失败后看不清原因，第二关也太难，希望降低一点。"}
-                disabled={isPending || isGenerationActive || !canSubmit}
-                rows={3}
-              />
-              <button
-                className="icon-button send-button"
-                type="button"
-                onClick={submitEdit}
-                disabled={isPending || isGenerationActive || !canSubmit || prompt.trim().length < 4}
-                aria-label={isFailed ? "重新生成" : "生成新版本"}
-              >
-                <Send size={20} aria-hidden />
-              </button>
-            </div>
-          </div>
-
-          <div className="edit-brief-card" aria-label="修改 Brief">
-            <span className="brief-card-label">
-              <FileText size={15} aria-hidden />
-              {isFailed ? "修复 Brief" : "修改 Brief"}
-            </span>
-            <p>{editBrief}</p>
-            <button className="button primary wide" type="button" onClick={submitEdit} disabled={isPending || isGenerationActive || !canSubmit || prompt.trim().length < 4}>
-              {isFailed ? <RotateCcw size={18} aria-hidden /> : <WandSparkles size={18} aria-hidden />}
-              {isGenerationActive ? "正在生成" : isPending ? "启动生成中" : isFailed ? "重新生成可玩版本" : "生成新版本"}
-            </button>
-            <p className="helper">{isFailed ? "这次会复用原始意图和失败原因重新生成，通过自动试玩后再发布。" : "旧版本仍保留可玩；新版本通过自动试玩后再发布。"}</p>
-            {activeJobId ? (
-              <Suspense fallback={null}>
-                <JobWatcher
-                  initialJobId={activeJobId}
-                  initialProgress={activeJobInitialProgress}
-                  completionHref={`/games/${game.id}/edit`}
-                  title={isFailed ? "正在重新生成" : "正在生成新版本"}
-                  variant="inline"
+              <label className="sr-only" htmlFor="edit-game-input">
+                描述要修改的内容
+              </label>
+              <div className="chat-composer edit-composer">
+                <textarea
+                  id="edit-game-input"
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  placeholder={isFailed ? "比如：先做成单屏版本，减少敌人数量，保证键盘能移动和得分。" : "比如：失败后看不清原因，第二关也太难，希望降低一点。"}
+                  disabled={isPending || isGenerationActive || !canSubmit}
+                  rows={3}
                 />
-              </Suspense>
-            ) : null}
-            {error ? (
-              <p className="error" role="alert">
-                {error}
-              </p>
-            ) : null}
-          </div>
+              </div>
+
+              <button className="button primary wide" type="button" onClick={submitEdit} disabled={isPending || isGenerationActive || !canSubmit || prompt.trim().length < 4}>
+                <WandSparkles size={18} aria-hidden />
+                {isPending ? "启动生成中" : isFailed ? "重新生成可玩版本" : "生成新版本"}
+              </button>
+
+              {latestFailedJob ? (
+                <Suspense fallback={null}>
+                  <JobWatcher
+                    initialJobId={latestFailedJob.id}
+                    initialProgress={{ status: latestFailedJob.status, errorMsg: latestFailedJob.errorMsg }}
+                    title="最近一次运行状态"
+                    variant="inline"
+                  />
+                </Suspense>
+              ) : null}
+
+              {error ? (
+                <p className="error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+            </section>
+          )}
         </aside>
       </div>
     </section>

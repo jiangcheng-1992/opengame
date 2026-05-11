@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, LoaderCircle, XCircle } from "lucide-react";
+import { ChevronDown, CheckCircle2, LoaderCircle, ScrollText, XCircle } from "lucide-react";
 
 type Progress = {
   status: string;
@@ -12,7 +12,7 @@ type Progress = {
 };
 
 function statusLabel(status?: string) {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case "queued":
       return "排队中";
     case "running":
@@ -33,7 +33,7 @@ function statusLabel(status?: string) {
 }
 
 function statusDescription(status?: string) {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case "queued":
       return "任务已经提交，正在等待生成 worker 接手。";
     case "running":
@@ -60,6 +60,7 @@ export function JobWatcher({
   failureHref,
   title = "生成进度",
   variant = "panel",
+  logDefaultOpen = false,
 }: {
   initialJobId?: string | null;
   initialProgress?: Progress | null;
@@ -67,6 +68,7 @@ export function JobWatcher({
   failureHref?: string;
   title?: string;
   variant?: "panel" | "inline";
+  logDefaultOpen?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,6 +77,7 @@ export function JobWatcher({
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectLabel, setRedirectLabel] = useState("正在打开下一步");
+  const [isLogOpen, setIsLogOpen] = useState(logDefaultOpen);
 
   useEffect(() => {
     if (!jobId) return;
@@ -149,26 +152,35 @@ export function JobWatcher({
 
   if (!jobId) return null;
 
-  const isSettled = progress?.status === "done" || progress?.status === "failed";
+  const normalizedStatus = progress?.status?.toLowerCase();
+  const isSettled = normalizedStatus === "done" || normalizedStatus === "failed";
+  const logText = progress?.log || (normalizedStatus === "done" ? "游戏已发布。" : "等待 OpenGame 输出日志...");
 
   return (
     <section className={`job-panel ${variant === "inline" ? "inline-job-panel" : ""}`} aria-live="polite">
       <h3>{title}</h3>
       <p className="helper">
-        {progress?.status === "failed" ? (
+        {normalizedStatus === "failed" ? (
           <XCircle size={15} aria-hidden />
-        ) : progress?.status === "done" ? (
+        ) : normalizedStatus === "done" ? (
           <CheckCircle2 size={15} aria-hidden />
         ) : (
           <LoaderCircle className={isSettled ? "" : "spin"} size={15} aria-hidden />
         )}
-        {isRedirecting ? redirectLabel : isFinalizing ? "发布中" : statusLabel(progress?.status)}
+        {isRedirecting ? redirectLabel : isFinalizing ? "发布中" : statusLabel(normalizedStatus)}
       </p>
-      <p className="job-description">{isRedirecting ? "正在切换到下一步页面。" : statusDescription(isFinalizing ? "finishing" : progress?.status)}</p>
+      <p className="job-description">{isRedirecting ? "正在切换到下一步页面。" : statusDescription(isFinalizing ? "finishing" : normalizedStatus)}</p>
       {progress?.errorMsg ? <p className="error">{progress.errorMsg}</p> : null}
-      <pre className="log-box">
-        {progress?.log || (progress?.status === "done" ? "游戏已发布。" : "等待 OpenGame 输出日志...")}
-      </pre>
+      <div className="job-log">
+        <button className="job-log-toggle" type="button" onClick={() => setIsLogOpen((current) => !current)} aria-expanded={isLogOpen}>
+          <span>
+            <ScrollText size={15} aria-hidden />
+            运行日志
+          </span>
+          <ChevronDown className={isLogOpen ? "open" : ""} size={16} aria-hidden />
+        </button>
+        {isLogOpen ? <pre className="log-box">{logText}</pre> : null}
+      </div>
     </section>
   );
 }
