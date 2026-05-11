@@ -801,6 +801,41 @@ h3 {
   margin-top: 28px;
 }
 
+.feed-load-area {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 28px;
+  min-height: 54px;
+}
+
+.feed-load-button {
+  min-width: 168px;
+}
+
+.feed-load-error,
+.feed-end-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.feed-load-error {
+  color: var(--danger);
+}
+
+.spin-icon {
+  animation: spin 820ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .create-chat-workbench {
   align-items: stretch;
   min-height: calc(100dvh - 60px);
@@ -1995,6 +2030,10 @@ h3 {
 }
 
 .toolbar {
+  margin-top: 24px;
+}
+
+.feed-load-area {
   margin-top: 24px;
 }
 
@@ -3242,6 +3281,10 @@ h3 {
   }
 
   .feed-create-button {
+    width: 100%;
+  }
+
+  .feed-load-button {
     width: 100%;
   }
 

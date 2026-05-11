@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Plus, WandSparkles } from "lucide-react";
-import { GameCard } from "@/components/game-card";
+import { GameFeed } from "@/components/game-feed";
 import { listGames, type MineStatusFilter, normalizeMineStatusFilter } from "@/lib/games";
 
 export const dynamic = "force-dynamic";
@@ -48,13 +48,12 @@ const mineStatusTabs: {
   },
 ];
 
-function pageHref(tab: "all" | "mine", status: MineStatusFilter, cursor?: string | null) {
+function pageHref(tab: "all" | "mine", status: MineStatusFilter) {
   const params = new URLSearchParams();
   if (tab === "mine") {
     params.set("tab", "mine");
     if (status !== "all") params.set("status", status);
   }
-  if (cursor) params.set("cursor", cursor);
   const query = params.toString();
   return query ? `/?${query}` : "/";
 }
@@ -145,11 +144,14 @@ export default async function Home({
                   <p>{activeMineTab.description}</p>
                 </div>
               </div>
-              <div className="feed-grid">
-                {games.map((game, index) => (
-                  <GameCard key={game.id} game={game} surface="studio" priority={index < 4} />
-                ))}
-              </div>
+              <GameFeed
+                key={`${tab}-${mineStatus}`}
+                initialGames={games}
+                initialNextCursor={data.nextCursor}
+                tab={tab}
+                mineStatus={mineStatus}
+                surface="studio"
+              />
             </section>
           ) : (
             <section className="panel empty-panel">
@@ -176,11 +178,14 @@ export default async function Home({
               新建作品
             </Link>
           </div>
-          <div className="feed-grid">
-            {games.map((game, index) => (
-              <GameCard key={game.id} game={game} surface="gallery" priority={index < 4} />
-            ))}
-          </div>
+          <GameFeed
+            key={`${tab}-${mineStatus}`}
+            initialGames={games}
+            initialNextCursor={data.nextCursor}
+            tab={tab}
+            mineStatus={mineStatus}
+            surface="gallery"
+          />
         </section>
       ) : (
         <section className="panel empty-panel">
@@ -192,14 +197,6 @@ export default async function Home({
           </Link>
         </section>
       )}
-
-      {data.nextCursor ? (
-        <div className="toolbar">
-          <Link href={pageHref(tab, mineStatus, data.nextCursor)} className="button secondary">
-            下一页
-          </Link>
-        </div>
-      ) : null}
     </div>
   );
 }

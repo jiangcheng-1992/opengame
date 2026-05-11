@@ -145,9 +145,10 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
       },
     });
 
-    const nextCursor = games.length > 12 ? games[12].id : null;
+    const visibleGames = games.slice(0, 12).map((game) => toClientGameListItem(game, anonId ?? undefined));
+    const nextCursor = games.length > 12 ? visibleGames[visibleGames.length - 1]?.id ?? null : null;
     return {
-      games: [...builtinGames, ...games.slice(0, 12).map((game) => toClientGameListItem(game, anonId ?? undefined))],
+      games: [...builtinGames, ...visibleGames],
       nextCursor,
     };
   } catch (error) {

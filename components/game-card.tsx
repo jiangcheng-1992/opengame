@@ -2,8 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Gamepad2, Heart, Play } from "lucide-react";
 
-type GameCardProps = {
-  game: {
+export type GameCardGame = {
     id: string;
     title: string;
     coverUrl?: string | null;
@@ -24,6 +23,9 @@ type GameCardProps = {
       errorMsg?: string | null;
     } | null;
   };
+
+type GameCardProps = {
+  game: GameCardGame;
   surface?: "gallery" | "studio";
   priority?: boolean;
 };
