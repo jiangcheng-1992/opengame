@@ -5,6 +5,9 @@ import { promisify } from "node:util";
 import { buildPlayabilityValidatorScript } from "../lib/playability-validator-script";
 import { buildOpenGameScript, buildPlayablePrompt, sandboxPaths } from "../lib/sandbox";
 import { tailLines } from "../lib/status";
+import { loadDotEnv } from "./load-env";
+
+loadDotEnv();
 
 const execFileAsync = promisify(execFile);
 const MAX_LOG_CHARS = 8000;
@@ -20,14 +23,8 @@ type ClaimedJob = {
   useContinue?: boolean;
 };
 
-function requiredEnv(name: string) {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing ${name}.`);
-  return value;
-}
-
 function appBaseUrl() {
-  return requiredEnv("APP_BASE_URL").replace(/\/$/, "");
+  return (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
 async function readText(filePath: string) {
@@ -214,13 +211,17 @@ async function prepareWorkspace(job: ClaimedJob) {
 }
 
 async function main() {
+  console.log(`[github-worker] APP_BASE_URL=${appBaseUrl()}`);
+  console.log(`[github-worker] Claiming ${requestedJobId ? `job ${requestedJobId}` : "the oldest queued GitHub OpenGame job"}...`);
+
   const job = await claimJob();
   if (!job) {
-    console.log("No queued GitHub OpenGame jobs.");
+    console.log("No queued GitHub OpenGame jobs. Create a game locally, then run this command again.");
     return;
   }
 
   claimedJobId = job.id;
+  console.log(`[github-worker] Claimed job ${job.id} for game ${job.gameId}.`);
   await prepareWorkspace(job);
 
   const env = {

@@ -10,14 +10,20 @@ import { startOpenGameJob } from "@/lib/sandbox";
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const anonId = await getAnonId();
-  const game = await prisma.game.findUnique({ where: { id }, include: { messages: true } });
+  const game = await prisma.game.findUnique({
+    where: { id },
+    include: {
+      messages: true,
+      jobs: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  });
 
   if (!game || game.ownerId !== anonId) {
     return NextResponse.json({ error: "找不到这个游戏。" }, { status: 404 });
   }
 
-  if (game.status !== "READY") {
-    return NextResponse.json({ error: "游戏生成完成后才能继续修改。" }, { status: 409 });
+  if (game.status !== "READY" && game.status !== "FAILED") {
+    return NextResponse.json({ error: "游戏生成完成或失败后才能进入修改工作台。" }, { status: 409 });
   }
 
   const parsed = messageSchema.safeParse(await req.json().catch(() => ({})));
@@ -36,14 +42,25 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     .slice(-20)
     .map((message) => `${message.role}: ${message.content}`)
     .join("\n");
-  const sourceContext = await buildSourceContext(game);
-  const prompt = [
-    "You are modifying an existing playable HTML5 game.",
-    "Preserve the core gameplay unless the user explicitly asks to change it.",
-    sourceContext,
-    `Recent conversation:\n${history}`,
-    `Apply this change:\n${parsed.data.prompt}`,
-  ].join("\n\n");
+  const latestJob = game.jobs[0] ?? null;
+  const isFailureRetry = game.status === "FAILED";
+  const sourceContext = isFailureRetry ? "" : await buildSourceContext(game);
+  const prompt = isFailureRetry
+    ? [
+        "You are rebuilding an HTML5 game after the initial generation failed.",
+        "Use the original creative intent and the user's recovery instruction to create a simpler playable version.",
+        latestJob?.errorMsg ? `Previous failure reason:\n${latestJob.errorMsg}` : "Previous failure reason is unavailable.",
+        `Recent conversation and confirmed brief:\n${history}`,
+        `Recovery instruction:\n${parsed.data.prompt}`,
+        "Produce a self-contained playable HTML5 game. Prefer a reliable single-screen version over a complex but fragile version.",
+      ].join("\n\n")
+    : [
+        "You are modifying an existing playable HTML5 game.",
+        "Preserve the core gameplay unless the user explicitly asks to change it.",
+        sourceContext,
+        `Recent conversation:\n${history}`,
+        `Apply this change:\n${parsed.data.prompt}`,
+      ].join("\n\n");
 
   const job = await prisma.job.create({
     data: { gameId: game.id, prompt, status: "QUEUED" },
@@ -57,8 +74,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       gameId: game.id,
       jobId: job.id,
       prompt,
-      sourceUrl: game.sourceUrl,
-      useContinue: true,
+      sourceUrl: isFailureRetry ? null : game.sourceUrl,
+      useContinue: !isFailureRetry,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "修改任务启动失败。";

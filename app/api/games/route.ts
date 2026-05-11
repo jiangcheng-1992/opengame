@@ -3,13 +3,13 @@ import { prisma } from "@/lib/db";
 import { getAnonId } from "@/lib/auth";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { createGameSchema } from "@/lib/schemas";
-import { listGames } from "@/lib/games";
+import { listGames, normalizeMineStatusFilter } from "@/lib/games";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tab = searchParams.get("tab") === "mine" ? "mine" : "all";
   const cursor = searchParams.get("cursor");
-  const payload = await listGames(tab, cursor);
+  const payload = await listGames(tab, cursor, normalizeMineStatusFilter(searchParams.get("status")));
   return NextResponse.json(payload);
 }
 

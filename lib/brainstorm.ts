@@ -12,15 +12,22 @@ const METADATA_PATTERN = /<opengame_brief_json>\s*([\s\S]*?)\s*<\/opengame_brief
 const REASONING_PATTERN = /<think>[\s\S]*?(?:<\/think>|$)/gi;
 const LOOSE_READY_PATTERN = /(最终\s*Brief|四要素已齐|可生成可玩版本|可以生成可玩版本)/i;
 
+export const INITIAL_BRAINSTORM_SUGGESTIONS = [
+  "做一个像素厨房手忙脚乱游戏：点击备菜和上菜，限时满足顾客订单",
+  "做一个霓虹太空维修游戏：拖拽零件修复飞船，倒计时前恢复能源",
+  "做一个重力翻转解谜游戏：按空格切换重力，让小球避开机关到出口",
+];
+
 export const EMPTY_BRAINSTORM_STATE: BrainstormState = {
   isReady: false,
   brief: "",
   missingSlots: ["核心玩法", "操作方式", "胜负目标", "视觉/题材风格"],
-  suggestions: [
-    "做一个像素厨房手忙脚乱游戏：点击备菜和上菜，限时满足顾客订单",
-    "做一个霓虹太空维修游戏：拖拽零件修复飞船，倒计时前恢复能源",
-    "做一个重力翻转解谜游戏：按空格切换重力，让小球避开机关到出口",
-  ],
+  suggestions: [],
+};
+
+export const INITIAL_BRAINSTORM_STATE: BrainstormState = {
+  ...EMPTY_BRAINSTORM_STATE,
+  suggestions: INITIAL_BRAINSTORM_SUGGESTIONS,
 };
 
 export const BRAINSTORM_SYSTEM_PROMPT = [
@@ -51,6 +58,68 @@ function normalizeStringList(value: unknown, max: number) {
     .slice(0, max);
 }
 
+function cleanSuggestionText(value: string) {
+  return value
+    .replace(/\*\*/g, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*(?:---+|现在还差|还差|接下来|然后你可以)[\s\S]*$/i, "")
+    .replace(/^[\s"'“”]+|[\s"'“”。；;，,]+$/g, "")
+    .trim();
+}
+
+function uniqueSuggestions(suggestions: string[]) {
+  const seen = new Set<string>();
+  return suggestions.filter((suggestion) => {
+    const key = suggestion.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function extractLineSuggestions(text: string) {
+  return uniqueSuggestions(
+    text
+      .split(/\n+/)
+      .map((line) => line.match(/^\s*(?:[-*]\s*)?(?:[1-4]|[a-d])[\.\)、]\s*(.+)$/i)?.[1] ?? "")
+      .map(cleanSuggestionText)
+      .filter(Boolean),
+  ).slice(0, 4);
+}
+
+function extractInlineSuggestions(text: string) {
+  const blocks = text
+    .split(/\n\s*(?:[-*_]\s*){3,}\n|\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  for (const block of blocks) {
+    const optionMarkers = block.match(/(?:^|\s)(?:[1-4]|[a-d])[\.\)、]\s*/gi) ?? [];
+    if (optionMarkers.length < 2) continue;
+
+    const suggestions = uniqueSuggestions(
+      [...block.matchAll(/(?:^|\s)(?:[1-4]|[a-d])[\.\)、]\s*([\s\S]*?)(?=\s(?:[1-4]|[a-d])[\.\)、]\s*|$)/gi)]
+        .map((match) => cleanSuggestionText(match[1] ?? ""))
+        .filter(Boolean),
+    ).slice(0, 4);
+
+    if (suggestions.length >= 2) return suggestions;
+  }
+
+  return [];
+}
+
+function extractVisibleSuggestions(text: string) {
+  const visibleText = stripBrainstormMetadata(text).replace(/\r/g, "\n").trim();
+  if (!visibleText) return [];
+
+  const lineSuggestions = extractLineSuggestions(visibleText);
+  if (lineSuggestions.length >= 2) return lineSuggestions;
+
+  return extractInlineSuggestions(visibleText);
+}
+
 export function normalizeBrainstormState(value: unknown): BrainstormState {
   if (!value || typeof value !== "object") return EMPTY_BRAINSTORM_STATE;
   const payload = value as Record<string, unknown>;
@@ -62,19 +131,22 @@ export function normalizeBrainstormState(value: unknown): BrainstormState {
     isReady: payload.isReady === true && brief.length >= 8,
     brief,
     missingSlots: missingSlots.length ? missingSlots : EMPTY_BRAINSTORM_STATE.missingSlots,
-    suggestions: suggestions.length ? suggestions : EMPTY_BRAINSTORM_STATE.suggestions,
+    suggestions,
   };
 }
 
 export function extractBrainstormState(text: string): BrainstormState {
   const cleanText = stripModelReasoning(text);
+  const visibleSuggestions = extractVisibleSuggestions(cleanText);
   const match = cleanText.match(METADATA_PATTERN);
-  if (!match) return extractLooseBrainstormState(cleanText);
+  if (!match) return extractLooseBrainstormState(cleanText, visibleSuggestions);
 
   try {
-    return normalizeBrainstormState(JSON.parse(match[1]));
+    const state = normalizeBrainstormState(JSON.parse(match[1]));
+    if (state.isReady || state.suggestions.length) return state;
+    return { ...state, suggestions: visibleSuggestions };
   } catch {
-    return extractLooseBrainstormState(cleanText);
+    return extractLooseBrainstormState(cleanText, visibleSuggestions);
   }
 }
 
@@ -93,12 +165,14 @@ function cleanLooseBrief(text: string) {
     .slice(0, 4000);
 }
 
-function extractLooseBrainstormState(text: string): BrainstormState {
+function extractLooseBrainstormState(text: string, visibleSuggestions: string[] = []): BrainstormState {
   const visibleText = stripBrainstormMetadata(text);
-  if (!LOOSE_READY_PATTERN.test(visibleText)) return EMPTY_BRAINSTORM_STATE;
+  if (!LOOSE_READY_PATTERN.test(visibleText)) {
+    return { ...EMPTY_BRAINSTORM_STATE, suggestions: visibleSuggestions };
+  }
 
   const brief = cleanLooseBrief(visibleText);
-  if (brief.length < 8) return EMPTY_BRAINSTORM_STATE;
+  if (brief.length < 8) return { ...EMPTY_BRAINSTORM_STATE, suggestions: visibleSuggestions };
 
   return {
     isReady: true,

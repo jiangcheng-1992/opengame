@@ -2,18 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Gamepad2, Home, Library, PlusCircle, Sparkles } from "lucide-react";
+import { Gamepad2, Home, Sparkles, UserRound } from "lucide-react";
 
 function isActive(href: string, pathname: string, tab: string | null) {
   if (href === "/") return pathname === "/" && tab !== "mine";
-  if (href === "/?tab=mine") return pathname === "/" && tab === "mine";
+  if (href === "/?tab=mine") return (pathname === "/" && tab === "mine") || (pathname.startsWith("/games/") && pathname.endsWith("/edit"));
   return pathname.startsWith(href);
 }
 
 const navItems = [
   { href: "/", label: "首页", icon: Home },
-  { href: "/create", label: "创建", icon: PlusCircle },
-  { href: "/?tab=mine", label: "工作室", icon: Library },
+  { href: "/?tab=mine", label: "我的", icon: UserRound },
 ];
 
 export function AppShellNav() {

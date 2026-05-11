@@ -42,6 +42,20 @@ type GameDetailRecord = GameListRecord & {
   messages: SelectedMessage[];
 };
 
+const mineStatusFilters = ["all", "active", "ready", "failed"] as const;
+
+export type MineStatusFilter = (typeof mineStatusFilters)[number];
+
+const mineStatusValues: Record<Exclude<MineStatusFilter, "all">, GameStatus[]> = {
+  active: ["DRAFT", "GENERATING"],
+  ready: ["READY"],
+  failed: ["FAILED"],
+};
+
+export function normalizeMineStatusFilter(value?: string | null): MineStatusFilter {
+  return mineStatusFilters.includes(value as MineStatusFilter) ? (value as MineStatusFilter) : "all";
+}
+
 function normalizeLatestJob(job?: SelectedJob | null) {
   return job
     ? {
@@ -87,16 +101,17 @@ function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
   };
 }
 
-export async function listGames(tab: "all" | "mine", cursor?: string | null) {
+export async function listGames(tab: "all" | "mine", cursor?: string | null, mineStatus: MineStatusFilter = "all") {
   const builtinGames = tab === "all" && !cursor ? listBuiltinGames() : [];
+  const statusValues = tab === "mine" && mineStatus !== "all" ? mineStatusValues[mineStatus] : null;
 
   try {
     const anonId = tab === "mine" ? await getAnonId() : await getExistingAnonId();
     const games = await prisma.game.findMany({
       where:
         tab === "mine"
-          ? { ownerId: anonId ?? "" }
-          : { visibility: "PUBLIC", status: { in: ["READY", "GENERATING", "FAILED"] } },
+          ? { ownerId: anonId ?? "", ...(statusValues ? { status: { in: statusValues } } : {}) }
+          : { visibility: "PUBLIC", status: "READY" },
       orderBy: { createdAt: "desc" },
       take: 13,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -194,7 +209,7 @@ export async function getCreateDraft(id: string) {
     },
   });
 
-  if (!game || game.ownerId !== anonId || game.status !== "DRAFT") return null;
+  if (!game || game.ownerId !== anonId || !["DRAFT", "GENERATING"].includes(game.status)) return null;
   return toClientGame(game, anonId);
 }
 

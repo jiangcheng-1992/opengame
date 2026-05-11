@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import path from "node:path";
 import { prisma } from "@/lib/db";
 import { maybeTriggerGithubOpenGameWorkflow } from "@/lib/github-actions";
 import { buildPlayabilityValidatorScript } from "@/lib/playability-validator-script";
@@ -22,6 +24,7 @@ const RUN_SCRIPT = `${WORKSPACE_ROOT}/run-opengame.sh`;
 const VALIDATOR_SCRIPT = `${WORKSPACE_ROOT}/validate-playable.mjs`;
 const MAX_JOB_MS = 30 * 60 * 1000;
 const MAX_REPAIR_ATTEMPTS = 2;
+const localGithubWorkerJobs = new Set<string>();
 
 type SandboxProvider = "github" | "e2b" | "vercel";
 
@@ -47,6 +50,57 @@ function sandboxProviderFromEnv(): SandboxProvider {
   if (provider === "github") return "github";
   if (provider === "vercel") return "vercel";
   return "e2b";
+}
+
+function queuedGithubWorkerLog() {
+  if (process.env.VERCEL) return "Queued for the next scheduled GitHub Actions worker run.";
+  return "Queued locally. A local GitHub-compatible worker is starting automatically and will claim this job.";
+}
+
+function shouldDispatchGithubWorkflow() {
+  return Boolean(process.env.VERCEL || process.env.GITHUB_ACTIONS || process.env.FORCE_GITHUB_DISPATCH === "1");
+}
+
+function shouldAutoStartLocalGithubWorker() {
+  return !process.env.VERCEL && !process.env.GITHUB_ACTIONS && process.env.DISABLE_LOCAL_GITHUB_WORKER !== "1";
+}
+
+function localWorkerBaseUrl() {
+  return (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+}
+
+function startLocalGithubWorker(jobId: string) {
+  if (localGithubWorkerJobs.has(jobId)) return false;
+  localGithubWorkerJobs.add(jobId);
+
+  const tsxBin = path.join(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
+  const child = spawn(tsxBin, ["scripts/run-github-opengame-job.ts", jobId], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      APP_BASE_URL: localWorkerBaseUrl(),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  child.stdout?.on("data", (chunk) => {
+    const text = String(chunk).trimEnd();
+    if (text) console.log(`[local-github-worker:${jobId}] ${text}`);
+  });
+  child.stderr?.on("data", (chunk) => {
+    const text = String(chunk).trimEnd();
+    if (text) console.error(`[local-github-worker:${jobId}] ${text}`);
+  });
+  child.once("error", (error) => {
+    localGithubWorkerJobs.delete(jobId);
+    console.error(`[local-github-worker:${jobId}] failed to start`, error);
+  });
+  child.once("exit", (code) => {
+    localGithubWorkerJobs.delete(jobId);
+    console.log(`[local-github-worker:${jobId}] exited with code ${code ?? 0}`);
+  });
+  child.unref();
+  return true;
 }
 
 function encodeSandboxId(provider: SandboxProvider, sandboxId: string) {
@@ -663,7 +717,8 @@ export async function startOpenGameJob({
 }) {
   if (sandboxProviderFromEnv() === "github") {
     const sandboxId = encodeSandboxId("github", jobId);
-    const dispatch = await maybeTriggerGithubOpenGameWorkflow({ jobId });
+    const dispatch = shouldDispatchGithubWorkflow() ? await maybeTriggerGithubOpenGameWorkflow({ jobId }) : null;
+    const shouldStartLocalWorker = !dispatch && shouldAutoStartLocalGithubWorker();
     await prisma.job.update({
       where: { id: jobId },
       data: {
@@ -673,13 +728,14 @@ export async function startOpenGameJob({
         useContinue,
         log: dispatch
           ? `Queued GitHub Actions workflow ${dispatch.workflow} on ${dispatch.repo}@${dispatch.ref}.`
-          : "Queued for the next scheduled GitHub Actions worker run.",
+          : queuedGithubWorkerLog(),
       },
     });
     await prisma.game.update({
       where: { id: gameId },
       data: { status: "GENERATING" },
     });
+    if (shouldStartLocalWorker) startLocalGithubWorker(jobId);
 
     return sandboxId;
   }
@@ -811,6 +867,15 @@ async function failJob(jobId: string, gameId: string, errorMsg: string) {
 export async function getJobProgress(jobId: string) {
   const job = await prisma.job.findUniqueOrThrow({ where: { id: jobId } });
   if (!job.sandboxId || job.sandboxId.startsWith("github:")) {
+    if (job.sandboxId?.startsWith("github:") && job.status === "QUEUED" && shouldAutoStartLocalGithubWorker()) {
+      const started = startLocalGithubWorker(job.id);
+      if (started) {
+        const log = queuedGithubWorkerLog();
+        await prisma.job.update({ where: { id: job.id }, data: { log } });
+        return { status: "queued", log, errorMsg: job.errorMsg };
+      }
+    }
+
     if (
       job.sandboxId?.startsWith("github:") &&
       job.startedAt &&

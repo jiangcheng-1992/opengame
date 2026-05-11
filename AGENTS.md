@@ -16,7 +16,8 @@
 - 复用 UI 组件放在 `components/`。
 - 服务端能力和第三方集成放在 `lib/`，不要把外部 SDK 细节散落到 route handler。
 - GitHub Actions 生成 worker 放在 `.github/workflows/opengame-generate.yml` 和 `scripts/run-github-opengame-job.ts`；Vercel 负责创建 Job、可选 dispatch workflow，并通过 `/api/github-worker/*` 代理 MiniMax、Blob 上传和 Prisma 回写，避免把生产密钥复制到 GitHub Secrets。
-- 生产环境 `https://opengame.zz-fancy.cloud` 依赖 Vercel Production 的 `GITHUB_DISPATCH_TOKEN` 即时触发 GitHub Actions；2026-05-10 已配置并验证。排查线上生成延迟时，详情页日志应优先确认是否出现 `Queued GitHub Actions workflow ... @main`；若变成定时 worker fallback，检查 token 是否缺失或过期，并在修复 env 后重新部署。
+- 本地开发默认也走 GitHub-backed Job，但不要求 GitHub Actions 访问 localhost：确认生成后由 Next.js 开发服务器自动启动本地 GitHub 兼容 worker，回调 `APP_BASE_URL` 的 `/api/github-worker/*` 完成 MiniMax 代理、Blob 上传和 Prisma 回写。只有 Vercel / GitHub Actions / `FORCE_GITHUB_DISPATCH=1` 才 dispatch 远端 workflow。
+- 生产环境 `https://opengame.zz-fancy.cloud` 依赖 Vercel Production 的 `GITHUB_DISPATCH_TOKEN` 即时触发 GitHub Actions；2026-05-10 已配置并验证。排查线上生成延迟时，应在创建页或修改工作台的生成日志里优先确认是否出现 `Queued GitHub Actions workflow ... @main`；若变成定时 worker fallback，检查 token 是否缺失或过期，并在修复 env 后重新部署。
 - 内置可玩游戏放在 `public/builtin-games/`：每款游戏一个 `<slug>/index.html` 和一张生成位图封面 `cover.png`，共享运行时代码放在 `public/builtin-games/shared/`；`scripts/generate-builtin-games.ts` 读取共享 `engine.js` 生成入口页，不要把整段引擎重新内嵌回脚本。
 - 内置游戏清单放在 `lib/builtin-games.ts`，只有同时具备 `index.html` 和 `cover.png` 的完成项才能进入清单；半成品目录必须删除或保持不被引用。
 - Prisma schema 放在 `prisma/schema.prisma`，数据库变更先改 schema，再写业务。
@@ -31,6 +32,8 @@
 - 暂不做二创 / Remix：不要展示 Remix 入口，不提供 `/api/games/:id/remix`，不要用 remixCount 做排序或展示。
 - 创建页必须先进入流式头脑风暴：问齐核心玩法、操作方式、胜负目标、视觉/题材风格后，用户确认 brief 才能启动 OpenGame 生成。
 - `DRAFT` 表示头脑风暴草稿；草稿只出现在“我的作品”，不进入公共 Gallery。直接创建作品的兼容接口也只能创建草稿，不能绕过头脑风暴启动生成。
+- 公共 Gallery 和 `/games/:id` 是纯游玩态，只展示 `READY` 作品与内置精选，不展示作者修改入口、生成日志或创作对话历史；“我的作品 / 创作台”才进入作者工作态。
+- “我的作品”点击规则：`DRAFT` / `GENERATING` 进入 `/create?game=:id`，`READY` / `FAILED` 进入 `/games/:id/edit`；一创失败也在修改工作台里修复并重新生成。
 - `READY` 不能只代表产出 HTML；必须代表游戏已经通过 Sandbox 内浏览器自动试玩验证。至少确认页面可加载、无 fatal JS error、开始/点击/键盘输入能让游戏状态发生变化。
 - 自动试玩失败时允许最多 2 轮修复；仍失败则标记失败并展示真实原因，不进入 Gallery 的可玩作品流。
 - 继续修改优先恢复 `sourceUrl` 源码包并尝试 `--continue`，不支持时走“源码上下文 + 新 prompt”降级方案。
@@ -43,4 +46,5 @@
 - 本地基础验证：`npm run lint`、`npm run build`、`npx prisma generate`。
 - 真链路冒烟：最小 prompt 生成一个单屏游戏，确认同源代理 playUrl 可 iframe 播放。
 - 生产变更冒烟：至少创建 2-3 个真实作品，覆盖键盘动作、鼠标点击、复杂状态/胜负；确认 GitHub Actions run 为 `workflow_dispatch` 且成功、作品进入 `READY`、详情页 iframe/canvas 可交互、公共 Gallery 可见。
+- 本地真实链路冒烟：启动 `npm run dev` 后从创建页确认 brief；日志应显示本地 GitHub 兼容 worker 自动认领 Job，并进入 `RUNNING` / `VALIDATING` / `READY` 或真实失败原因。不需要手动运行 worker，除非设置了 `DISABLE_LOCAL_GITHUB_WORKER=1` 做排查。
 - Sandbox 使用后必须停止释放，除非为了排查失败临时保留，并在日志/文档中说明。

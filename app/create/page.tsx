@@ -12,6 +12,14 @@ export default async function CreatePage({
     ? {
         id: draft.id,
         visibility: draft.visibility,
+        status: draft.status,
+        latestJob: draft.latestJob
+          ? {
+              id: draft.latestJob.id,
+              status: draft.latestJob.status,
+              errorMsg: draft.latestJob.errorMsg,
+            }
+          : null,
         messages: draft.messages?.map((message) => ({
           id: message.id,
           role: message.role,

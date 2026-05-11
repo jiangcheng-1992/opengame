@@ -18,6 +18,7 @@ type GameCardProps = {
     ownedByMe?: boolean;
     isBuiltin?: boolean;
   };
+  surface?: "gallery" | "studio";
   priority?: boolean;
 };
 
@@ -76,13 +77,27 @@ function displayLabel(label: string) {
   return labels[key] ?? label;
 }
 
-export function GameCard({ game, priority = false }: GameCardProps) {
+function hrefForGame(game: GameCardProps["game"], surface: NonNullable<GameCardProps["surface"]>) {
+  if (surface === "studio" && game.ownedByMe && !game.isBuiltin) {
+    if (game.status === "draft" || game.status === "generating" || game.status === "validating" || game.status === "repairing") {
+      return `/create?game=${game.id}`;
+    }
+    if (game.status === "ready" || game.status === "failed") {
+      return `/games/${game.id}/edit`;
+    }
+  }
+
+  if (game.status === "draft") return `/create?game=${game.id}`;
+  return `/games/${game.id}`;
+}
+
+export function GameCard({ game, surface = "gallery", priority = false }: GameCardProps) {
   const isReady = game.status === "ready";
   const isDraft = game.status === "draft";
   const tags = visibleTags(game);
   const ownerLabel = game.isBuiltin ? "内置精选" : game.ownedByMe ? "我" : "社区";
   const date = new Date(game.createdAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
-  const href = isDraft ? `/create?game=${game.id}` : `/games/${game.id}`;
+  const href = hrefForGame(game, surface);
   const statusText = game.isBuiltin ? "内置精选" : statusLabel(game.status);
 
   return (

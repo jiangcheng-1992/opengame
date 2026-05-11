@@ -371,6 +371,102 @@ h3 {
   color: var(--primary);
 }
 
+.feed-create-button {
+  min-width: 124px;
+  box-shadow: 0 12px 24px rgba(201, 100, 66, 0.18);
+}
+
+.mine-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 204px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, rgba(255, 253, 248, 0.98) 0%, rgba(255, 253, 248, 0.9) 46%, rgba(255, 244, 235, 0.62) 100%),
+    var(--surface);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.82fr);
+  align-items: stretch;
+}
+
+.mine-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+}
+
+.mine-hero-copy h1 {
+  font-size: clamp(30px, 3.2vw, 42px);
+}
+
+.mine-hero-copy p:not(.eyebrow) {
+  max-width: 480px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.mine-hero-action {
+  min-width: 128px;
+  margin-top: 20px;
+}
+
+.mine-hero-art {
+  position: relative;
+  min-height: 204px;
+}
+
+.mine-hero-image {
+  object-fit: cover;
+  object-position: center right;
+}
+
+.mine-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.mine-status-tabs a {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 620;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.mine-status-tabs a:hover {
+  transform: translateY(-1px);
+  border-color: rgba(201, 100, 66, 0.28);
+  color: var(--text);
+}
+
+.mine-status-tabs a.active {
+  border-color: rgba(201, 100, 66, 0.36);
+  background: rgba(201, 100, 66, 0.1);
+  color: var(--primary);
+}
+
 .panel,
 .form-shell,
 .prompt-guide,
@@ -2256,6 +2352,27 @@ h3 {
   color: #d8d1c7;
 }
 
+.job-description {
+  margin: -4px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.inline-job-panel {
+  margin-top: 14px;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.inline-job-panel h3 {
+  margin: 0 0 8px;
+}
+
 .error {
   color: var(--danger);
 }
@@ -2667,6 +2784,7 @@ h3 {
 
   .mobile-tabbar {
     inset: auto 12px 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 7px;
     border-color: var(--line);
@@ -2722,6 +2840,10 @@ h3 {
   .feed-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .mine-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.72fr);
+  }
 }
 
 @media (max-width: 760px) {
@@ -2739,6 +2861,37 @@ h3 {
 
   .section-head {
     gap: 10px;
+  }
+
+  .feed-create-button {
+    width: 100%;
+  }
+
+  .mine-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .mine-hero-copy {
+    padding: 18px;
+  }
+
+  .mine-hero-copy h1 {
+    font-size: 30px;
+  }
+
+  .mine-hero-art {
+    min-height: 142px;
+  }
+
+  .mine-status-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .mine-status-tabs a {
+    flex: 0 0 auto;
   }
 
   .immersive-detail-page {

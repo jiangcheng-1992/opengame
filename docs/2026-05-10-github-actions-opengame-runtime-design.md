@@ -9,17 +9,17 @@ Vercel Sandbox returns HTTP 402 in production and E2B API key creation is blocke
 Use GitHub Actions as the default low-frequency generation worker.
 
 - Vercel keeps serving the Next.js app, gallery, create flow, and polling APIs.
-- `SANDBOX_PROVIDER=github` makes the app queue a GitHub-backed job. If `GITHUB_DISPATCH_TOKEN` is configured, Vercel triggers `.github/workflows/opengame-generate.yml` immediately; otherwise the scheduled workflow polls queued jobs every five minutes.
+- `SANDBOX_PROVIDER=github` makes the app queue a GitHub-backed job. In Vercel production, `GITHUB_DISPATCH_TOKEN` triggers `.github/workflows/opengame-generate.yml` immediately; without it, the scheduled workflow polls queued jobs every five minutes. In local development, the Next.js server starts a local GitHub-compatible worker automatically so localhost jobs do not wait for remote GitHub Actions.
 - The workflow runs `scripts/run-github-opengame-job.ts`, installs OpenGame in the runner, generates the HTML5 game, and runs the same headless Chromium playability validator. The runner does not store production secrets; it calls Vercel `/api/github-worker/*` endpoints so MiniMax, Blob upload, and Prisma writes stay on Vercel.
 - Existing Vercel Sandbox and E2B code remains as compatibility paths for future paid/provisioned runtimes.
 
 ## Data Flow
 
 1. User confirms a game brief.
-2. Vercel creates a `Job` with `QUEUED` status and stores prompt metadata.
-3. Vercel dispatches the GitHub Actions workflow with `job_id`, or the scheduled workflow picks up the oldest queued GitHub job.
-4. GitHub runner claims the job through Vercel, updates `Job.log` and `Job.status` through Vercel, and runs OpenGame.
-5. The runner validates playability, posts generated files back to Vercel, and Vercel uploads to Blob, updates the `Game` to `READY`, and marks the job `DONE`.
+2. The app creates a `Job` with `QUEUED` status and stores prompt metadata.
+3. Production Vercel dispatches the GitHub Actions workflow with `job_id`, or the scheduled workflow picks up the oldest queued GitHub job. Local development starts `scripts/run-github-opengame-job.ts` as a child process against `APP_BASE_URL`.
+4. The GitHub runner or local compatible worker claims the job through `/api/github-worker/jobs/claim`, updates `Job.log` and `Job.status` through the app, and runs OpenGame.
+5. The worker validates playability, posts generated files back to the app, and the app uploads to Blob, updates the `Game` to `READY`, and marks the job `DONE`.
 6. The frontend keeps polling `/api/jobs/:id/progress`; it now reads database-backed progress for GitHub jobs.
 
 ## User Impact
@@ -33,10 +33,16 @@ Use GitHub Actions as the default low-frequency generation worker.
 Vercel environment variables:
 
 - `SANDBOX_PROVIDER=github`
-- `GITHUB_DISPATCH_TOKEN` for immediate `workflow_dispatch`; without it the app can only wait for the scheduled poller. Use a fine-grained GitHub token when possible, limited to `zhang1590424-rgb/opengame-astrocade-mvp` with `Actions: Read and write`.
+- `GITHUB_DISPATCH_TOKEN` for production immediate `workflow_dispatch`; without it Vercel can only wait for the scheduled poller. Use a fine-grained GitHub token when possible, limited to `zhang1590424-rgb/opengame-astrocade-mvp` with `Actions: Read and write`.
 - `GITHUB_DISPATCH_REPO=zhang1590424-rgb/opengame-astrocade-mvp`
 - `GITHUB_DISPATCH_WORKFLOW=opengame-generate.yml`
 - `GITHUB_DISPATCH_REF=main`
+
+Local development variables:
+
+- `APP_BASE_URL=http://localhost:3000` by default; the local worker uses it to call `/api/github-worker/*`.
+- Optional `DISABLE_LOCAL_GITHUB_WORKER=1` keeps jobs queued for manual worker debugging.
+- Optional `FORCE_GITHUB_DISPATCH=1` makes local development dispatch the remote GitHub workflow, which is only useful when `APP_BASE_URL` is reachable by GitHub Actions.
 
 GitHub repository variables:
 
@@ -51,6 +57,7 @@ Local validation remains:
 - `npx prisma generate`
 - `npm run lint`
 - `npm run build`
+- Start `npm run dev`, create a game locally, and confirm the log moves from local queueing into `RUNNING` / `VALIDATING` / `READY` without manually starting a worker.
 
 True smoke validation requires the workflow file to be pushed and the Vercel/GitHub secrets above to be configured, then creating one minimal game from the production UI.
 

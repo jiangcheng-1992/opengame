@@ -3,10 +3,11 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { Bot, CheckCircle2, CircleDashed, FileText, Globe2, Lock, Send, Sparkles, WandSparkles, XCircle } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { JobWatcher } from "@/components/job-watcher";
 import {
-  EMPTY_BRAINSTORM_STATE,
+  INITIAL_BRAINSTORM_STATE,
   extractBrainstormState,
   extractTextFromUIMessage,
   stripBrainstormMetadata,
@@ -16,6 +17,12 @@ import {
 type DraftForCreate = {
   id: string;
   visibility: string;
+  status?: string;
+  latestJob?: {
+    id: string;
+    status: string;
+    errorMsg?: string | null;
+  } | null;
   messages?: Array<{
     id: string;
     role: string;
@@ -52,7 +59,7 @@ function toChatMessages(draft?: DraftForCreate | null): UIMessage[] {
 
 function stateFromMessages(messages: UIMessage[]): BrainstormState {
   const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
-  if (!latestAssistant) return EMPTY_BRAINSTORM_STATE;
+  if (!latestAssistant) return INITIAL_BRAINSTORM_STATE;
   return extractBrainstormState(extractTextFromUIMessage(latestAssistant));
 }
 
@@ -101,6 +108,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">((draft?.visibility?.toUpperCase() as "PUBLIC" | "PRIVATE") ?? "PUBLIC");
   const [pendingFirstMessage, setPendingFirstMessage] = useState("");
   const [brainstormState, setBrainstormState] = useState(() => stateFromMessages(initialMessages));
+  const [activeJobId, setActiveJobId] = useState<string | null>(() => (draft?.status === "generating" ? draft.latestJob?.id ?? null : null));
   const [error, setError] = useState("");
   const [isCreatingDraft, startCreateDraft] = useTransition();
   const [isGenerating, startGenerate] = useTransition();
@@ -136,7 +144,8 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   });
 
   const isStreaming = status === "submitted" || status === "streaming";
-  const canGenerate = Boolean(gameId && brainstormState.isReady && brainstormState.brief && status === "ready");
+  const isGenerationActive = Boolean(activeJobId);
+  const canGenerate = Boolean(gameId && brainstormState.isReady && brainstormState.brief && status === "ready" && !isGenerationActive);
   const latestAssistantMessageId = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant")?.id ?? null, [messages]);
   const showSuggestions = Boolean(brainstormState.suggestions.length && !brainstormState.isReady && !isStreaming);
   const activeSlot = requiredSlots.find((slot) => !brainstormState.isReady && slotIsMissing(slot, brainstormState.missingSlots)) ?? null;
@@ -180,7 +189,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
 
   function submitMessage(nextValue = input) {
     const text = nextValue.trim();
-    if (!text || isStreaming || isCreatingDraft || isGenerating) return;
+    if (!text || isStreaming || isCreatingDraft || isGenerating || isGenerationActive) return;
 
     setError("");
     setInput("");
@@ -207,7 +216,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   }
 
   function generateGame() {
-    if (!gameId || !brainstormState.brief) return;
+    if (!gameId || !brainstormState.brief || isGenerationActive) return;
 
     setError("");
     startGenerate(async () => {
@@ -223,7 +232,10 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
         return;
       }
 
-      router.push(`/games/${payload.gameId}?job=${payload.jobId}`);
+      if (typeof payload.jobId === "string") {
+        setActiveJobId(payload.jobId);
+        router.refresh();
+      }
     });
   }
 
@@ -257,7 +269,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
               {showSuggestions && !latestAssistantMessageId ? (
                 <SuggestionReplies
                   suggestions={brainstormState.suggestions}
-                  disabled={isCreatingDraft || isGenerating}
+                  disabled={isCreatingDraft || isGenerating || isGenerationActive}
                   onSelect={(suggestion) => submitMessage(suggestion)}
                 />
               ) : null}
@@ -283,7 +295,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
                   {message.role === "assistant" && message.id === latestAssistantMessageId && showSuggestions ? (
                     <SuggestionReplies
                       suggestions={brainstormState.suggestions}
-                      disabled={isCreatingDraft || isGenerating}
+                      disabled={isCreatingDraft || isGenerating || isGenerationActive}
                       onSelect={(suggestion) => submitMessage(suggestion)}
                     />
                   ) : null}
@@ -329,10 +341,10 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
               }
             }}
             placeholder="继续补充你的想法，或点上面的选项"
-            disabled={isStreaming || isCreatingDraft || isGenerating}
+            disabled={isStreaming || isCreatingDraft || isGenerating || isGenerationActive}
             rows={1}
           />
-          <button className="icon-button send-button" type="submit" disabled={!input.trim() || isStreaming || isCreatingDraft || isGenerating} aria-label="发送">
+          <button className="icon-button send-button" type="submit" disabled={!input.trim() || isStreaming || isCreatingDraft || isGenerating || isGenerationActive} aria-label="发送">
             <Send size={21} aria-hidden />
           </button>
         </form>
@@ -405,35 +417,26 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
                 私密
               </button>
             </div>
-            <p className="helper">公开作品生成成功后进入作品广场；草稿只会出现在你的工作室。</p>
+            <p className="helper">公开作品生成成功后进入作品广场；草稿只会出现在你的“我的作品”。</p>
 
-            <button className="button primary wide" type="button" onClick={generateGame} disabled={!canGenerate || isGenerating}>
+            <button className="button primary wide" type="button" onClick={generateGame} disabled={!canGenerate || isGenerating || isGenerationActive}>
               <WandSparkles size={18} aria-hidden />
-              {isGenerating ? "启动生成中" : "生成可玩版本"}
+              {isGenerationActive ? "正在生成" : isGenerating ? "启动生成中" : "生成可玩版本"}
             </button>
 
-            {isGenerating ? (
-              <div className="generation-pipeline" aria-label="生成和验证流程">
-                <p>生成与验证流程</p>
-                <ol>
-                  <li className="done">
-                    <span>草稿</span>
-                    <small>已保存</small>
-                  </li>
-                  <li className="done">
-                    <span>生成中</span>
-                    <small>已启动</small>
-                  </li>
-                  <li>
-                    <span>自动试玩</span>
-                    <small>等待验证</small>
-                  </li>
-                  <li>
-                    <span>可玩</span>
-                    <small>待发布</small>
-                  </li>
-                </ol>
-              </div>
+            {activeJobId && gameId ? (
+              <Suspense fallback={null}>
+                <JobWatcher
+                  initialJobId={activeJobId}
+                  initialProgress={draft?.latestJob ? { status: draft.latestJob.status, errorMsg: draft.latestJob.errorMsg } : null}
+                  completionHref={`/games/${gameId}/edit`}
+                  failureHref={`/games/${gameId}/edit`}
+                  title="正在生成这个游戏"
+                  variant="inline"
+                />
+              </Suspense>
+            ) : isGenerating ? (
+              <p className="helper">正在启动真实生成链路，稍后会在这里显示进度。</p>
             ) : null}
           </div>
         ) : null}

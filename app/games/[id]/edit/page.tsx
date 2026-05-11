@@ -8,7 +8,7 @@ export default async function EditGamePage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const game = await getGameDetail(id);
 
-  if (!game || game.isBuiltin || !game.ownedByMe) notFound();
+  if (!game || game.isBuiltin || !game.ownedByMe || (game.status !== "ready" && game.status !== "failed")) notFound();
 
   return (
     <div className="page edit-page">
@@ -24,6 +24,13 @@ export default async function EditGamePage({ params }: { params: Promise<{ id: s
           controls: game.controls,
           genre: game.genre,
           tags: game.tags,
+          latestJob: game.latestJob
+            ? {
+                id: game.latestJob.id,
+                status: game.latestJob.status,
+                errorMsg: game.latestJob.errorMsg,
+              }
+            : null,
         }}
       />
     </div>
