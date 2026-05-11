@@ -1,50 +1,41 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Plus, WandSparkles } from "lucide-react";
+import { Play, Plus, WandSparkles } from "lucide-react";
 import { GameFeed } from "@/components/game-feed";
-import { listGames, type MineStatusFilter, normalizeMineStatusFilter } from "@/lib/games";
+import type { GameCardGame } from "@/components/game-card";
+import { hasMineGames, listGames, type MineStatusFilter, normalizeMineStatusFilter } from "@/lib/games";
 
 export const dynamic = "force-dynamic";
 
 const mineStatusTabs: {
   value: MineStatusFilter;
   label: string;
-  heading: string;
-  description: string;
   emptyTitle: string;
   emptyDescription: string;
 }[] = [
   {
     value: "all",
     label: "全部",
-    heading: "全部作品",
-    description: "草稿、生成中、已完成和待修复作品都在这里。",
     emptyTitle: "还没有你的作品",
     emptyDescription: "先生成一个最小游戏，确认 OpenGame 真链路能跑，再扩展更多玩法。",
   },
   {
     value: "active",
     label: "创作中",
-    heading: "创作中",
-    description: "继续完善草稿，或查看正在生成的作品进度。",
     emptyTitle: "没有创作中的作品",
-    emptyDescription: "新的想法会先变成草稿，再进入生成流程。",
+    emptyDescription: "这里会显示草稿和正在生成的作品。已有作品可以在“全部”里查看。",
   },
   {
     value: "ready",
     label: "已完成",
-    heading: "已完成",
-    description: "这些作品已经通过自动试玩，可以继续修改或打开试玩。",
     emptyTitle: "还没有已完成作品",
-    emptyDescription: "作品通过自动试玩后，会出现在这里。",
+    emptyDescription: "作品生成成功并通过自动试玩后，会出现在这里。",
   },
   {
     value: "failed",
     label: "待修复",
-    heading: "待修复",
-    description: "生成或自动试玩失败的作品，点进去看原因并重新生成。",
     emptyTitle: "没有待修复作品",
-    emptyDescription: "失败作品会停在这里，方便你集中处理。",
+    emptyDescription: "生成或自动试玩失败的作品会停在这里，方便你集中处理。",
   },
 ];
 
@@ -58,16 +49,94 @@ function pageHref(tab: "all" | "mine", status: MineStatusFilter) {
   return query ? `/?${query}` : "/";
 }
 
+function formatCount(value: number) {
+  if (value >= 10_000) return `${(value / 10_000).toFixed(1)}万`;
+  return String(value);
+}
+
+function gameHref(game: GameCardGame) {
+  return `/games/${game.id}`;
+}
+
+function featureLabel(game: GameCardGame) {
+  return game.isBuiltin ? "内置精选" : game.genre || "公开作品";
+}
+
+function FeaturedGameHeader({ games }: { games: GameCardGame[] }) {
+  const hero = games[0];
+  const sideGames = games.slice(1, 5);
+  if (!hero) return null;
+
+  return (
+    <section className="featured-games" aria-labelledby="featured-games-title">
+      <div className="section-head featured-head">
+        <div>
+          <h2 id="featured-games-title">今日先玩</h2>
+        </div>
+      </div>
+
+      <div className="featured-layout">
+        <Link href={gameHref(hero)} className="featured-hero-card" aria-label={`打开 ${hero.title}`}>
+          <Image
+            src={hero.coverUrl || "/playful-creator-hero.png"}
+            alt={`${hero.title} 封面`}
+            fill
+            priority
+            sizes="(max-width: 760px) calc(100vw - 28px), (max-width: 1180px) calc(100vw - 56px), 58vw"
+            className="featured-cover"
+          />
+          <span className="featured-scrim" aria-hidden />
+          <span className="featured-label">{featureLabel(hero)}</span>
+          <span className="featured-play">
+            <Play size={15} aria-hidden fill="currentColor" />
+            {formatCount(hero.playCount)}
+          </span>
+          <div className="featured-copy">
+            <h3>{hero.title}</h3>
+            {hero.summary ? <p>{hero.summary}</p> : null}
+          </div>
+        </Link>
+
+        {sideGames.length ? (
+          <div className="featured-side-grid">
+            {sideGames.map((game, index) => (
+              <Link key={game.id} href={gameHref(game)} className="featured-mini-card" aria-label={`打开 ${game.title}`}>
+                <Image
+                  src={game.coverUrl || "/playful-creator-hero.png"}
+                  alt={`${game.title} 封面`}
+                  fill
+                  priority={index < 2}
+                  sizes="(max-width: 760px) calc((100vw - 40px) / 2), (max-width: 1180px) calc((100vw - 74px) / 2), 20vw"
+                  className="featured-cover"
+                />
+                <span className="featured-scrim" aria-hidden />
+                <span className="featured-label">{featureLabel(game)}</span>
+                <div className="featured-mini-meta">
+                  <h3>{game.title}</h3>
+                  <span>
+                    <Play size={13} aria-hidden fill="currentColor" />
+                    {formatCount(game.playCount)}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function MineHero() {
   return (
     <section className="mine-hero" aria-labelledby="mine-hero-title">
       <div className="mine-hero-copy">
-        <p className="eyebrow">我的</p>
-        <h1 id="mine-hero-title">我的作品</h1>
-        <p>继续创作草稿，修复失败作品，把已经可玩的版本再打磨一轮。</p>
+        <p className="eyebrow">开始创作</p>
+        <h1 id="mine-hero-title">创建你的第一款游戏</h1>
+        <p>把一个游戏点子变成可试玩作品。先描述玩法，我们会帮你梳理清楚，再生成第一版。</p>
         <Link href="/create" className="button primary mine-hero-action">
           <WandSparkles size={18} aria-hidden />
-          新建作品
+          创建第一个游戏
         </Link>
       </div>
       <div className="mine-hero-art" aria-hidden="true">
@@ -121,7 +190,9 @@ export default async function Home({
       unavailable: true,
     }));
   const games = data.games;
-  const feedDescription = "内置精选和公开作品铺在同一个试玩流里，直接点开试玩或 Like。";
+  const featuredGames = tab === "all" ? games.slice(0, 5) : [];
+  const feedGames = tab === "all" ? games.slice(featuredGames.length) : games;
+  const hasAnyMineGames = !data.unavailable && tab === "mine" ? await hasMineGames().catch(() => false) : false;
 
   return (
     <div className="page arcade-page">
@@ -134,59 +205,52 @@ export default async function Home({
         </section>
       ) : tab === "mine" ? (
         <>
-          <MineHero />
-          <MineStatusTabs active={mineStatus} />
-          {games.length ? (
-            <section className="feed-section" aria-labelledby="mine-feed-title">
+          {hasAnyMineGames ? (
+            <>
+              <MineStatusTabs active={mineStatus} />
+              {games.length ? (
+                <section className="feed-section" aria-label="我的作品列表">
+                  <GameFeed
+                    key={`${tab}-${mineStatus}`}
+                    initialGames={games}
+                    initialNextCursor={data.nextCursor}
+                    tab={tab}
+                    mineStatus={mineStatus}
+                    surface="studio"
+                  />
+                </section>
+              ) : (
+                <section className="panel empty-panel">
+                  <h2>{activeMineTab.emptyTitle}</h2>
+                  <p className="helper">{activeMineTab.emptyDescription}</p>
+                </section>
+              )}
+            </>
+          ) : (
+            <MineHero />
+          )}
+        </>
+      ) : games.length ? (
+        <>
+          <FeaturedGameHeader games={featuredGames} />
+          {feedGames.length ? (
+            <section className="feed-section" aria-labelledby="home-feed-title">
               <div className="section-head">
                 <div>
-                  <h2 id="mine-feed-title">{activeMineTab.heading}</h2>
-                  <p>{activeMineTab.description}</p>
+                  <h2 id="home-feed-title">全部作品</h2>
                 </div>
               </div>
               <GameFeed
                 key={`${tab}-${mineStatus}`}
-                initialGames={games}
+                initialGames={feedGames}
                 initialNextCursor={data.nextCursor}
                 tab={tab}
                 mineStatus={mineStatus}
-                surface="studio"
+                surface="gallery"
               />
             </section>
-          ) : (
-            <section className="panel empty-panel">
-              <h2>{activeMineTab.emptyTitle}</h2>
-              <p className="helper">{activeMineTab.emptyDescription}</p>
-              {mineStatus === "all" ? (
-                <Link href="/create" className="button primary">
-                  <Plus size={18} aria-hidden />
-                  创建第一个游戏
-                </Link>
-              ) : null}
-            </section>
-          )}
+          ) : null}
         </>
-      ) : games.length ? (
-        <section className="feed-section" aria-labelledby="home-feed-title">
-          <div className="section-head">
-            <div>
-              <h2 id="home-feed-title">全部作品</h2>
-              <p>{feedDescription}</p>
-            </div>
-            <Link href="/create" className="button primary feed-create-button">
-              <WandSparkles size={16} aria-hidden />
-              新建作品
-            </Link>
-          </div>
-          <GameFeed
-            key={`${tab}-${mineStatus}`}
-            initialGames={games}
-            initialNextCursor={data.nextCursor}
-            tab={tab}
-            mineStatus={mineStatus}
-            surface="gallery"
-          />
-        </section>
       ) : (
         <section className="panel empty-panel">
           <h2>作品广场还是空的</h2>

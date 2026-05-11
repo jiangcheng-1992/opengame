@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState, useTransition } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -70,6 +70,7 @@ function splitChangeItems(text: string) {
 
 const quickEdits = ["失败提示更明显", "降低第二关难度", "增强操作反馈", "让画面更明亮", "增加新关卡目标"];
 const failedQuickEdits = ["先做单屏版本", "降低机制复杂度", "保留键盘移动", "减少敌人数量", "强化开始反馈"];
+const previewViewport = { width: 1280, height: 800 };
 
 function isActiveJobStatus(status?: string | null) {
   const normalizedStatus = status?.toLowerCase();
@@ -123,6 +124,8 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState("");
+  const previewWrapRef = useRef<HTMLDivElement | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
   const [activeJobId, setActiveJobId] = useState<string | null>(() => (isActiveJobStatus(game.latestJob?.status) ? game.latestJob?.id ?? null : null));
   const [isPending, startTransition] = useTransition();
   const isFailed = game.status === "failed";
@@ -149,6 +152,22 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
     if (!activeJobId || game.latestJob?.id !== activeJobId) return;
     if (!isActiveJobStatus(game.latestJob.status)) setActiveJobId(null);
   }, [activeJobId, game.latestJob?.id, game.latestJob?.status]);
+
+  useEffect(() => {
+    const element = previewWrapRef.current;
+    if (!element) return;
+
+    function updatePreviewScale() {
+      if (!element) return;
+      const { width, height } = element.getBoundingClientRect();
+      setPreviewScale(Math.min(width / previewViewport.width, height / previewViewport.height));
+    }
+
+    updatePreviewScale();
+    const resizeObserver = new ResizeObserver(updatePreviewScale);
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const changeItems = useMemo(() => splitChangeItems(prompt), [prompt]);
   const preserveItems = useMemo(
@@ -252,7 +271,7 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
             </div>
             <span className="edit-version">v{game.version}</span>
           </div>
-          <div className="edit-game-frame-wrap">
+          <div className="edit-game-frame-wrap" ref={previewWrapRef}>
             {game.playUrl ? (
               <iframe
                 title={`${game.title} 当前版本`}
@@ -260,6 +279,11 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
                 sandbox="allow-scripts allow-same-origin allow-pointer-lock"
                 allow="autoplay; fullscreen; gamepad"
                 className="game-frame edit-game-frame"
+                style={{
+                  width: previewViewport.width,
+                  height: previewViewport.height,
+                  transform: `translate(-50%, -50%) scale(${previewScale})`,
+                }}
               />
             ) : (
               <div className="empty-frame edit-empty-frame">

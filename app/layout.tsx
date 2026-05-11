@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { AppShellNav } from "@/components/app-shell-nav";
 import "./globals.css";
@@ -6,6 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "OpenGame 游戏创作器",
   description: "用提示词生成可玩的 HTML5 小游戏。",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -149,7 +149,7 @@ export function GameCard({ game, surface = "gallery", priority = false }: GameCa
             src={game.coverUrl}
             alt={`${game.title} 封面`}
             fill
-            sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1180px) calc((100vw - 252px - 24px) / 2), 260px"
+            sizes="(max-width: 760px) calc(100vw - 28px), (max-width: 1180px) calc((100vw - 50px) / 2), 330px"
             className="card-cover"
             priority={priority}
           />

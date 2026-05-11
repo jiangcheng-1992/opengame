@@ -55,6 +55,16 @@ export function normalizeMineStatusFilter(value?: string | null): MineStatusFilt
   return mineStatusFilters.includes(value as MineStatusFilter) ? (value as MineStatusFilter) : "all";
 }
 
+export async function hasMineGames() {
+  const anonId = await getAnonId();
+  const game = await prisma.game.findFirst({
+    where: { ownerId: anonId ?? "" },
+    select: { id: true },
+  });
+
+  return Boolean(game);
+}
+
 function normalizeLatestJob(job?: SelectedJob | null) {
   return job
     ? {
