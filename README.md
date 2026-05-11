@@ -5,6 +5,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 ## 生产环境
 
 - 当前公开生产入口：`https://opengame.zz-fancy.cloud`。Vercel 每次生产部署仍会生成对应的 `*.vercel.app` 地址，但对外验证优先使用这个别名。
+- 页面访问监控使用 Vercel Web Analytics：代码侧已在全局布局接入 `@vercel/analytics`，生产部署后在 Vercel Project 的 Analytics 页面查看访客、页面浏览、来源、地区、设备和浏览器数据。
 - 2026-05-10 已确认 Vercel Production 配置了 `GITHUB_DISPATCH_TOKEN`，创建作品后会即时触发 GitHub Actions `opengame-generate.yml`，创建页或修改工作台的生成日志应出现 `Queued GitHub Actions workflow ... @main`。
 - 如果线上生成日志退化为 `Queued for the next scheduled GitHub Actions worker run.`，优先检查 `GITHUB_DISPATCH_TOKEN` 是否缺失或过期；修复环境变量后必须重新 `vercel deploy --prod`，旧部署不会自动读取新值。
 
@@ -45,6 +46,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 
 - GitHub 仓库可以保持私有；Vercel 生产部署会生成公开的 `*.vercel.app` 地址供任何人试玩。
 - 生产部署前先在 Vercel Project Settings 配置上面的环境变量，或用 `vercel env add` 写入；不要把真实密钥提交到仓库。
+- Vercel Web Analytics 需要在项目后台的 Analytics 页面点击 Enable；代码侧接入后，下一次生产部署开始采集真实访问数据。
 - GitHub Actions worker 不保存生产密钥；它通过 Vercel 的 `/api/github-worker/*` 代理访问 MiniMax、Blob 和数据库。仓库 Variables 可选配置 `APP_BASE_URL`、`MINIMAX_TEXT_MODEL`、`OPENGAME_GIT_URL`。
 - 根目录 `vercel.json` 固定 `"framework": "nextjs"`，覆盖 Vercel 项目里可能残留的 `Other` preset，避免只发布 `public/` 静态文件而让 App Router 页面 404。
 - 根目录 `.vercelignore` 明确排除 `.env`、`.env.*`、`node_modules` 和 `.next`，避免本地密钥或构建产物被 CLI 当作源码上传。

@@ -4256,33 +4256,39 @@ h3 {
   gap: 22px;
 }
 
-.game-card.surface-gallery {
+.game-card.surface-gallery,
+.game-card.surface-studio {
   border: 0;
   border-radius: 24px;
   background: transparent;
   box-shadow: none;
 }
 
-.game-card.surface-gallery:hover {
+.game-card.surface-gallery:hover,
+.game-card.surface-studio:hover {
   border-color: transparent;
   box-shadow: none;
 }
 
-.game-card.surface-gallery .card-media {
+.game-card.surface-gallery .card-media,
+.game-card.surface-studio .card-media {
   margin: 0;
   border-radius: 24px;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
 }
 
-.game-card.surface-gallery:hover .card-media {
+.game-card.surface-gallery:hover .card-media,
+.game-card.surface-studio:hover .card-media {
   box-shadow: 0 24px 58px rgba(15, 23, 42, 0.15);
 }
 
-.game-card.surface-gallery .card-body {
+.game-card.surface-gallery .card-body,
+.game-card.surface-studio .card-body {
   padding: 10px 2px 0;
 }
 
-.game-card.surface-gallery .card-chip-row span {
+.game-card.surface-gallery .card-chip-row span,
+.game-card.surface-studio .card-chip-row span {
   background: rgba(255, 255, 255, 0.62);
 }
 
@@ -4404,7 +4410,9 @@ h3 {
   }
 
   .game-card.surface-gallery,
-  .game-card.surface-gallery .card-media {
+  .game-card.surface-studio,
+  .game-card.surface-gallery .card-media,
+  .game-card.surface-studio .card-media {
     border-radius: 18px;
   }
 }

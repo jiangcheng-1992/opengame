@@ -23,6 +23,7 @@
     "@ai-sdk/openai-compatible": "^2.0.47",
     "@ai-sdk/react": "^3.0.179",
     "@prisma/client": "^6.19.0",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.3",
     "@vercel/sandbox": "^0.0.21",
     "ai": "^6.0.177",

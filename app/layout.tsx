@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { Analytics } from "@vercel/analytics/next";
 import { AppShellNav } from "@/components/app-shell-nav";
 import "./globals.css";
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AppShellNav />
         </Suspense>
         <main className="app-main">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
