@@ -18,6 +18,6 @@ async function incrementBucket(key: string, limit: number) {
 }
 
 export async function enforceGenerationLimit(anonId: string, ip: string) {
-  await incrementBucket(`anon:${anonId}`, 10);
-  await incrementBucket(`ip:${ip}`, 30);
+  await incrementBucket(`anon:${anonId}`, 50);
+  await incrementBucket(`ip:${ip}`, 100);
 }
