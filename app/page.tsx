@@ -73,7 +73,7 @@ function MineHero() {
       </div>
       <div className="mine-hero-art" aria-hidden="true">
         <Image
-          src="/mine-hero.png"
+          src="/playful-creator-hero.png"
           alt=""
           fill
           priority
