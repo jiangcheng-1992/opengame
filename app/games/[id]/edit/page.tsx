@@ -8,7 +8,7 @@ export default async function EditGamePage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const game = await getGameDetail(id);
 
-  if (!game || game.isBuiltin || !game.ownedByMe || (game.status !== "ready" && game.status !== "failed")) notFound();
+  if (!game || game.isBuiltin || !game.ownedByMe || !(game.status === "ready" || game.status === "failed" || (game.status === "generating" && game.playUrl))) notFound();
 
   return (
     <div className="page edit-page">

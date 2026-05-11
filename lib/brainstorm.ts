@@ -78,12 +78,32 @@ function uniqueSuggestions(suggestions: string[]) {
   });
 }
 
+function extractNumberedSuggestionLine(line: string) {
+  return line.match(/^\s*(?:[-*]\s*)?(?:[1-4]|[a-d])[\.\)、]\s*(.+)$/i)?.[1] ?? "";
+}
+
+function extractBulletSuggestionLine(line: string) {
+  const body = line.match(/^\s*[-*•]\s*(.+)$/)?.[1]?.trim();
+  if (!body) return "";
+
+  const boldLabel = body.match(/^(?:\S+\s+)?\*\*([^*]{1,36})\*\*(?:\s*(?:[—–-]|:|：)\s*[\s\S]*)?$/);
+  return boldLabel?.[1] ?? "";
+}
+
+function extractSuggestionLine(line: string) {
+  return cleanSuggestionText(extractNumberedSuggestionLine(line) || extractBulletSuggestionLine(line));
+}
+
+function isSuggestionHeadingLine(line: string) {
+  const heading = cleanSuggestionText(line).replace(/[:：]\s*$/, "");
+  return /^(可选回复|可点回复|选项|可选方向|题材风格|视觉风格|美术风格|核心玩法|操作方式|胜负目标)$/.test(heading);
+}
+
 function extractLineSuggestions(text: string) {
   return uniqueSuggestions(
     text
       .split(/\n+/)
-      .map((line) => line.match(/^\s*(?:[-*]\s*)?(?:[1-4]|[a-d])[\.\)、]\s*(.+)$/i)?.[1] ?? "")
-      .map(cleanSuggestionText)
+      .map(extractSuggestionLine)
       .filter(Boolean),
   ).slice(0, 4);
 }
@@ -165,10 +185,18 @@ function cleanLooseBrief(text: string) {
     .slice(0, 4000);
 }
 
+function inferLooseMissingSlots(text: string) {
+  if (/视觉|题材|风格|美术|画面/i.test(text)) return ["视觉/题材风格"];
+  if (/操作|按键|键盘|鼠标|点击|拖拽|移动|输入/i.test(text)) return ["操作方式"];
+  if (/胜负|获胜|失败|目标|通关|输赢|终点|分数/i.test(text)) return ["胜负目标"];
+  if (/玩法|机制|挑战|类型/i.test(text)) return ["核心玩法"];
+  return EMPTY_BRAINSTORM_STATE.missingSlots;
+}
+
 function extractLooseBrainstormState(text: string, visibleSuggestions: string[] = []): BrainstormState {
   const visibleText = stripBrainstormMetadata(text);
   if (!LOOSE_READY_PATTERN.test(visibleText)) {
-    return { ...EMPTY_BRAINSTORM_STATE, suggestions: visibleSuggestions };
+    return { ...EMPTY_BRAINSTORM_STATE, missingSlots: inferLooseMissingSlots(visibleText), suggestions: visibleSuggestions };
   }
 
   const brief = cleanLooseBrief(visibleText);
@@ -190,6 +218,23 @@ export function stripBrainstormMetadata(text: string) {
   return stripModelReasoning(text)
     .replace(METADATA_PATTERN, "")
     .replace(/<opengame_brief_json>[\s\S]*$/i, "")
+    .trim();
+}
+
+export function formatVisibleBrainstormText(text: string) {
+  const visibleText = stripBrainstormMetadata(text).replace(/\r/g, "\n").trim();
+  if (!visibleText) return "";
+
+  const lines = visibleText.split("\n");
+  const optionLineCount = lines.filter((line) => Boolean(extractSuggestionLine(line))).length;
+  const displayLines =
+    optionLineCount >= 2 ? lines.filter((line) => !extractSuggestionLine(line) && !isSuggestionHeadingLine(line)) : lines;
+
+  return displayLines
+    .join("\n")
+    .replace(/\*\*/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState, useTransition } from "react";
+import { Suspense, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -74,16 +74,28 @@ function splitChangeItems(text: string) {
 const quickEdits = ["失败提示更明显", "降低第二关难度", "增强操作反馈", "让画面更明亮", "增加新关卡目标"];
 const failedQuickEdits = ["先做单屏版本", "降低机制复杂度", "保留键盘移动", "减少敌人数量", "强化开始反馈"];
 
+function isActiveJobStatus(status?: string | null) {
+  return Boolean(status && ["queued", "running", "validating", "repairing", "finishing"].includes(status));
+}
+
 export function EditGameWorkbench({ game }: { game: EditableGame }) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState("");
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(() => (isActiveJobStatus(game.latestJob?.status) ? game.latestJob?.id ?? null : null));
   const [isPending, startTransition] = useTransition();
   const isFailed = game.status === "failed";
-  const canSubmit = game.status === "ready" || isFailed;
+  const hasPlayableVersion = Boolean(game.playUrl);
+  const canSubmit = hasPlayableVersion || isFailed;
   const isGenerationActive = Boolean(activeJobId);
   const suggestedEdits = isFailed ? failedQuickEdits : quickEdits;
+  const activeJobInitialProgress =
+    game.latestJob && activeJobId === game.latestJob.id ? { status: game.latestJob.status, errorMsg: game.latestJob.errorMsg } : null;
+
+  useEffect(() => {
+    if (!activeJobId || game.latestJob?.id !== activeJobId) return;
+    if (!isActiveJobStatus(game.latestJob.status)) setActiveJobId(null);
+  }, [activeJobId, game.latestJob?.id, game.latestJob?.status]);
 
   const changeItems = useMemo(() => splitChangeItems(prompt), [prompt]);
   const preserveItems = useMemo(
@@ -173,8 +185,8 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
           <h1>{game.title}</h1>
         </div>
         <div className="edit-status-pill">
-          {isFailed ? <AlertTriangle size={16} aria-hidden /> : <ShieldCheck size={16} aria-hidden />}
-          {isFailed ? "等待重新生成" : "旧版本仍保留"}
+          {isFailed ? <AlertTriangle size={16} aria-hidden /> : isGenerationActive ? <WandSparkles size={16} aria-hidden /> : <ShieldCheck size={16} aria-hidden />}
+          {isFailed ? "等待重新生成" : isGenerationActive ? "新版本生成中" : "旧版本仍保留"}
         </div>
       </header>
 
@@ -362,7 +374,13 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
             <p className="helper">{isFailed ? "这次会复用原始意图和失败原因重新生成，通过自动试玩后再发布。" : "旧版本仍保留可玩；新版本通过自动试玩后再发布。"}</p>
             {activeJobId ? (
               <Suspense fallback={null}>
-                <JobWatcher initialJobId={activeJobId} completionHref={`/games/${game.id}/edit`} title={isFailed ? "正在重新生成" : "正在生成新版本"} variant="inline" />
+                <JobWatcher
+                  initialJobId={activeJobId}
+                  initialProgress={activeJobInitialProgress}
+                  completionHref={`/games/${game.id}/edit`}
+                  title={isFailed ? "正在重新生成" : "正在生成新版本"}
+                  variant="inline"
+                />
               </Suspense>
             ) : null}
             {error ? (

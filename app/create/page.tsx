@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import { CreateGameForm } from "@/components/create-game-form";
-import { getCreateDraft } from "@/lib/games";
+import { getCreateDraft, getGameDetail } from "@/lib/games";
 
 export default async function CreatePage({
   searchParams,
@@ -8,6 +9,12 @@ export default async function CreatePage({
 }) {
   const params = await searchParams;
   const draft = params.game ? await getCreateDraft(params.game) : null;
+  if (params.game && !draft) {
+    const game = await getGameDetail(params.game);
+    if (game && !game.isBuiltin && game.ownedByMe && (game.status === "ready" || game.status === "failed" || game.playUrl)) {
+      redirect(`/games/${game.id}/edit`);
+    }
+  }
   const draftForCreate = draft
     ? {
         id: draft.id,

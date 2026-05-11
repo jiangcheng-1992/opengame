@@ -19,14 +19,15 @@
 | Tab | 状态 |
 | --- | --- |
 | 全部 | 全部我的作品 |
-| 创作中 | `DRAFT`、`GENERATING` |
-| 已完成 | `READY` |
+| 创作中 | `DRAFT`、无可玩版本的 `GENERATING` |
+| 已完成 | `READY`，包括正在生成新版本但旧版仍可玩的作品 |
 | 待修复 | `FAILED` |
 
 ## 路由与数据
 - 继续复用 `/?tab=mine` 作为“我的”页入口。
 - 状态分类使用 URL 参数保留状态，例如 `/?tab=mine&status=active`，便于刷新、返回和分享。
 - 公共首页不展示状态分类，仍只展示内置精选和公开 `READY` 作品。
+- 已完成作品继续修改时，主状态保持 `READY`；卡片根据最新 Job 展示进度提示，但点击仍进入修改工作台。
 
 ## 验证
 - 跑 `npm run lint`、`npm run build`、`npx prisma generate`。

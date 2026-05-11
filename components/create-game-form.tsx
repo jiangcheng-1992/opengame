@@ -10,7 +10,7 @@ import {
   INITIAL_BRAINSTORM_STATE,
   extractBrainstormState,
   extractTextFromUIMessage,
-  stripBrainstormMetadata,
+  formatVisibleBrainstormText,
   type BrainstormState,
 } from "@/lib/brainstorm";
 
@@ -64,7 +64,7 @@ function stateFromMessages(messages: UIMessage[]): BrainstormState {
 }
 
 function visibleMessageText(message: UIMessage) {
-  return stripBrainstormMetadata(extractTextFromUIMessage(message));
+  return formatVisibleBrainstormText(extractTextFromUIMessage(message));
 }
 
 const requiredSlots = ["核心玩法", "操作方式", "胜负目标", "视觉风格"] as const;

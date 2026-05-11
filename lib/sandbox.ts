@@ -715,6 +715,12 @@ export async function startOpenGameJob({
   sourceUrl?: string | null;
   useContinue?: boolean;
 }) {
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    select: { playUrl: true },
+  });
+  const hasPlayableVersion = Boolean(game?.playUrl);
+
   if (sandboxProviderFromEnv() === "github") {
     const sandboxId = encodeSandboxId("github", jobId);
     const dispatch = shouldDispatchGithubWorkflow() ? await maybeTriggerGithubOpenGameWorkflow({ jobId }) : null;
@@ -731,10 +737,12 @@ export async function startOpenGameJob({
           : queuedGithubWorkerLog(),
       },
     });
-    await prisma.game.update({
-      where: { id: gameId },
-      data: { status: "GENERATING" },
-    });
+    if (!hasPlayableVersion) {
+      await prisma.game.update({
+        where: { id: gameId },
+        data: { status: "GENERATING" },
+      });
+    }
     if (shouldStartLocalWorker) startLocalGithubWorker(jobId);
 
     return sandboxId;
@@ -789,10 +797,12 @@ export async function startOpenGameJob({
       startedAt: new Date(),
     },
   });
-  await prisma.game.update({
-    where: { id: gameId },
-    data: { status: "GENERATING" },
-  });
+  if (!hasPlayableVersion) {
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { status: "GENERATING" },
+    });
+  }
 
   return sandboxId;
 }

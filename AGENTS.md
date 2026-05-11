@@ -33,10 +33,10 @@
 - 创建页必须先进入流式头脑风暴：问齐核心玩法、操作方式、胜负目标、视觉/题材风格后，用户确认 brief 才能启动 OpenGame 生成。
 - `DRAFT` 表示头脑风暴草稿；草稿只出现在“我的作品”，不进入公共 Gallery。直接创建作品的兼容接口也只能创建草稿，不能绕过头脑风暴启动生成。
 - 公共 Gallery 和 `/games/:id` 是纯游玩态，只展示 `READY` 作品与内置精选，不展示作者修改入口、生成日志或创作对话历史；“我的作品 / 创作台”才进入作者工作态。
-- “我的作品”点击规则：`DRAFT` / `GENERATING` 进入 `/create?game=:id`，`READY` / `FAILED` 进入 `/games/:id/edit`；一创失败也在修改工作台里修复并重新生成。
+- “我的作品”点击规则：`DRAFT` / 无可玩版本的 `GENERATING` 进入 `/create?game=:id`；`READY` / `FAILED` 进入 `/games/:id/edit`。已可玩作品提交继续修改时，`Game.status` 仍保持 `READY`，只用最新 `Job.status` 表达“新版本生成中”，点击仍进入 `/games/:id/edit`。
 - `READY` 不能只代表产出 HTML；必须代表游戏已经通过 Sandbox 内浏览器自动试玩验证。至少确认页面可加载、无 fatal JS error、开始/点击/键盘输入能让游戏状态发生变化。
 - 自动试玩失败时允许最多 2 轮修复；仍失败则标记失败并展示真实原因，不进入 Gallery 的可玩作品流。
-- 继续修改优先恢复 `sourceUrl` 源码包并尝试 `--continue`，不支持时走“源码上下文 + 新 prompt”降级方案。
+- 继续修改优先恢复 `sourceUrl` 源码包并尝试 `--continue`，不支持时走“源码上下文 + 新 prompt”降级方案；修改生成期间旧版本必须继续可玩，失败时不能把已有可玩作品降级为不可玩。
 - 详情页播放必须走同源 `/api/games/:id/files/...` 代理；不要直接把 Blob HTML URL 塞进 iframe，因为 Blob 默认 CSP 会拦截内联脚本，导致很多单文件游戏白屏。
 - 封面图生成失败不能阻塞游戏可玩。
 - 内置精选游戏是 onboarding 内容，不代表 OpenGame 真生成结果；页面必须明确标记“内置精选”，不能用它们冒充真实生成作品。

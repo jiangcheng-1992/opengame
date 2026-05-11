@@ -7,6 +7,8 @@ import { messageSchema } from "@/lib/schemas";
 import { buildSourceContext } from "@/lib/source-context";
 import { startOpenGameJob } from "@/lib/sandbox";
 
+const ACTIVE_JOB_STATUSES = new Set(["QUEUED", "RUNNING", "VALIDATING", "REPAIRING", "FINISHING"]);
+
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const anonId = await getAnonId();
@@ -22,8 +24,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "找不到这个游戏。" }, { status: 404 });
   }
 
-  if (game.status !== "READY" && game.status !== "FAILED") {
+  const hasPlayableVersion = Boolean(game.playUrl);
+  const canUseEditWorkbench = game.status === "READY" || game.status === "FAILED" || (game.status === "GENERATING" && hasPlayableVersion);
+  if (!canUseEditWorkbench) {
     return NextResponse.json({ error: "游戏生成完成或失败后才能进入修改工作台。" }, { status: 409 });
+  }
+
+  const latestJob = game.jobs[0] ?? null;
+  if (latestJob && ACTIVE_JOB_STATUSES.has(latestJob.status)) {
+    return NextResponse.json({ error: "这个游戏已有生成任务在进行中，请等待当前任务完成。" }, { status: 409 });
   }
 
   const parsed = messageSchema.safeParse(await req.json().catch(() => ({})));
@@ -42,7 +51,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     .slice(-20)
     .map((message) => `${message.role}: ${message.content}`)
     .join("\n");
-  const latestJob = game.jobs[0] ?? null;
   const isFailureRetry = game.status === "FAILED";
   const sourceContext = isFailureRetry ? "" : await buildSourceContext(game);
   const prompt = isFailureRetry
@@ -79,10 +87,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "修改任务启动失败。";
-    await prisma.job.update({
-      where: { id: job.id },
-      data: { status: "FAILED", errorMsg: message, finishedAt: new Date() },
-    });
+    await prisma.$transaction([
+      prisma.job.update({
+        where: { id: job.id },
+        data: { status: "FAILED", errorMsg: message, finishedAt: new Date() },
+      }),
+      prisma.game.update({
+        where: { id: game.id },
+        data: { status: game.playUrl ? "READY" : "FAILED" },
+      }),
+    ]);
     return NextResponse.json({ error: message, jobId: job.id }, { status: 500 });
   }
 
