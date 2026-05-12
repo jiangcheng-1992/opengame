@@ -18,6 +18,7 @@ export default async function EditGamePage({ params }: { params: Promise<{ id: s
           title: game.title,
           summary: game.summary,
           status: game.status,
+          visibility: game.visibility,
           playUrl: game.playUrl,
           version: game.version,
           updatedAt: game.updatedAt.toISOString(),

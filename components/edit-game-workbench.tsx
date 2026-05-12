@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   Clock3,
   Gamepad2,
+  Globe2,
+  LockKeyhole,
   ShieldCheck,
   Sparkles,
   WandSparkles,
@@ -22,6 +24,7 @@ type EditableGame = {
   title: string;
   summary: string | null;
   status: string;
+  visibility: string;
   playUrl: string | null;
   version: number;
   updatedAt: string;
@@ -88,6 +91,10 @@ function compactText(value: string, maxLength = 34) {
   return chars.length > maxLength ? `${chars.slice(0, maxLength).join("")}...` : text;
 }
 
+function normalizeVisibility(value: string): "PUBLIC" | "PRIVATE" {
+  return value.toUpperCase() === "PRIVATE" ? "PRIVATE" : "PUBLIC";
+}
+
 function buildEditTaskSteps(isSubmitting: boolean, jobStatus: string | null): TaskStep[] {
   const hasJob = Boolean(jobStatus);
   const isFailed = jobStatus === "failed";
@@ -124,6 +131,9 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState("");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">(() => normalizeVisibility(game.visibility));
+  const [visibilityError, setVisibilityError] = useState("");
+  const [isVisibilitySaving, setIsVisibilitySaving] = useState(false);
   const previewWrapRef = useRef<HTMLDivElement | null>(null);
   const [previewScale, setPreviewScale] = useState(1);
   const [activeJobId, setActiveJobId] = useState<string | null>(() => (isActiveJobStatus(game.latestJob?.status) ? game.latestJob?.id ?? null : null));
@@ -147,6 +157,7 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
   const editTaskResultTone = editJobStatus === "failed" ? "danger" : editJobStatus === "done" ? "success" : "muted";
   const compactPrompt = compactText(prompt) || (isFailed ? "修复失败版本" : "调整当前版本");
   const latestFailedJob = !activeJobId && game.latestJob && normalizeJobStatus(game.latestJob.status) === "failed" ? game.latestJob : null;
+  const visibilityHint = visibility === "PUBLIC" ? "会出现在广场" : "仅自己可见";
 
   useEffect(() => {
     if (!activeJobId || game.latestJob?.id !== activeJobId) return;
@@ -245,6 +256,35 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
     });
   }
 
+  async function updateVisibility(nextVisibility: "PUBLIC" | "PRIVATE") {
+    if (nextVisibility === visibility || isVisibilitySaving) return;
+    const previousVisibility = visibility;
+    setVisibility(nextVisibility);
+    setVisibilityError("");
+    setIsVisibilitySaving(true);
+
+    try {
+      const response = await fetch(`/api/games/${game.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility: nextVisibility }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(errorMessage(payload, "公开状态保存失败。"));
+      }
+      if (payload?.game?.visibility) {
+        setVisibility(normalizeVisibility(String(payload.game.visibility)));
+      }
+      router.refresh();
+    } catch (nextError) {
+      setVisibility(previousVisibility);
+      setVisibilityError(nextError instanceof Error ? nextError.message : "公开状态保存失败。");
+    } finally {
+      setIsVisibilitySaving(false);
+    }
+  }
+
   return (
     <section className="edit-workbench" aria-label="修改游戏工作台">
       <header className="edit-topbar">
@@ -256,9 +296,30 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
           <p className="eyebrow">{isFailed ? "正在修复失败作品" : "正在修改当前版本"}</p>
           <h1>{game.title}</h1>
         </div>
-        <div className="edit-status-pill">
-          {isFailed ? <AlertTriangle size={16} aria-hidden /> : isGenerationActive ? <WandSparkles size={16} aria-hidden /> : <ShieldCheck size={16} aria-hidden />}
-          {isFailed ? "等待重新生成" : isGenerationActive ? "新版本生成中" : "旧版本仍保留"}
+        <div className="edit-topbar-actions">
+          <div className="edit-visibility-control">
+            <div className="edit-visibility-head">
+              {visibility === "PUBLIC" ? <Globe2 size={15} aria-hidden /> : <LockKeyhole size={15} aria-hidden />}
+              <span>{isVisibilitySaving ? "保存中" : visibilityHint}</span>
+            </div>
+            <div className="edit-visibility-toggle" aria-label="作品可见性">
+              <button type="button" className={visibility === "PUBLIC" ? "active" : ""} onClick={() => updateVisibility("PUBLIC")} disabled={isVisibilitySaving} aria-pressed={visibility === "PUBLIC"}>
+                公开
+              </button>
+              <button type="button" className={visibility === "PRIVATE" ? "active" : ""} onClick={() => updateVisibility("PRIVATE")} disabled={isVisibilitySaving} aria-pressed={visibility === "PRIVATE"}>
+                私密
+              </button>
+            </div>
+            {visibilityError ? (
+              <p className="edit-visibility-error" role="alert">
+                {visibilityError}
+              </p>
+            ) : null}
+          </div>
+          <div className="edit-status-pill">
+            {isFailed ? <AlertTriangle size={16} aria-hidden /> : isGenerationActive ? <WandSparkles size={16} aria-hidden /> : <ShieldCheck size={16} aria-hidden />}
+            {isFailed ? "等待重新生成" : isGenerationActive ? "新版本生成中" : "旧版本仍保留"}
+          </div>
         </div>
       </header>
 

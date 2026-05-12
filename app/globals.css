@@ -3012,6 +3012,70 @@ h3 {
   white-space: nowrap;
 }
 
+.edit-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 10px;
+}
+
+.edit-visibility-control {
+  display: grid;
+  gap: 6px;
+  min-width: 236px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.edit-visibility-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  padding: 0 4px;
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.edit-visibility-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.edit-visibility-toggle button {
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.edit-visibility-toggle button.active {
+  border-color: rgba(255, 46, 149, 0.26);
+  background: rgba(255, 46, 149, 0.08);
+  color: var(--primary);
+}
+
+.edit-visibility-toggle button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.edit-visibility-error {
+  margin: 0;
+  padding: 0 4px;
+  color: #c74b4b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .edit-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.9fr);
@@ -3391,6 +3455,22 @@ h3 {
     grid-template-columns: 1fr;
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .edit-topbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .edit-visibility-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .edit-status-pill {
+    justify-content: center;
   }
 
   .play-back {

@@ -30,6 +30,7 @@
 - `DRAFT` 是头脑风暴草稿，只在“我的作品”出现；兼容创建接口也只能创建草稿，不能绕过头脑风暴直接生成。
 - 公共 Gallery 和 `/games/:id` 是纯游玩态，只展示 `PUBLIC READY` 作品与内置精选，不展示作者修改入口、生成日志或创作对话历史。
 - “我的作品”点击：`DRAFT` 或无可玩版本的 `GENERATING` 进 `/create?game=:id`；`READY` / `FAILED` 进 `/games/:id/edit`。
+- 作者可在 `/games/:id/edit` 调整作品公开/私密；这只更新 `Game.visibility`，不触发重新生成，公开广场仍只展示 `PUBLIC READY`。
 - 已可玩作品继续修改时 `Game.status` 保持 `READY`，只用最新 `Job.status` 表达新版本进度；旧版本必须继续可玩，失败不能降级。
 - `READY` 必须表示已通过自动试玩验证：页面可加载、无 fatal JS error、开始/点击/键盘输入能让状态变化；失败最多自动修复 2 轮。
 - 详情页 iframe 必须走同源 `/api/games/:id/files/...` 代理，不能直接塞 Blob HTML URL，避免 Blob CSP 导致白屏。

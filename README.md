@@ -66,6 +66,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - 头脑风暴草稿使用 `Game.DRAFT` 和 `Message` 全程落库；草稿显示在“我的作品”，不进入公共 Gallery。
 - 公共 Gallery 只展示 `READY` 真实作品和内置精选，点击进入纯游玩页 `/games/:id`；该页不展示作者修改入口、生成日志或创作对话历史。
 - “我的作品”是作者工作台：顶部按“全部 / 创作中 / 已完成 / 待修复”分类，`DRAFT` / `GENERATING` 进入 `/create?game=:id`，`READY` / `FAILED` 进入 `/games/:id/edit`；一创失败也在修改工作台查看原因、调整方向并重新生成。
+- 作者在修改工作台可把作品从公开调整为私密，或从私密重新公开；该操作只改变可见性，不触发重新生成，公开广场仍只展示 `PUBLIC + READY` 的真实作品。
 - OpenGame 产出的任意 HTML 会归一化为 `index.html`，但不会立刻发布；GitHub Actions worker 会用 Headless Chromium 自动试玩，验证加载、点击开始、键盘输入和画面/状态变化。
 - 自动试玩失败时，系统会把验证报告交回 OpenGame 最多修复 2 轮；仍失败则标记失败，不进入可玩作品流。
 - 只有通过自动试玩的产物才会上传到 Vercel Blob 并进入 `READY`；详情页通过同源 `/api/games/:id/files/...` 代理播放，避免 Blob 默认 CSP 拦截内联脚本导致游戏白屏。

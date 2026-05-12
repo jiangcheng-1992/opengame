@@ -24,4 +24,8 @@ export const messageSchema = z.object({
   prompt: z.string().trim().min(4, "修改描述至少 4 个字符").max(4000),
 });
 
+export const updateVisibilitySchema = z.object({
+  visibility: z.enum(["PUBLIC", "PRIVATE"]),
+});
+
 export type CreateGameInput = z.infer<typeof createGameSchema>;
