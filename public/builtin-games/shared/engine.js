@@ -23,6 +23,9 @@
   if (config.assets) {
     for (const [name, src] of Object.entries(config.assets)) {
       art[name] = new Image();
+      art[name].onerror = () => {
+        art[name].failed = true;
+      };
       art[name].src = src;
     }
   }
@@ -157,6 +160,11 @@
     ctx.drawImage(image, Math.round(-w / 2), Math.round(-h / 2), Math.round(w), Math.round(h));
     ctx.restore();
     return true;
+  }
+
+  function starportAssetsReady() {
+    if (!state.starport || state.cleaner) return true;
+    return ["background", "ship", "drone", "asteroid", "chip", "shield", "boost", "boss"].every((name) => imageReady(art[name]));
   }
 
   function bar(x, y, w, h, value, max, color) {
@@ -419,10 +427,14 @@
 
   function initDodge() {
     resetBase(55);
-    state.cleaner = has("清道夫");
-    state.starport = has("星港");
-    if (state.starport && !state.cleaner) {
+    const isCleaner = has("清道夫");
+    const isStarport = has("星港");
+    state.cleaner = isCleaner;
+    state.starport = isStarport;
+    if (isStarport && !isCleaner) {
       resetBase(90);
+      state.cleaner = false;
+      state.starport = true;
       message = "星港空战：移动、射击、升级、击败Boss";
       state.player = { x: 44, y: 108, w: 10, h: 8, cargo: [], shield: 0, boost: 0, invuln: 0 };
       state.energy = 0;
@@ -672,6 +684,11 @@
   }
 
   function updateDodge(dt) {
+    if (state.starport && !state.cleaner) {
+      if (!starportAssetsReady()) return;
+      updateStarportWar(dt);
+      return;
+    }
     state.time -= dt;
     if (state.time <= 0) end(true);
     const p = state.player;
@@ -807,6 +824,13 @@
   }
 
   function drawStarportWar() {
+    if (!starportAssetsReady()) {
+      px(42, 76, 236, 52, "rgba(0,0,0,0.72)");
+      stroke(42, 76, 236, 52, colors.primary);
+      text("正在装载星港战机素材...", 160, 92, NES.ink, 9, "center");
+      text("请稍等，装载完成后自动开战", 160, 110, colors.accent, 7, "center");
+      return;
+    }
     for (const item of state.items) {
       const itemColor = item.type === "shield" ? NES.cyan : item.type === "boost" ? NES.yellow : colors.accent;
       const pulse = Math.sin(state.tick * 0.15 + item.pulse) > 0 ? 1 : 0;
