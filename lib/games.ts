@@ -5,6 +5,8 @@ import { getBuiltinGame, listBuiltinGames } from "@/lib/builtin-games";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { toClientGame } from "@/lib/status";
 
+const PINNED_HOME_GAME_ID = "builtin-starport-dash";
+
 type SelectedJob = {
   id: string;
   status: JobStatus;
@@ -95,6 +97,14 @@ function toClientGameListItem(game: GameListRecord, viewerAnonId?: string) {
   };
 }
 
+function sortPublicHomeGames<T extends { id: string; createdAt: Date | string }>(games: T[]) {
+  return [...games].sort((first, second) => {
+    if (first.id === PINNED_HOME_GAME_ID) return -1;
+    if (second.id === PINNED_HOME_GAME_ID) return 1;
+    return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
+  });
+}
+
 function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
   return {
     ...game,
@@ -158,7 +168,7 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
     const visibleGames = games.slice(0, 12).map((game) => toClientGameListItem(game, anonId ?? undefined));
     const nextCursor = games.length > 12 ? visibleGames[visibleGames.length - 1]?.id ?? null : null;
     return {
-      games: [...builtinGames, ...visibleGames],
+      games: sortPublicHomeGames([...builtinGames, ...visibleGames]),
       nextCursor,
     };
   } catch (error) {
