@@ -567,6 +567,7 @@ write_repair_prompt() {
     echo "- Avoid full-screen overlays that keep intercepting clicks after the game starts."
     echo "- Keep a non-empty index.html as the playable entry."
     echo "- Do not remove the user's theme; simplify mechanics if needed to make the game playable."
+    echo "- Preserve the visual quality contract; do not replace designed backgrounds, HUD, characters, or effects with bare placeholders while repairing mechanics."
   } > "$PROMPT_FILE"
 }
 
@@ -640,12 +641,20 @@ export function buildPlayablePrompt(prompt: string) {
     prompt,
     "",
     "Hard delivery contract:",
-    "- Produce a self-contained playable HTML5 game with a non-empty index.html entry.",
+    "- Produce a playable HTML5 game with a non-empty index.html entry. Keep it self-contained unless the creative request provides explicit HTTPS asset URLs; those assets may be referenced directly.",
     "- The first visible start/play button or centered start area must respond to a click.",
     "- The game must enter a core loop after start, with visible state such as score, level, lives, timer, enemies, or progress.",
     "- Keyboard input with arrows, WASD, and Space should affect gameplay when relevant.",
     "- Include clear failure, win, score, or restart feedback; simplify the mechanics if needed to make it reliable.",
     "- Do not leave a modal, overlay, or intro screen permanently intercepting player input after start.",
+    "",
+    "Baseline visual quality contract:",
+    "- Treat visual design as part of the playable deliverable, not decoration added after the mechanics.",
+    "- Unless the user explicitly asks for another style, aim for a polished futuristic arcade look: layered sci-fi background, luminous color accents, crisp silhouettes, subtle bloom, particles, trails, and a compact holographic HUD.",
+    "- If the user's theme is not sci-fi, keep the requested theme but still apply the same level of polish: designed background, readable composition, cohesive palette, styled UI, and animated feedback.",
+    "- Do not ship a prototype-looking game: avoid blank white or gray backgrounds, plain circles/rectangles as final characters, default browser buttons, unstyled text, and collisions with no visible effect.",
+    "- Create programmatic art when image assets are unavailable: Canvas/CSS gradients, parallax layers, starfields or texture patterns, shaped characters, enemy silhouettes, collectible icons, projectile effects, hit flashes, and score/life panels.",
+    "- The first screen, active play scene, win/lose state, restart affordance, and HUD should all feel like the same designed game world.",
   ].join("\n");
 }
 

@@ -60,6 +60,8 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - 匿名用户通过 `anon_id` httpOnly cookie 创建作品，不做登录。
 - 作品广场内置 21 款“内置精选”可玩游戏：这些游戏来自 `public/builtin-games/` 的静态 HTML 和位图封面，用于新用户直接试玩；它们不写入 Prisma，不代表 OpenGame 真生成结果。
 - 创建页先进入流式头脑风暴，AI 问齐核心玩法、操作方式、胜负目标、视觉/题材风格后，用户确认最终 brief 才启动 GitHub Actions 中的 OpenGame 任务。
+- 默认 OpenGame 生成 prompt 会要求基础美术完成度：完整背景、角色/障碍造型、HUD、动效反馈和偏精致科幻/街机的视觉质感，避免只产出白底占位原型。
+- 一创确认 Brief 时可手动开启“AI 美术增强”，默认关闭；开启后会额外生成游戏内背景图和核心图集并注入 OpenGame prompt，封面图仍沿用发布阶段的现有生成链路。
 - 本地开发时，确认 brief 后会创建同样的 GitHub-backed Job，并自动拉起本地 GitHub 兼容 worker 认领任务；线上生产则由 `GITHUB_DISPATCH_TOKEN` 触发 GitHub Actions。两者共用 `/api/github-worker/*`、MiniMax 代理、Blob 上传和自动试玩验证链路。
 - 头脑风暴草稿使用 `Game.DRAFT` 和 `Message` 全程落库；草稿显示在“我的作品”，不进入公共 Gallery。
 - 公共 Gallery 只展示 `READY` 真实作品和内置精选，点击进入纯游玩页 `/games/:id`；该页不展示作者修改入口、生成日志或创作对话历史。

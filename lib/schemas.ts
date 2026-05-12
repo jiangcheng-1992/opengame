@@ -17,6 +17,7 @@ export const brainstormMessageSchema = z.object({
 export const generateDraftSchema = z.object({
   brief: z.string().trim().min(8, "生成需求至少 8 个字符。").max(4000),
   visibility: z.enum(["PUBLIC", "PRIVATE"]).default("PUBLIC"),
+  artEnhancementEnabled: z.boolean().default(false),
 });
 
 export const messageSchema = z.object({

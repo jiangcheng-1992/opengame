@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAnonId, getClientIp } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { enforceGenerationLimit } from "@/lib/rate-limit";
+import { createArtEnhancement } from "@/lib/art-enhancement";
 import { generateGameMetadata } from "@/lib/game-metadata";
 import { generateDraftSchema } from "@/lib/schemas";
 import { startOpenGameJob } from "@/lib/sandbox";
@@ -31,11 +32,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const metadata = await generateGameMetadata(parsed.data.brief);
+  const artEnhancement = parsed.data.artEnhancementEnabled
+    ? await createArtEnhancement({
+        gameId: game.id,
+        brief: parsed.data.brief,
+        coverPrompt: metadata.coverPrompt,
+      })
+    : null;
+  const generationPrompt = artEnhancement?.generationPrompt ?? parsed.data.brief;
+  const systemMessage = [
+    `确认用于生成的需求:\n${parsed.data.brief}`,
+    artEnhancement?.systemMessage ?? "AI 美术增强: 未开启",
+  ].join("\n\n");
   const [job] = await prisma.$transaction([
     prisma.job.create({
       data: {
         gameId: game.id,
-        prompt: parsed.data.brief,
+        prompt: generationPrompt,
         status: "QUEUED",
       },
     }),
@@ -47,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         genre: metadata.genre,
         tags: metadata.tags,
         controls: metadata.controls,
-        coverPrompt: metadata.coverPrompt,
+        coverPrompt: artEnhancement?.coverPrompt ?? metadata.coverPrompt,
         visibility: parsed.data.visibility,
       },
     }),
@@ -55,13 +68,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data: {
         gameId: game.id,
         role: "SYSTEM",
-        content: `确认用于生成的需求:\n${parsed.data.brief}`,
+        content: systemMessage,
       },
     }),
   ]);
 
   try {
-    await startOpenGameJob({ gameId: game.id, jobId: job.id, prompt: parsed.data.brief });
+    await startOpenGameJob({ gameId: game.id, jobId: job.id, prompt: generationPrompt });
   } catch (error) {
     const message = error instanceof Error ? error.message : "生成任务启动失败。";
     await prisma.job.update({

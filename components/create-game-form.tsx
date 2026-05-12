@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { Bot, CheckCircle2, FileText, Globe2, Lock, Send, Sparkles, WandSparkles, XCircle } from "lucide-react";
+import { Bot, CheckCircle2, FileText, Globe2, Lock, Palette, Send, Sparkles, WandSparkles, XCircle } from "lucide-react";
 import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { JobWatcher } from "@/components/job-watcher";
@@ -154,6 +154,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   const [gameId, setGameId] = useState(draft?.id ?? null);
   const [input, setInput] = useState(initialPrompt);
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">((draft?.visibility?.toUpperCase() as "PUBLIC" | "PRIVATE") ?? "PUBLIC");
+  const [artEnhancementEnabled, setArtEnhancementEnabled] = useState(false);
   const [pendingFirstMessage, setPendingFirstMessage] = useState("");
   const [brainstormState, setBrainstormState] = useState(() => stateFromMessages(initialMessages));
   const [activeJobId, setActiveJobId] = useState<string | null>(() => (draft?.status === "generating" ? draft.latestJob?.id ?? null : null));
@@ -282,7 +283,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
       const response = await fetch(`/api/games/${gameId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief: brainstormState.brief, visibility }),
+        body: JSON.stringify({ brief: brainstormState.brief, visibility, artEnhancementEnabled }),
       });
       const payload = await response.json().catch(() => ({}));
 
@@ -407,6 +408,25 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
                     ))}
                   </ul>
 
+                  <label className={`art-enhancement-toggle ${artEnhancementEnabled ? "active" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={artEnhancementEnabled}
+                      onChange={(event) => setArtEnhancementEnabled(event.target.checked)}
+                      disabled={isGenerating || isGenerationActive}
+                    />
+                    <span className="art-enhancement-copy">
+                      <span className="art-enhancement-title">
+                        <Palette size={16} aria-hidden />
+                        AI 美术增强
+                      </span>
+                      <span className="art-enhancement-desc">额外生成背景和角色图集，让游戏更像完成作品。会增加生成时间。</span>
+                    </span>
+                    <span className="switch-track" aria-hidden>
+                      <span className="switch-thumb" />
+                    </span>
+                  </label>
+
                   <div className="brief-confirm-actions">
                     <div className="segmented" aria-label="可见性">
                       <button
@@ -488,6 +508,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
           meta={[
             { label: "当前", value: currentQuestion },
             { label: "可见性", value: visibility === "PUBLIC" ? "公开" : "私密" },
+            { label: "美术", value: artEnhancementEnabled ? "增强" : "普通" },
           ]}
           steps={createTaskSteps}
           result={{ label: createTaskResult, tone: createTaskResultTone }}
