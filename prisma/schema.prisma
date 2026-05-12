@@ -81,6 +81,8 @@ model Job {
   gameId      String
   game        Game      @relation(fields: [gameId], references: [id])
   status      JobStatus @default(QUEUED)
+  modelKey    String    @default("standard") @db.VarChar(32)
+  skeletonKey String    @default("auto") @db.VarChar(32)
   sandboxId   String?
   prompt      String    @db.Text
   log         String?   @db.Text

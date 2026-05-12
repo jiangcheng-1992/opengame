@@ -3,6 +3,7 @@ import { uploadGameFileBuffers, uploadSourceArchiveBuffer } from "@/lib/blob";
 import { prisma } from "@/lib/db";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { generateCoverImage } from "@/lib/minimax";
+import { retryOpenGameJob } from "@/lib/sandbox";
 
 export const dynamic = "force-dynamic";
 
@@ -110,14 +111,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ ok: true, playUrl });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Publish failed.";
-    await prisma.job.update({
-      where: { id: job.id },
-      data: { status: "FAILED", errorMsg: message, finishedAt: new Date() },
-    });
-    await prisma.game.update({
-      where: { id: job.gameId },
-      data: { status: job.game.playUrl ? "READY" : "FAILED" },
-    });
-    return NextResponse.json({ error: message }, { status: 500 });
+    const retry = await retryOpenGameJob(job.id, message, { log: body.log });
+    return NextResponse.json({ error: message, retrying: true, ...retry }, { status: 202 });
   }
 }

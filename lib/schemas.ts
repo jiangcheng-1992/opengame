@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { DEFAULT_GAMEPLAY_SKELETON_KEY, GAMEPLAY_SKELETON_KEYS } from "@/lib/gameplay-skeleton";
+import { DEFAULT_GENERATION_MODEL_KEY, GENERATION_MODEL_KEYS } from "@/lib/minimax-config";
 
 export const createGameSchema = z.object({
   prompt: z.string().trim().min(8, "提示词至少 8 个字符").max(4000),
@@ -18,6 +20,8 @@ export const generateDraftSchema = z.object({
   brief: z.string().trim().min(8, "生成需求至少 8 个字符。").max(4000),
   visibility: z.enum(["PUBLIC", "PRIVATE"]).default("PUBLIC"),
   artEnhancementEnabled: z.boolean().default(false),
+  modelKey: z.enum(GENERATION_MODEL_KEYS).default(DEFAULT_GENERATION_MODEL_KEY),
+  skeletonKey: z.enum(GAMEPLAY_SKELETON_KEYS).default(DEFAULT_GAMEPLAY_SKELETON_KEY),
 });
 
 export const messageSchema = z.object({

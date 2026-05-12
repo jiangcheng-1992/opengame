@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
     job: {
       id: job.id,
       gameId: job.gameId,
+      modelKey: job.modelKey,
+      skeletonKey: job.skeletonKey,
       prompt: job.prompt,
       sourceUrl: job.sourceUrl,
       useContinue: job.useContinue,

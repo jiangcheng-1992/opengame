@@ -25,6 +25,8 @@ export default async function CreatePage({
               id: draft.latestJob.id,
               status: draft.latestJob.status,
               errorMsg: draft.latestJob.errorMsg,
+              modelKey: draft.latestJob.modelKey,
+              skeletonKey: draft.latestJob.skeletonKey,
             }
           : null,
         messages: draft.messages?.map((message) => ({

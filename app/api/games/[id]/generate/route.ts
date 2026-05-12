@@ -6,7 +6,7 @@ import { enforceGenerationLimit } from "@/lib/rate-limit";
 import { createArtEnhancement } from "@/lib/art-enhancement";
 import { generateGameMetadata } from "@/lib/game-metadata";
 import { generateDraftSchema } from "@/lib/schemas";
-import { startOpenGameJob } from "@/lib/sandbox";
+import { retryOpenGameJob, startOpenGameJob } from "@/lib/sandbox";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const [{ id }, anonId, requestHeaders] = await Promise.all([params, getAnonId(), headers()]);
@@ -44,12 +44,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     `确认用于生成的需求:\n${parsed.data.brief}`,
     artEnhancement?.systemMessage ?? "AI 美术增强: 未开启",
   ].join("\n\n");
+  const modelKey = parsed.data.modelKey;
+  const skeletonKey = parsed.data.skeletonKey;
   const [job] = await prisma.$transaction([
     prisma.job.create({
       data: {
         gameId: game.id,
         prompt: generationPrompt,
         status: "QUEUED",
+        modelKey,
+        skeletonKey,
       },
     }),
     prisma.game.update({
@@ -74,15 +78,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   ]);
 
   try {
-    await startOpenGameJob({ gameId: game.id, jobId: job.id, prompt: generationPrompt });
+    await startOpenGameJob({ gameId: game.id, jobId: job.id, prompt: generationPrompt, modelKey, skeletonKey });
   } catch (error) {
     const message = error instanceof Error ? error.message : "生成任务启动失败。";
-    await prisma.job.update({
-      where: { id: job.id },
-      data: { status: "FAILED", errorMsg: message, finishedAt: new Date() },
-    });
-    await prisma.game.update({ where: { id: game.id }, data: { status: "FAILED" } });
-    return NextResponse.json({ error: message, gameId: game.id, jobId: job.id }, { status: 500 });
+    const retry = await retryOpenGameJob(job.id, message);
+    return NextResponse.json({ gameId: game.id, jobId: retry.nextJobId ?? job.id, retrying: true });
   }
 
   return NextResponse.json({ gameId: game.id, jobId: job.id });

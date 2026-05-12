@@ -1,7 +1,10 @@
 import { execFile, spawn } from "node:child_process";
 import { access, chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { normalizeGameplaySkeletonKey, type GameplaySkeletonKey } from "../lib/gameplay-skeleton";
+import { getOpenGameModelForKey } from "../lib/minimax-config";
 import { buildPlayabilityValidatorScript } from "../lib/playability-validator-script";
 import { buildOpenGameScript, buildPlayablePrompt, sandboxPaths } from "../lib/sandbox";
 import { tailLines } from "../lib/status";
@@ -11,6 +14,7 @@ loadDotEnv();
 
 const execFileAsync = promisify(execFile);
 const MAX_LOG_CHARS = 8000;
+const MAX_GENERATION_ATTEMPTS = Number(process.env.OPENGAME_WORKER_MAX_ATTEMPTS || "3");
 
 const requestedJobId: string | null | undefined = process.argv[2] || process.env.JOB_ID || process.env.INPUT_JOB_ID;
 let claimedJobId: string | null = null;
@@ -18,6 +22,8 @@ let claimedJobId: string | null = null;
 type ClaimedJob = {
   id: string;
   gameId: string;
+  modelKey?: string | null;
+  skeletonKey?: GameplaySkeletonKey | null;
   prompt: string;
   sourceUrl?: string | null;
   useContinue?: boolean;
@@ -117,9 +123,40 @@ async function markFailed(jobId: string, error: unknown) {
   });
 }
 
+function promptForAttempt(prompt: string, attempt: number, skeletonKey?: GameplaySkeletonKey) {
+  const normalizedSkeletonKey = normalizeGameplaySkeletonKey(skeletonKey);
+  if (attempt <= 1) return buildPlayablePrompt(prompt, normalizedSkeletonKey);
+
+  return buildPlayablePrompt(
+    [
+      prompt,
+      "",
+      `Reliability retry ${attempt}/${MAX_GENERATION_ATTEMPTS}: the previous generated output did not pass playable validation.`,
+      "Prioritize a working, validated game over ambition. Simplify the mechanics, reduce asset/code complexity, and ship a stable core loop.",
+      "The final answer must include a playable index.html that passes start/click/keyboard smoke validation.",
+      "It must also pass product-grade visual validation: non-pixel-art, no 8-bit/blocky/pixelated styling, a designed hero/start screen, a readable multi-module HUD, a replay-ready end-state overlay, polished modern UI, gradients, rounded controls, shadows/glow, strong spacing hierarchy, and responsive layout.",
+      "Reduce scope if needed, but the result must feel premium and curated, similar to a high-quality arcade template rather than a raw prototype.",
+    ].join("\n"),
+    normalizedSkeletonKey,
+  );
+}
+
+function bashCommand() {
+  if (process.platform !== "win32") return "bash";
+
+  const candidates = [
+    process.env.GIT_BASH_PATH,
+    "C:\\Program Files\\Git\\bin\\bash.exe",
+    "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+    path.join(process.env.LOCALAPPDATA || "", "Programs", "Git", "bin", "bash.exe"),
+  ].filter(Boolean) as string[];
+
+  return candidates.find((candidate) => existsSync(candidate)) || "bash";
+}
+
 async function runOpenGameProcess(env: NodeJS.ProcessEnv) {
   return new Promise<number>((resolve, reject) => {
-    const child = spawn("bash", [sandboxPaths.runScript], {
+    const child = spawn(bashCommand(), [sandboxPaths.runScript], {
       env,
       stdio: "inherit",
     });
@@ -204,10 +241,37 @@ async function publishJob(job: ClaimedJob) {
 async function prepareWorkspace(job: ClaimedJob) {
   await rm(sandboxPaths.workspaceRoot, { recursive: true, force: true });
   await mkdir(sandboxPaths.workspaceRoot, { recursive: true });
-  await writeFile(`${sandboxPaths.workspaceRoot}/prompt.txt`, buildPlayablePrompt(job.prompt));
+  await writeFile(`${sandboxPaths.workspaceRoot}/prompt.txt`, promptForAttempt(job.prompt, 1, job.skeletonKey ?? undefined));
   await writeFile(sandboxPaths.runScript, buildOpenGameScript());
   await chmod(sandboxPaths.runScript, 0o755);
   await writeFile(sandboxPaths.validatorScript, buildPlayabilityValidatorScript());
+}
+
+async function runUntilPlayable(job: ClaimedJob, env: NodeJS.ProcessEnv) {
+  let lastLog = "";
+
+  for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) {
+      console.log(`[github-worker] Retry ${attempt}/${MAX_GENERATION_ATTEMPTS}: regenerating with a simpler playable-first prompt.`);
+      await rm(sandboxPaths.generatedDir, { recursive: true, force: true });
+      await writeFile(`${sandboxPaths.workspaceRoot}/prompt.txt`, promptForAttempt(job.prompt, attempt, job.skeletonKey ?? undefined));
+    }
+
+    const exitCode = await runOpenGameProcess({
+      ...env,
+      OPENGAME_RELIABILITY_ATTEMPT: String(attempt),
+    });
+    await syncProgress(job.id);
+
+    const playable = await exists(sandboxPaths.playableMarker);
+    const indexExists = await exists(`${sandboxPaths.generatedDir}/index.html`);
+    if (exitCode === 0 && playable && indexExists) return;
+
+    const { log } = await currentLog();
+    lastLog = log || `OpenGame exited with ${exitCode}.`;
+  }
+
+  throw new Error(lastLog || "OpenGame did not produce a playable build after reliability retries.");
 }
 
 async function main() {
@@ -228,7 +292,7 @@ async function main() {
     ...process.env,
     OPENAI_API_KEY: "github-worker",
     OPENAI_BASE_URL: `${appBaseUrl()}/api/github-worker/jobs/${job.id}/openai/v1`,
-    OPENAI_MODEL: process.env.MINIMAX_TEXT_MODEL || "MiniMax-M2.7",
+    OPENAI_MODEL: getOpenGameModelForKey(job.modelKey),
     GAME_TEMPLATES_DIR: `${sandboxPaths.opengameRoot}/agent-test/templates`,
     GAME_DOCS_DIR: `${sandboxPaths.opengameRoot}/agent-test/docs`,
     OPENGAME_SOURCE_URL: job.sourceUrl ?? "",
@@ -239,20 +303,10 @@ async function main() {
     syncProgress(job.id).catch((error) => console.error("[progress]", error));
   }, 5000);
 
-  let exitCode = 1;
   try {
-    exitCode = await runOpenGameProcess(env);
+    await runUntilPlayable(job, env);
   } finally {
     clearInterval(interval);
-  }
-
-  await syncProgress(job.id);
-
-  const playable = await exists(sandboxPaths.playableMarker);
-  const indexExists = await exists(`${sandboxPaths.generatedDir}/index.html`);
-  if (exitCode !== 0 || !playable || !indexExists) {
-    const { log } = await currentLog();
-    throw new Error(log || `OpenGame exited with ${exitCode}.`);
   }
 
   await publishJob(job);

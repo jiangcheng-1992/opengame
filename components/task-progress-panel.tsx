@@ -1,5 +1,8 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useMemo, type ReactNode } from "react";
 import { CheckCircle2, CircleDashed, LoaderCircle, XCircle } from "lucide-react";
+import { useAnimatedProgress } from "@/components/progress-motion";
 
 export type TaskStepState = "done" | "active" | "pending" | "failed";
 
@@ -18,6 +21,26 @@ type TaskResult = {
   tone?: "muted" | "success" | "danger";
 };
 
+function taskProgressPercent(steps: TaskStep[]) {
+  if (!steps.length) return 0;
+  const doneCount = steps.filter((step) => step.state === "done").length;
+  const hasActive = steps.some((step) => step.state === "active");
+  const hasFailed = steps.some((step) => step.state === "failed");
+  const weighted = doneCount + (hasActive ? 0.55 : 0);
+  if (hasFailed) return Math.max(8, Math.round((doneCount / steps.length) * 100));
+  return Math.min(100, Math.round((weighted / steps.length) * 100));
+}
+
+function taskProgressMax(steps: TaskStep[]) {
+  if (!steps.length) return 0;
+  const doneCount = steps.filter((step) => step.state === "done").length;
+  const hasActive = steps.some((step) => step.state === "active");
+  const hasFailed = steps.some((step) => step.state === "failed");
+  if (hasFailed) return taskProgressPercent(steps);
+  if (!hasActive) return doneCount === steps.length ? 100 : taskProgressPercent(steps);
+  return 96;
+}
+
 function TaskStepIcon({ state }: { state: TaskStepState }) {
   if (state === "done") return <CheckCircle2 size={15} aria-hidden />;
   if (state === "active") return <LoaderCircle className="spin" size={15} aria-hidden />;
@@ -35,6 +58,9 @@ export function TaskProgressPanel({
   result,
   children,
   className = "",
+  progressStarted = true,
+  idleProgressLabel = "等待下一步",
+  hideProgressMeter = false,
 }: {
   eyebrow: string;
   title: string;
@@ -45,7 +71,30 @@ export function TaskProgressPanel({
   result: TaskResult;
   children?: ReactNode;
   className?: string;
+  progressStarted?: boolean;
+  idleProgressLabel?: string;
+  hideProgressMeter?: boolean;
 }) {
+  const progressKey = useMemo(() => steps.map((step) => `${step.label}:${step.state}`).join("|"), [steps]);
+  const baseProgressPercent = taskProgressPercent(steps);
+  const maxProgressPercent = taskProgressMax(steps);
+  const isActive = steps.some((step) => step.state === "active");
+  const effectiveProgressPercent = progressStarted ? baseProgressPercent : 0;
+  const displayProgressPercent = useAnimatedProgress({
+    basePercent: effectiveProgressPercent,
+    maxPercent: progressStarted ? maxProgressPercent : 0,
+    active: progressStarted && isActive,
+    resetKey: progressKey,
+    tickMs: 1800,
+  });
+  const progressLabel = !progressStarted
+    ? idleProgressLabel
+    : isActive
+      ? "正在推进当前步骤"
+      : displayProgressPercent === 100
+        ? "全部完成"
+        : "等待下一步";
+
   return (
     <section className={`task-card ${className}`.trim()}>
       <div className="task-card-head">
@@ -72,6 +121,14 @@ export function TaskProgressPanel({
 
       <div className="task-section">
         <h3>进度</h3>
+        {!hideProgressMeter ? (
+          <>
+            <div className="task-progress-bar" aria-label={`总体进度 ${displayProgressPercent}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={displayProgressPercent} role="progressbar">
+              <span className={progressStarted && isActive ? "active" : ""} style={{ width: `${displayProgressPercent}%` }} />
+            </div>
+            <p className="task-progress-caption">{displayProgressPercent}% · {progressLabel}</p>
+          </>
+        ) : null}
         <ul className="task-step-list" aria-label="生成进度">
           {steps.map((step) => (
             <li key={step.label} className={step.state}>

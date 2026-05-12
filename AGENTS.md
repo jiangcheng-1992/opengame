@@ -27,6 +27,7 @@
 - 创建页必须先流式头脑风暴，问齐核心玩法、操作方式、胜负目标、视觉/题材风格，用户确认 brief 后才启动 OpenGame。
 - 默认生成 prompt 也必须包含基础美术质量要求：即使未开启“AI 美术增强”，也要要求完整背景、角色/障碍造型、HUD、动效反馈和偏精致科幻/街机的视觉完成度；用户明确指定其他风格时保留用户风格但不能退回原型占位图。
 - 一创“AI 美术增强”是可选增强项，默认关闭；开启时只新增游戏内背景图和核心图集生图，封面图继续走发布阶段现有链路，素材失败必须降级为同风格程序化美术而不是阻塞可玩生成。
+- 一创确认 brief 时可选择生成模型档位和玩法骨架；`Job.modelKey` / `Job.skeletonKey` 是后续 worker、继续修改和重试沿用同一生成策略的事实源。
 - `DRAFT` 是头脑风暴草稿，只在“我的作品”出现；兼容创建接口也只能创建草稿，不能绕过头脑风暴直接生成。
 - 公共 Gallery 和 `/games/:id` 是纯游玩态，只展示 `PUBLIC READY` 作品与内置精选，不展示作者修改入口、生成日志或创作对话历史。
 - “我的作品”点击：`DRAFT` 或无可玩版本的 `GENERATING` 进 `/create?game=:id`；`READY` / `FAILED` 进 `/games/:id/edit`。
@@ -36,7 +37,7 @@
 - 详情页 iframe 必须走同源 `/api/games/:id/files/...` 代理，不能直接塞 Blob HTML URL，避免 Blob CSP 导致白屏。
 - 封面图和元数据是增强项，失败不能阻塞可玩版本发布。
 - 内置精选只做 onboarding，必须标记“内置精选”，不能冒充 OpenGame 真生成作品。
-- 暂停 Remix/二创：不展示入口、不提供 `/api/games/:id/remix`、不使用 remixCount；Prisma 里的 Remix 字段是历史遗留，不代表产品范围。
+- 暂停公开 Remix/二创网络：不展示 remixCount、不中断纯游玩态、不恢复 `/api/games/:id/remix`；但允许从公共 `READY` 作品以及“内置精选”创建“到我的可编辑副本”，副本默认归当前匿名用户且不直接公开，用于后续对话调整；内置精选副本必须保留“模板/内置来源”语义，不能冒充 OpenGame 真生成作品。
 
 ## 生成链路
 - 主链路：brief → `Job(QUEUED)` → GitHub Actions / 本地兼容 worker → OpenGame → Headless Chromium 自动试玩 → Blob 发布 → `Game.READY`。

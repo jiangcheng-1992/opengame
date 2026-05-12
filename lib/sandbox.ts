@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { prisma } from "@/lib/db";
+import { normalizeGameplaySkeletonKey, type GameplaySkeletonKey } from "@/lib/gameplay-skeleton";
 import { maybeTriggerGithubOpenGameWorkflow } from "@/lib/github-actions";
+import { getOpenGameModelForKey, normalizeGenerationModelKey, type GenerationModelKey } from "@/lib/minimax-config";
 import { buildPlayabilityValidatorScript } from "@/lib/playability-validator-script";
 import { tailLines } from "@/lib/status";
 import {
@@ -24,6 +26,10 @@ const RUN_SCRIPT = `${WORKSPACE_ROOT}/run-opengame.sh`;
 const VALIDATOR_SCRIPT = `${WORKSPACE_ROOT}/validate-playable.mjs`;
 const MAX_JOB_MS = 30 * 60 * 1000;
 const MAX_REPAIR_ATTEMPTS = 2;
+const MAX_AUTOMATIC_RETRY_JOBS = 2;
+const AUTO_RETRY_MESSAGE_PREFIX = "生成未发布 READY 版本，已自动重试。";
+const RETRY_LIMIT_LOG_MARKER = "[retry] Automatic retry limit reached.";
+const ACTIVE_JOB_STATUSES = ["QUEUED", "RUNNING", "VALIDATING", "REPAIRING", "FINISHING"] as const;
 const localGithubWorkerJobs = new Set<string>();
 
 type SandboxProvider = "github" | "e2b" | "vercel";
@@ -54,6 +60,9 @@ function sandboxProviderFromEnv(): SandboxProvider {
 
 function queuedGithubWorkerLog() {
   if (process.env.VERCEL) return "Queued for the next scheduled GitHub Actions worker run.";
+  if (process.platform === "win32") {
+    return "Queued for GitHub Actions worker. Windows local auto-worker is disabled because OpenGame requires a Linux-compatible runtime.";
+  }
   return "Queued locally. A local GitHub-compatible worker is starting automatically and will claim this job.";
 }
 
@@ -62,6 +71,7 @@ function shouldDispatchGithubWorkflow() {
 }
 
 function shouldAutoStartLocalGithubWorker() {
+  if (process.platform === "win32") return false;
   return !process.env.VERCEL && !process.env.GITHUB_ACTIONS && process.env.DISABLE_LOCAL_GITHUB_WORKER !== "1";
 }
 
@@ -69,12 +79,26 @@ function localWorkerBaseUrl() {
   return (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
+function localWorkerCommand(jobId: string) {
+  if (process.platform === "win32") {
+    return {
+      cmd: process.execPath,
+      args: [path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs"), "scripts/run-github-opengame-job.ts", jobId],
+    };
+  }
+
+  return {
+    cmd: path.join(process.cwd(), "node_modules", ".bin", "tsx"),
+    args: ["scripts/run-github-opengame-job.ts", jobId],
+  };
+}
+
 function startLocalGithubWorker(jobId: string) {
   if (localGithubWorkerJobs.has(jobId)) return false;
   localGithubWorkerJobs.add(jobId);
 
-  const tsxBin = path.join(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
-  const child = spawn(tsxBin, ["scripts/run-github-opengame-job.ts", jobId], {
+  const command = localWorkerCommand(jobId);
+  const child = spawn(command.cmd, command.args, {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -277,6 +301,146 @@ async function connectE2BSandbox(sandboxId: string) {
 
 function shellQuote(value: string) {
   return "'" + value.replace(/'/g, "'\\''") + "'";
+}
+
+type GameplayBlueprint = {
+  archetype: string;
+  loop: string;
+  controls: string;
+  state: string;
+  pacing: string;
+  ui: string;
+};
+
+function gameplayBlueprintForKey(key: GameplaySkeletonKey): GameplayBlueprint {
+  switch (key) {
+    case "breakout":
+      return {
+        archetype: "single-screen breakout",
+        loop: "Move the paddle, bounce the ball, break a curated block pattern, and escalate pressure with a small number of readable modifiers.",
+        controls: "Keyboard left/right plus mouse fallback, with instant start on click or Space.",
+        state: "Track score, lives, combo, remaining blocks, and a clear round-complete or game-over state.",
+        pacing: "Fast first interaction within 2 seconds, then steady escalation through block behavior, speed, or hazards.",
+        ui: "Use an arcade hero intro, a top HUD rail with panelized stats, and a polished restart/result overlay.",
+      };
+    case "runner":
+      return {
+        archetype: "lane or endless runner",
+        loop: "Keep moving forward, dodge obstacles, collect pickups, and survive or reach a target score.",
+        controls: "Arrow keys or swipe-like keyboard mapping with one clear dodge/jump action.",
+        state: "Track score, speed, distance, streak, and remaining health or mistakes.",
+        pacing: "Open with a short countdown, then ramp lane density and obstacle rhythm in clean beats.",
+        ui: "Use a cinematic start card, floating in-run HUD chips, and an end screen with score breakdown and replay CTA.",
+      };
+    case "shooter":
+      return {
+        archetype: "single-screen shooter",
+        loop: "Move, shoot, dodge enemy patterns, and survive waves or defeat a mini boss.",
+        controls: "WASD or arrow movement with Space or click shooting and an instant ready state.",
+        state: "Track score, health, wave, weapon cooldown, and a strong hit or defeat feedback loop.",
+        pacing: "Start with one readable enemy pattern, then layer a second hazard instead of increasing chaos too early.",
+        ui: "Use a bold hero splash, top-corner HUD modules, damage feedback, and a designed victory or defeat overlay.",
+      };
+    case "defense":
+      return {
+        archetype: "compact tower defense",
+        loop: "Place or trigger a small set of defenses, manage limited resources, and stop enemies reaching the goal.",
+        controls: "Mouse-first placement with keyboard shortcuts optional and immediate visual placement feedback.",
+        state: "Track coins, wave, base health, tower state, and a clear between-wave or game-over transition.",
+        pacing: "Keep the map compact, resource economy simple, and waves readable with 1-2 enemy types at a time.",
+        ui: "Use a planning-oriented start panel, panelized shop/HUD modules, and a result card with retry and upgrade prompts.",
+      };
+    case "puzzle":
+      return {
+        archetype: "single-screen puzzle loop",
+        loop: "Present one readable puzzle goal, let the player act quickly, and provide satisfying completion or failure feedback.",
+        controls: "Mouse or keyboard controls with explicit affordances, hinting, and restart access.",
+        state: "Track moves, timer or efficiency, objective progress, and solved or failed outcomes.",
+        pacing: "Teach the mechanic in the first interaction, then reveal one extra twist without overwhelming the player.",
+        ui: "Use a clean puzzle hero card, compact top HUD panels, and a celebratory completion overlay with replay CTA.",
+      };
+    case "collector":
+      return {
+        archetype: "top-down collect and avoid",
+        loop: "Move through a bounded arena, collect targets, avoid hazards, and bank score before time or health runs out.",
+        controls: "WASD or arrow movement with simple context action on click or Space when needed.",
+        state: "Track score, timer, inventory or pickup count, and health or mistake budget.",
+        pacing: "Begin with immediate movement and collection, then add one hazard pattern and one risk-reward pickup.",
+        ui: "Use a glossy intro panel, readable arena HUD chips, pickup feedback, and a strong end-of-run summary.",
+      };
+    default:
+      return {
+        archetype: "single-screen arcade action",
+        loop: "Give the player one clear repeatable action, one threat to respond to, and one score or progress goal to chase.",
+        controls: "Support click-to-start plus obvious keyboard controls with low friction onboarding.",
+        state: "Track score, progress, remaining chances, and an explicit victory or failure state.",
+        pacing: "Get to gameplay quickly, keep the mechanic count low, and escalate with one polished variation at a time.",
+        ui: "Use a premium landing-style start screen, a compact but readable HUD, and a polished result overlay with replay CTA.",
+      };
+  }
+}
+
+function inferGameplaySkeletonKey(prompt: string): GameplaySkeletonKey {
+  const text = prompt.toLowerCase();
+
+  if (/(brick|breakout|挡板|砖块|反弹球|打砖块)/i.test(text)) {
+    return "breakout";
+  }
+
+  if (/(runner|跑酷|车道|lane|dash|冲刺)/i.test(text)) {
+    return "runner";
+  }
+
+  if (/(shoot|shooter|bullet|弹幕|射击|飞船|战机)/i.test(text)) {
+    return "shooter";
+  }
+
+  if (/(tower defense|defense|wave|守塔|防守|塔防)/i.test(text)) {
+    return "defense";
+  }
+
+  if (/(puzzle|match|merge|memory|connect|sokoban|解谜|连线|记忆|推箱子|消除)/i.test(text)) {
+    return "puzzle";
+  }
+
+  if (/(collect|gather|clean|salvage|拾取|收集|清理|回收)/i.test(text)) {
+    return "collector";
+  }
+
+  return "auto";
+}
+
+function inferGameplayBlueprint(prompt: string, skeletonKey?: GameplaySkeletonKey): GameplayBlueprint {
+  const normalizedSkeletonKey = normalizeGameplaySkeletonKey(skeletonKey);
+  const resolvedSkeletonKey = normalizedSkeletonKey === "auto" ? inferGameplaySkeletonKey(prompt) : normalizedSkeletonKey;
+
+  if (resolvedSkeletonKey !== "auto") {
+    return gameplayBlueprintForKey(resolvedSkeletonKey);
+  }
+
+  return gameplayBlueprintForKey("auto");
+}
+
+function buildGameplayBlueprintSection(prompt: string, skeletonKey?: GameplaySkeletonKey) {
+  const normalizedSkeletonKey = normalizeGameplaySkeletonKey(skeletonKey);
+  const resolvedSkeletonKey = normalizedSkeletonKey === "auto" ? inferGameplaySkeletonKey(prompt) : normalizedSkeletonKey;
+  const blueprint = inferGameplayBlueprint(prompt, normalizedSkeletonKey);
+
+  const skeletonLine =
+    normalizedSkeletonKey === "auto"
+      ? `- Gameplay skeleton: auto-match from the brief${resolvedSkeletonKey !== "auto" ? `, inferred as ${resolvedSkeletonKey}` : ""}.`
+      : `- Gameplay skeleton: explicitly use the ${resolvedSkeletonKey} archetype.`;
+
+  return [
+    "Recommended gameplay skeleton:",
+    skeletonLine,
+    `- Archetype: ${blueprint.archetype}.`,
+    `- Core loop: ${blueprint.loop}`,
+    `- Controls: ${blueprint.controls}`,
+    `- State model: ${blueprint.state}`,
+    `- Pacing: ${blueprint.pacing}`,
+    `- UI framing: ${blueprint.ui}`,
+  ];
 }
 
 function isWebReadable(value: unknown): value is ReadableStream<Uint8Array> {
@@ -568,6 +732,11 @@ write_repair_prompt() {
     echo "- Keep a non-empty index.html as the playable entry."
     echo "- Do not remove the user's theme; simplify mechanics if needed to make the game playable."
     echo "- Preserve the visual quality contract; do not replace designed backgrounds, HUD, characters, or effects with bare placeholders while repairing mechanics."
+    echo "- Rebuild toward an Astrocade-grade result: one clean gameplay archetype, one coherent visual system, one polished interaction loop."
+    echo "- Also fix visual quality failures: keep the game non-pixel-art, remove 8-bit/blocky/pixelated styling, replace default/plain UI with polished modern panels, gradients, rounded controls, shadows/glow, animated background accents, a clear multi-module HUD, a designed hero/start screen, and a replay-ready end-state screen."
+    echo "- The next version must look curated before interaction: strong title treatment, concise hook text, branded CTA, and a framed playfield."
+    echo "- The next version must expose at least two readable state modules such as score, lives, time, combo, wave, level, goal, or progress."
+    echo "- The next version must include a visible result overlay or win/lose card with replay CTA instead of plain text."
   } > "$PROMPT_FILE"
 }
 
@@ -633,12 +802,19 @@ exit "$status"
 `;
 }
 
-export function buildPlayablePrompt(prompt: string) {
+export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkeletonKey) {
   return [
     "Build a playable HTML5 game from the user's creative request.",
     "",
     "User creative request:",
     prompt,
+    "",
+    "Astrocade-grade product direction:",
+    "- Treat this as a premium, publish-ready HTML5 mini-game, not a raw prototype.",
+    "- Prefer a tightly-scoped, beautifully-presented single-screen experience over an ambitious but messy multi-system design.",
+    "- Use one coherent gameplay archetype, one strong theme, and one polished interaction loop.",
+    "",
+    ...buildGameplayBlueprintSection(prompt, skeletonKey),
     "",
     "Hard delivery contract:",
     "- Produce a playable HTML5 game with a non-empty index.html entry. Keep it self-contained unless the creative request provides explicit HTTPS asset URLs; those assets may be referenced directly.",
@@ -655,6 +831,26 @@ export function buildPlayablePrompt(prompt: string) {
     "- Do not ship a prototype-looking game: avoid blank white or gray backgrounds, plain circles/rectangles as final characters, default browser buttons, unstyled text, and collisions with no visible effect.",
     "- Create programmatic art when image assets are unavailable: Canvas/CSS gradients, parallax layers, starfields or texture patterns, shaped characters, enemy silhouettes, collectible icons, projectile effects, hit flashes, and score/life panels.",
     "- The first screen, active play scene, win/lose state, restart affordance, and HUD should all feel like the same designed game world.",
+    "",
+    "Presentation shell contract:",
+    "- Start screen: include a designed hero section with game title, a short one-line hook, a clear start CTA, and visible theme framing before gameplay begins.",
+    "- Gameplay HUD: include at least 2 readable status modules such as score, lives, time, level, combo, wave, ammo, or target progress.",
+    "- End state: include a designed win/lose/restart overlay or result card with a clear replay CTA and concise performance summary.",
+    "- Layout: use layered background, framed playfield, spacing rhythm, and a clear content hierarchy so the game looks like a finished product page, not a blank canvas.",
+    "",
+    "Visual quality contract:",
+    "- Default to a polished non-pixel-art visual direction. Do not create 8-bit, pixel art, blocky sprites, low-resolution scaled canvases, or image-rendering: pixelated/crisp-edges styles unless the user explicitly asks for pixel art.",
+    "- Use a modern, publish-ready UI: designed start screen, game HUD, score/status panels, restart/end-state screen, clear typography, spacing, and responsive layout.",
+    "- Add visual depth with gradients, rounded panels/buttons, soft shadows/glow, layered backgrounds, particles or motion accents, and smooth transitions where appropriate.",
+    "- Avoid default browser UI, plain unstyled buttons, blank solid backgrounds, placeholder rectangles, debug text, or minimal wireframe layouts.",
+    "- If the requested theme is retro, interpret it as modern neon/arcade unless the user explicitly says pixel art.",
+    "- Use a consistent design system: 3-5 theme colors, one strong accent, panel surfaces, branded button styling, and repeatable spacing/radius/shadow tokens.",
+    "- Make the first screen screenshot-worthy. The game should look curated even before the player clicks start.",
+    "",
+    "Implementation strategy contract:",
+    "- Build a small internal design system with CSS variables for colors, spacing, radius, shadow, and typography, then reuse it across start screen, HUD, overlays, and buttons.",
+    "- Keep code organized and reliable; remove risky mechanics if they threaten polish or playability.",
+    "- Favor readable motion, impact feedback, and responsive resizing over extra feature count.",
   ].join("\n");
 }
 
@@ -715,15 +911,21 @@ export async function startOpenGameJob({
   gameId,
   jobId,
   prompt,
+  modelKey = "standard",
+  skeletonKey = "auto",
   sourceUrl,
   useContinue = false,
 }: {
   gameId: string;
   jobId: string;
   prompt: string;
+  modelKey?: GenerationModelKey;
+  skeletonKey?: GameplaySkeletonKey;
   sourceUrl?: string | null;
   useContinue?: boolean;
 }) {
+  const normalizedModelKey = normalizeGenerationModelKey(modelKey);
+  const normalizedSkeletonKey = normalizeGameplaySkeletonKey(skeletonKey);
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     select: { playUrl: true },
@@ -732,18 +934,29 @@ export async function startOpenGameJob({
 
   if (sandboxProviderFromEnv() === "github") {
     const sandboxId = encodeSandboxId("github", jobId);
-    const dispatch = shouldDispatchGithubWorkflow() ? await maybeTriggerGithubOpenGameWorkflow({ jobId }) : null;
+    const dispatch = shouldDispatchGithubWorkflow()
+      ? await maybeTriggerGithubOpenGameWorkflow({ jobId }).catch((error) => {
+          console.error("[github-worker] workflow dispatch failed; keeping job queued for the scheduled worker.", error);
+          return null;
+        })
+      : null;
     const shouldStartLocalWorker = !dispatch && shouldAutoStartLocalGithubWorker();
+    const dispatchFallbackLog =
+      shouldDispatchGithubWorkflow() && !dispatch
+        ? "\nGitHub workflow dispatch failed; the scheduled GitHub worker can still claim this job."
+        : "";
     await prisma.job.update({
       where: { id: jobId },
       data: {
         sandboxId,
         status: "QUEUED",
+        modelKey: normalizedModelKey,
+        skeletonKey: normalizedSkeletonKey,
         sourceUrl: sourceUrl ?? null,
         useContinue,
         log: dispatch
           ? `Queued GitHub Actions workflow ${dispatch.workflow} on ${dispatch.repo}@${dispatch.ref}.`
-          : queuedGithubWorkerLog(),
+          : `${queuedGithubWorkerLog()}${dispatchFallbackLog}`,
       },
     });
     if (!hasPlayableVersion) {
@@ -776,7 +989,7 @@ export async function startOpenGameJob({
   const env = {
     OPENAI_API_KEY: process.env.MINIMAX_API_KEY ?? "",
     OPENAI_BASE_URL: process.env.MINIMAX_BASE_URL ?? "https://api.minimaxi.com/v1",
-    OPENAI_MODEL: "MiniMax-M2.7",
+    OPENAI_MODEL: getOpenGameModelForKey(normalizedModelKey),
     GAME_TEMPLATES_DIR: `${OPENGAME_ROOT}/agent-test/templates`,
     GAME_DOCS_DIR: `${OPENGAME_ROOT}/agent-test/docs`,
     OPENGAME_SOURCE_URL: sourceUrl ?? "",
@@ -784,7 +997,7 @@ export async function startOpenGameJob({
   };
 
   await sandboxWriteFiles(sandbox, [
-    { path: `${WORKSPACE_ROOT}/prompt.txt`, content: buildPlayablePrompt(prompt) },
+    { path: `${WORKSPACE_ROOT}/prompt.txt`, content: buildPlayablePrompt(prompt, normalizedSkeletonKey) },
     { path: RUN_SCRIPT, content: buildOpenGameScript() },
     { path: VALIDATOR_SCRIPT, content: buildPlayabilityValidatorScript() },
   ]);
@@ -801,6 +1014,8 @@ export async function startOpenGameJob({
     data: {
       sandboxId,
       status: "RUNNING",
+      modelKey: normalizedModelKey,
+      skeletonKey: normalizedSkeletonKey,
       sourceUrl: sourceUrl ?? null,
       useContinue,
       startedAt: new Date(),
@@ -872,20 +1087,228 @@ async function hasPlayableBuildOrFalse(sandboxId: string) {
 }
 
 async function failJob(jobId: string, gameId: string, errorMsg: string) {
-  const game = await prisma.game.findUnique({ where: { id: gameId }, select: { playUrl: true } });
-  await prisma.job.update({
-    where: { id: jobId },
-    data: { status: "FAILED", errorMsg, finishedAt: new Date() },
+  return retryOpenGameJob(jobId, errorMsg, { log: `Generation failed for game ${gameId}: ${errorMsg}` });
+}
+
+function buildRetryPrompt(prompt: string, errorMsg: string, log?: string | null, skeletonKey?: GameplaySkeletonKey) {
+  return [
+    "You are regenerating this HTML5 game because the previous attempt did not produce a published READY build.",
+    "",
+    "Original generation prompt:",
+    prompt,
+    "",
+    "Previous failure reason:",
+    errorMsg || "Unknown generation failure.",
+    "",
+    log ? `Recent failed run log:\n${tailLines(log, 30)}` : "",
+    "",
+    "Astrocade-grade recovery direction:",
+    "- Rebuild this as a smaller but more premium-feeling game.",
+    "- Lock onto one polished gameplay archetype and one coherent visual system.",
+    "- The next result must feel curated: strong first screen, clean HUD, clear end state, and zero placeholder UI.",
+    "",
+    ...buildGameplayBlueprintSection(prompt, skeletonKey),
+    "",
+    "Mandatory recovery contract:",
+    "- Keep retrying toward a playable READY build, not a partial draft.",
+    "- Prefer a simpler single-screen game over an ambitious unstable game.",
+    "- Produce a self-contained non-empty index.html.",
+    "- Ensure the start/click path works and keyboard input changes visible game state.",
+    "- If any feature is risky, remove or simplify it so the playable smoke test passes.",
+    "- Pass visual quality validation: non-pixel-art by default, no 8-bit/blocky/pixelated styling, polished modern UI, designed HUD/start/end screens, gradients, rounded controls, shadows/glow, animated background accents, and responsive layout.",
+    "- Add a designed start screen, a readable HUD with multiple state modules, and a replay-ready end-state overlay.",
+    "- Replace plain buttons, bare text, and flat backgrounds with premium surfaces, consistent theme tokens, spacing rhythm, and CTA hierarchy.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function findNewerLiveJob(job: { id: string; gameId: string; createdAt: Date }) {
+  return prisma.job.findFirst({
+    where: {
+      id: { not: job.id },
+      gameId: job.gameId,
+      createdAt: { gt: job.createdAt },
+      status: { in: [...ACTIVE_JOB_STATUSES, "DONE"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, status: true, log: true, errorMsg: true },
   });
-  await prisma.game.update({
-    where: { id: gameId },
-    data: { status: game?.playUrl ? "READY" : "FAILED" },
+}
+
+async function countAutomaticRetryJobsSinceLastPublished(job: { gameId: string; createdAt: Date }) {
+  const lastPublishedJob = await prisma.job.findFirst({
+    where: {
+      gameId: job.gameId,
+      status: "DONE",
+      createdAt: { lt: job.createdAt },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
   });
+
+  return prisma.message.count({
+    where: {
+      gameId: job.gameId,
+      role: "SYSTEM",
+      content: { startsWith: AUTO_RETRY_MESSAGE_PREFIX },
+      ...(lastPublishedJob ? { createdAt: { gt: lastPublishedJob.createdAt } } : {}),
+    },
+  });
+}
+
+export async function retryOpenGameJob(jobId: string, errorMsg: string, options: { log?: string | null } = {}) {
+  const job = await prisma.job.findUnique({ where: { id: jobId }, include: { game: true } });
+  if (!job) throw new Error("Job not found.");
+
+  if (job.status === "FAILED" && job.log?.includes(RETRY_LIMIT_LOG_MARKER)) {
+    return { status: "failed", log: tailLines(job.log, 40), errorMsg: job.errorMsg ?? errorMsg };
+  }
+
+  const newerActiveJob = await findNewerLiveJob(job);
+
+  if (newerActiveJob) {
+    return {
+      status: newerActiveJob.status.toLowerCase(),
+      log: tailLines(newerActiveJob.log ?? options.log ?? "", 40),
+      errorMsg: newerActiveJob.errorMsg,
+      nextJobId: newerActiveJob.id,
+    };
+  }
+
+  const automaticRetryCount = await countAutomaticRetryJobsSinceLastPublished(job);
+  if (automaticRetryCount >= MAX_AUTOMATIC_RETRY_JOBS) {
+    const finalLog = [
+      options.log,
+      "",
+      `[retry] Previous attempt did not publish a READY build: ${errorMsg}`,
+      `${RETRY_LIMIT_LOG_MARKER} (${automaticRetryCount}/${MAX_AUTOMATIC_RETRY_JOBS}).`,
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .slice(-8000);
+
+    await prisma.$transaction([
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "FAILED",
+          errorMsg,
+          log: finalLog,
+          finishedAt: new Date(),
+        },
+      }),
+      prisma.game.update({
+        where: { id: job.gameId },
+        data: { status: job.game.playUrl ? "READY" : "FAILED" },
+      }),
+      prisma.message.create({
+        data: {
+          gameId: job.gameId,
+          role: "SYSTEM",
+          content: `自动重试已达到上限，生成停止。\n失败原因:\n${errorMsg}`,
+          jobId: job.id,
+        },
+      }),
+    ]);
+
+    return { status: "failed", log: tailLines(finalLog, 40), errorMsg };
+  }
+
+  const normalizedSkeletonKey = normalizeGameplaySkeletonKey(job.skeletonKey);
+  const retryPrompt = buildRetryPrompt(job.prompt, errorMsg, options.log, normalizedSkeletonKey);
+  const retryJob = await prisma.job.create({
+    data: {
+      gameId: job.gameId,
+      modelKey: normalizeGenerationModelKey(job.modelKey),
+      skeletonKey: normalizedSkeletonKey,
+      prompt: retryPrompt,
+      status: "QUEUED",
+      sourceUrl: job.game.sourceUrl ?? job.sourceUrl,
+      useContinue: Boolean(job.game.playUrl && (job.useContinue || job.game.sourceUrl || job.sourceUrl)),
+      log: "Queued retry after the previous generation attempt failed. The service will keep retrying until a READY build is published.",
+    },
+  });
+
+  const retryLog = [
+    options.log,
+    "",
+    `[retry] Previous attempt did not publish a READY build: ${errorMsg}`,
+    `[retry] Created follow-up job ${retryJob.id}.`,
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(-8000);
+
+  await prisma.$transaction([
+    prisma.job.update({
+      where: { id: job.id },
+      data: {
+        status: "REPAIRING",
+        errorMsg,
+        log: retryLog,
+        finishedAt: new Date(),
+      },
+    }),
+    prisma.game.update({
+      where: { id: job.gameId },
+      data: { status: job.game.playUrl ? "READY" : "GENERATING" },
+    }),
+    prisma.message.create({
+      data: {
+        gameId: job.gameId,
+        role: "SYSTEM",
+        content: `${AUTO_RETRY_MESSAGE_PREFIX}\n失败原因:\n${errorMsg}`,
+        jobId: retryJob.id,
+      },
+    }),
+  ]);
+
+  await startOpenGameJob({
+    gameId: job.gameId,
+    jobId: retryJob.id,
+    prompt: retryPrompt,
+    modelKey: normalizeGenerationModelKey(retryJob.modelKey),
+    skeletonKey: normalizedSkeletonKey,
+    sourceUrl: retryJob.sourceUrl,
+    useContinue: retryJob.useContinue,
+  }).catch(async (error) => {
+    const message = error instanceof Error ? error.message : "Retry job failed to start.";
+    await prisma.job.update({
+      where: { id: retryJob.id },
+      data: {
+        status: "QUEUED",
+        errorMsg: message,
+        log: `Retry job is still queued, but automatic start reported: ${message}`.slice(-8000),
+      },
+    });
+  });
+
+  return {
+    status: "repairing",
+    log: tailLines(retryLog, 40),
+    errorMsg,
+    nextJobId: retryJob.id,
+  };
 }
 
 export async function getJobProgress(jobId: string) {
   const job = await prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+  const newerLiveJob = await findNewerLiveJob(job);
+  if (newerLiveJob) {
+    return {
+      status: newerLiveJob.status.toLowerCase(),
+      log: tailLines(newerLiveJob.log ?? job.log ?? "", 40),
+      errorMsg: newerLiveJob.errorMsg,
+      nextJobId: newerLiveJob.id,
+    };
+  }
+
   if (!job.sandboxId || job.sandboxId.startsWith("github:")) {
+    if (job.status === "FAILED") {
+      return failJob(job.id, job.gameId, job.errorMsg ?? "GitHub Actions worker failed.");
+    }
+
     if (job.sandboxId?.startsWith("github:") && job.status === "QUEUED" && shouldAutoStartLocalGithubWorker()) {
       const started = startLocalGithubWorker(job.id);
       if (started) {
@@ -899,26 +1322,27 @@ export async function getJobProgress(jobId: string) {
       job.sandboxId?.startsWith("github:") &&
       job.startedAt &&
       job.status !== "DONE" &&
-      job.status !== "FAILED" &&
       Date.now() - job.startedAt.getTime() > MAX_JOB_MS
     ) {
       const errorMsg = "Generation timed out after 30 minutes.";
-      await failJob(job.id, job.gameId, errorMsg);
-      return { status: "failed", log: tailLines(job.log ?? "", 40), errorMsg };
+      return failJob(job.id, job.gameId, errorMsg);
     }
 
     return { status: job.status.toLowerCase(), log: tailLines(job.log ?? "", 40), errorMsg: job.errorMsg };
   }
 
-  if (job.status === "DONE" || job.status === "FAILED") {
+  if (job.status === "DONE") {
     return { status: job.status.toLowerCase(), log: tailLines(job.log ?? "", 40), errorMsg: job.errorMsg };
+  }
+
+  if (job.status === "FAILED") {
+    return failJob(job.id, job.gameId, job.errorMsg ?? "Generation job reached FAILED state.");
   }
 
   if (job.startedAt && Date.now() - job.startedAt.getTime() > MAX_JOB_MS) {
     const errorMsg = "Generation timed out after 30 minutes.";
-    await failJob(job.id, job.gameId, errorMsg);
     await stopSandbox(job.sandboxId).catch(() => undefined);
-    return { status: "failed", log: "", errorMsg };
+    return failJob(job.id, job.gameId, errorMsg);
   }
 
   let log = "";
@@ -937,9 +1361,8 @@ export async function getJobProgress(jobId: string) {
     ]);
   } catch (error) {
     const errorMsg = describeSandboxError(error);
-    await failJob(job.id, job.gameId, errorMsg);
     await stopSandbox(job.sandboxId).catch(() => undefined);
-    return { status: "failed", log: "", errorMsg };
+    return failJob(job.id, job.gameId, errorMsg);
   }
 
   const combinedLog = [log, validationLog ? `[validation log]\n${validationLog}` : ""].filter(Boolean).join("\n");
@@ -954,9 +1377,8 @@ export async function getJobProgress(jobId: string) {
     exitCode = await readSandboxTextOrEmpty(job.sandboxId, EXIT_CODE_FILE);
   } catch (error) {
     const errorMsg = describeSandboxError(error);
-    await failJob(job.id, job.gameId, errorMsg);
     await stopSandbox(job.sandboxId).catch(() => undefined);
-    return { status: "failed", log: tailLines(combinedLog, 40), errorMsg };
+    return retryOpenGameJob(job.id, errorMsg, { log: combinedLog });
   }
   const hasExited = exitCode.trim().length > 0;
 
@@ -965,9 +1387,8 @@ export async function getJobProgress(jobId: string) {
       err || validationLog || log || "OpenGame exited without a playable validated game.",
       40,
     ).slice(0, 2000);
-    await failJob(job.id, job.gameId, errorMsg);
     await stopSandbox(job.sandboxId).catch(() => undefined);
-    return { status: "failed", log: tailLines(combinedLog, 40), errorMsg };
+    return retryOpenGameJob(job.id, errorMsg, { log: combinedLog });
   }
 
   if (phase === "VALIDATING" || phase === "REPAIRING") {

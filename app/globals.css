@@ -575,6 +575,18 @@ h3 {
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
 }
 
+.game-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.game-card-quick-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 14px 14px;
+}
+
 .card-media {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -662,6 +674,28 @@ h3 {
   color: #2d1800;
   background: linear-gradient(135deg, var(--accent), #ffd07a);
   box-shadow: 0 10px 22px rgba(244, 173, 55, 0.22);
+}
+
+.game-card-progress {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  right: 12px;
+  bottom: 48px;
+  height: 7px;
+  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 8px 18px rgba(20, 18, 15, 0.14);
+}
+
+.make-similar-wrap.compact {
+  justify-items: stretch;
+}
+
+.make-similar-button.compact {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
 }
 
 .card-body {
@@ -1123,6 +1157,10 @@ h3 {
   gap: 8px;
 }
 
+.segmented.segmented-rich {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .segmented button {
   min-height: 52px;
   border: 1px solid var(--line);
@@ -1134,6 +1172,11 @@ h3 {
   justify-content: center;
   gap: 8px;
   font-weight: 850;
+}
+
+.segmented.segmented-rich button {
+  min-height: 48px;
+  font-size: 13px;
 }
 
 .segmented button.active {
@@ -1510,6 +1553,15 @@ h3 {
   .feed-grid,
   .suggestion-grid {
     grid-template-columns: 1fr;
+  }
+
+  .skeleton-helper-head,
+  .skeleton-helper-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skeleton-helper-head {
+    display: grid;
   }
 
   .chat-topbar {
@@ -1914,6 +1966,10 @@ h3 {
 
 .card-body {
   padding: 9px 10px 10px;
+}
+
+.game-card-quick-actions {
+  padding: 0 10px 10px;
 }
 
 .card-body h3 {
@@ -2465,6 +2521,27 @@ h3 {
   line-height: 1.55;
 }
 
+.job-progress-wrap {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0 12px;
+}
+
+.job-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.job-progress-meta span:last-child {
+  color: var(--soft);
+  text-align: right;
+}
+
 .inline-job-panel {
   margin-top: 14px;
   padding: 14px 0 0;
@@ -2576,6 +2653,76 @@ h3 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 650;
+}
+
+.task-progress-bar,
+.job-progress-bar {
+  position: relative;
+}
+
+.task-progress-bar,
+.job-progress-bar,
+.game-card-progress {
+  overflow: hidden;
+  height: 9px;
+  border: 1px solid rgba(255, 46, 146, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 46, 146, 0.08);
+}
+
+.task-progress-bar span,
+.job-progress-bar span,
+.game-card-progress span {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), #ff8bc8, #ffb05c);
+  box-shadow: 0 0 18px rgba(255, 46, 146, 0.26);
+  transition: width 360ms ease;
+}
+
+.task-progress-bar span.active,
+.job-progress-bar span.active,
+.game-card-progress span.active {
+  background-size: 180% 100%;
+  animation: progress-flow 1.4s linear infinite;
+}
+
+.task-progress-bar span.active::after,
+.job-progress-bar span.active::after,
+.game-card-progress span.active::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.62), transparent);
+  transform: translateX(-100%);
+  animation: progress-shine 1.6s ease-in-out infinite;
+}
+
+@keyframes progress-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 180% 50%;
+  }
+}
+
+@keyframes progress-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.task-progress-caption {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .task-step-list {
@@ -2794,6 +2941,93 @@ h3 {
   align-items: center;
 }
 
+.brief-confirm-settings {
+  display: grid;
+  gap: 10px;
+}
+
+.brief-setting-group {
+  display: grid;
+  gap: 6px;
+}
+
+.brief-setting-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--soft);
+}
+
+.brief-setting-helper {
+  margin: 0;
+}
+
+.skeleton-helper-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 2px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+    rgba(10, 16, 23, 0.6);
+}
+
+.skeleton-helper-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.skeleton-helper-head strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.skeleton-helper-eyebrow {
+  display: inline-flex;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.skeleton-helper-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.skeleton-preview-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(170, 207, 220, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.skeleton-preview-card span {
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.skeleton-preview-card ul,
+.skeleton-preview-card ol {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.skeleton-preview-card li + li {
+  margin-top: 4px;
+}
+
 .brief-confirm-actions .button {
   min-width: 176px;
 }
@@ -2902,14 +3136,41 @@ h3 {
   background: rgba(255, 253, 248, 0.74);
 }
 
-.play-stats span {
+.play-stats > span,
+.share-game-button {
   min-height: 30px;
   padding: 0 8px;
+  border: 0;
   border-radius: 6px;
   background: var(--surface-2);
   color: var(--soft);
   font-size: 12px;
   font-weight: 620;
+}
+
+.share-game-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition:
+    transform 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.share-game-button:hover {
+  color: var(--primary);
+  background: rgba(255, 46, 146, 0.1);
+  transform: translateY(-1px);
+}
+
+.share-game-button:focus-visible {
+  outline: 3px solid rgba(255, 46, 146, 0.24);
+  outline-offset: 2px;
 }
 
 .play-brief-card {
@@ -2941,6 +3202,26 @@ h3 {
   font-weight: 560;
   line-height: 1.35;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.similar-action-card {
+  align-items: center;
+}
+
+.similar-action-card p {
+  flex: 1 1 auto;
+}
+
+.make-similar-wrap {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.make-similar-button {
+  min-height: 42px;
+  padding: 0 16px;
   white-space: nowrap;
 }
 
@@ -3515,7 +3796,8 @@ h3 {
     gap: 6px;
   }
 
-  .play-stats span {
+  .play-stats > span,
+  .share-game-button {
     min-width: 0;
     padding: 0 6px;
     justify-content: center;
@@ -3525,6 +3807,20 @@ h3 {
   .play-stage .empty-frame {
     aspect-ratio: 16 / 10;
     border-radius: 6px;
+  }
+
+  .similar-action-card {
+    align-items: stretch;
+  }
+
+  .make-similar-wrap {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .make-similar-button {
+    width: 100%;
+    justify-content: center;
   }
 
   .edit-game-frame-wrap,

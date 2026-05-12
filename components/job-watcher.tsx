@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, CheckCircle2, LoaderCircle, ScrollText, XCircle } from "lucide-react";
+import { progressForJobStatus, progressMaxForJobStatus, useAnimatedProgress } from "@/components/progress-motion";
 
 type Progress = {
   status: string;
   log?: string;
   errorMsg?: string | null;
   error?: string;
+  nextJobId?: string;
+  retrying?: boolean;
 };
 
 function statusLabel(status?: string) {
@@ -53,6 +56,14 @@ function statusDescription(status?: string) {
   }
 }
 
+function formatElapsed(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds} 秒`;
+  return `${minutes} 分 ${seconds.toString().padStart(2, "0")} 秒`;
+}
+
 export function JobWatcher({
   initialJobId,
   initialProgress,
@@ -72,12 +83,38 @@ export function JobWatcher({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const jobId = initialJobId ?? searchParams.get("job");
+  const requestedJobId = initialJobId ?? searchParams.get("job");
+  const [jobId, setJobId] = useState<string | null>(requestedJobId);
   const [progress, setProgress] = useState<Progress | null>(initialProgress ?? null);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectLabel, setRedirectLabel] = useState("正在打开下一步");
   const [isLogOpen, setIsLogOpen] = useState(logDefaultOpen);
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  const normalizedStatus = progress?.status?.toLowerCase();
+  const isSettled = normalizedStatus === "done" || normalizedStatus === "failed";
+  const logText = progress?.log || (normalizedStatus === "done" ? "游戏已发布。" : "等待 OpenGame 输出日志...");
+  const basePercent = progressForJobStatus(normalizedStatus, isFinalizing);
+  const maxPercent = progressMaxForJobStatus(normalizedStatus, isFinalizing);
+  const displayPercent = useAnimatedProgress({
+    basePercent,
+    maxPercent,
+    active: !isSettled,
+    resetKey: `${jobId ?? "none"}:${normalizedStatus ?? "pending"}:${isFinalizing ? "finalizing" : "polling"}`,
+    tickMs: 2200,
+  });
+  const elapsedText = isSettled ? "" : `已运行 ${formatElapsed(now - startedAt)}`;
+
+  useEffect(() => {
+    setJobId(requestedJobId);
+    setStartedAt(Date.now());
+  }, [requestedJobId]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!jobId) return;
@@ -108,11 +145,33 @@ export function JobWatcher({
         if (cancelled) return;
         setProgress(response.ok ? next : { status: "failed", errorMsg: next.error ?? "任务不存在。" });
 
+        if (response.ok && next.nextJobId && next.nextJobId !== jobId) {
+          setJobId(next.nextJobId);
+          setProgress({
+            status: "queued",
+            log: next.log,
+            errorMsg: next.errorMsg,
+          });
+          router.refresh();
+          break;
+        }
+
         if (response.ok && next.status === "finishing") {
           setIsFinalizing(true);
           const finalized = await fetch(`/api/jobs/${jobId}/finalize`, { method: "POST" });
-          const payload = (await finalized.json().catch(() => ({}))) as { error?: string };
+          const payload = (await finalized.json().catch(() => ({}))) as Progress;
           setIsFinalizing(false);
+
+          if (finalized.ok && payload.nextJobId && payload.nextJobId !== jobId) {
+            setJobId(payload.nextJobId);
+            setProgress({
+              status: "queued",
+              log: payload.log,
+              errorMsg: payload.errorMsg,
+            });
+            router.refresh();
+            break;
+          }
 
           if (finalized.ok) {
             complete({ status: "done", log: next.log });
@@ -152,10 +211,6 @@ export function JobWatcher({
 
   if (!jobId) return null;
 
-  const normalizedStatus = progress?.status?.toLowerCase();
-  const isSettled = normalizedStatus === "done" || normalizedStatus === "failed";
-  const logText = progress?.log || (normalizedStatus === "done" ? "游戏已发布。" : "等待 OpenGame 输出日志...");
-
   return (
     <section className={`job-panel ${variant === "inline" ? "inline-job-panel" : ""}`} aria-live="polite">
       <h3>{title}</h3>
@@ -170,6 +225,15 @@ export function JobWatcher({
         {isRedirecting ? redirectLabel : isFinalizing ? "发布中" : statusLabel(normalizedStatus)}
       </p>
       <p className="job-description">{isRedirecting ? "正在切换到下一步页面。" : statusDescription(isFinalizing ? "finishing" : normalizedStatus)}</p>
+      <div className="job-progress-wrap">
+        <div className="job-progress-meta">
+          <span>{isFinalizing ? "发布中" : statusLabel(normalizedStatus)}</span>
+          <span>{displayPercent}%{elapsedText ? ` · ${elapsedText}` : ""}</span>
+        </div>
+        <div className="job-progress-bar" role="progressbar" aria-label={`运行进度 ${displayPercent}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={displayPercent}>
+          <span className={!isSettled ? "active" : ""} style={{ width: `${displayPercent}%` }} />
+        </div>
+      </div>
       {progress?.errorMsg ? <p className="error">{progress.errorMsg}</p> : null}
       <div className="job-log">
         <button className="job-log-toggle" type="button" onClick={() => setIsLogOpen((current) => !current)} aria-expanded={isLogOpen}>

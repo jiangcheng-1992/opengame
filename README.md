@@ -28,6 +28,8 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `MINIMAX_BASE_URL`
 - `MINIMAX_TEXT_BASE_URL`：可选；流式头脑风暴和游戏标题、摘要、标签等元数据包装使用，缺失时复用 `MINIMAX_BASE_URL`
 - `MINIMAX_TEXT_MODEL`：可选；默认 `MiniMax-M2.7`
+- `MINIMAX_STANDARD_TEXT_MODEL` 或 `MINIMAX_TEXT_MODEL_STANDARD`：可选；创建页选择“标准”模型时优先使用，缺失时回退到 `MINIMAX_TEXT_MODEL`
+- `MINIMAX_QUALITY_TEXT_MODEL` 或 `MINIMAX_TEXT_MODEL_QUALITY`：可选；创建页选择“高质”模型时优先使用，缺失时回退到 `MINIMAX_TEXT_MODEL`
 - `SANDBOX_PROVIDER`：可选；默认 `github`；显式设为 `e2b` 或 `vercel` 时使用对应 Sandbox 兼容路径
 - `GITHUB_DISPATCH_TOKEN`：生产建议必配；Vercel 生产环境配置后会即时触发 GitHub Actions workflow。推荐使用 fine-grained token，只授权本仓库 `Actions: Read and write`。本地默认不 dispatch 远端 workflow，而是自动启动本地 GitHub 兼容 worker；如需强制本地也 dispatch 远端 workflow，可设置 `FORCE_GITHUB_DISPATCH=1`
 - `GITHUB_DISPATCH_REPO`：默认 `zhang1590424-rgb/opengame-astrocade-mvp`
@@ -47,7 +49,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - GitHub 仓库可以保持私有；Vercel 生产部署会生成公开的 `*.vercel.app` 地址供任何人试玩。
 - 生产部署前先在 Vercel Project Settings 配置上面的环境变量，或用 `vercel env add` 写入；不要把真实密钥提交到仓库。
 - Vercel Web Analytics 需要在项目后台的 Analytics 页面点击 Enable；代码侧接入后，下一次生产部署开始采集真实访问数据。
-- GitHub Actions worker 不保存生产密钥；它通过 Vercel 的 `/api/github-worker/*` 代理访问 MiniMax、Blob 和数据库。仓库 Variables 可选配置 `APP_BASE_URL`、`MINIMAX_TEXT_MODEL`、`OPENGAME_GIT_URL`。
+- GitHub Actions worker 不保存生产密钥；它通过 Vercel 的 `/api/github-worker/*` 代理访问 MiniMax、Blob 和数据库。仓库 Variables 可选配置 `APP_BASE_URL`、`MINIMAX_TEXT_MODEL`、`MINIMAX_STANDARD_TEXT_MODEL`、`MINIMAX_QUALITY_TEXT_MODEL`、`OPENGAME_GIT_URL`。
 - 根目录 `vercel.json` 固定 `"framework": "nextjs"`，覆盖 Vercel 项目里可能残留的 `Other` preset，避免只发布 `public/` 静态文件而让 App Router 页面 404。
 - 根目录 `.vercelignore` 明确排除 `.env`、`.env.*`、`node_modules` 和 `.next`，避免本地密钥或构建产物被 CLI 当作源码上传。
 - 部署命令：`vercel deploy --prod`。部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
@@ -62,6 +64,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - 创建页先进入流式头脑风暴，AI 问齐核心玩法、操作方式、胜负目标、视觉/题材风格后，用户确认最终 brief 才启动 GitHub Actions 中的 OpenGame 任务。
 - 默认 OpenGame 生成 prompt 会要求基础美术完成度：完整背景、角色/障碍造型、HUD、动效反馈和偏精致科幻/街机的视觉质感，避免只产出白底占位原型。
 - 一创确认 Brief 时可手动开启“AI 美术增强”，默认关闭；开启后会额外生成游戏内背景图和核心图集并注入 OpenGame prompt，封面图仍沿用发布阶段的现有生成链路。
+- 一创确认 Brief 时还可选择“标准/高质”模型档位和玩法骨架；这两个设置会写入 `Job.modelKey` / `Job.skeletonKey`，GitHub worker、继续修改和自动重试会沿用同一生成策略。
 - 本地开发时，确认 brief 后会创建同样的 GitHub-backed Job，并自动拉起本地 GitHub 兼容 worker 认领任务；线上生产则由 `GITHUB_DISPATCH_TOKEN` 触发 GitHub Actions。两者共用 `/api/github-worker/*`、MiniMax 代理、Blob 上传和自动试玩验证链路。
 - 头脑风暴草稿使用 `Game.DRAFT` 和 `Message` 全程落库；草稿显示在“我的作品”，不进入公共 Gallery。
 - 公共 Gallery 只展示 `READY` 真实作品和内置精选，点击进入纯游玩页 `/games/:id`；该页不展示作者修改入口、生成日志或创作对话历史。

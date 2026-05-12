@@ -1,4 +1,7 @@
+import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { inflateRawSync } from "node:zlib";
+import { parseBuiltinCopyPlayUrl } from "@/lib/builtin-games";
 
 const TEXT_FILE_RE = /\.(html|css|js|json|ts|tsx|md|txt)$/i;
 const MAX_FILE_BYTES = 120_000;
@@ -79,6 +82,30 @@ async function fetchAsBuffer(url: string) {
   return Buffer.from(await response.arrayBuffer());
 }
 
+async function readBuiltinTemplateContext(playUrl: string, title: string) {
+  const slug = parseBuiltinCopyPlayUrl(playUrl);
+  if (!slug) return "";
+
+  const publicRoot = path.join(process.cwd(), "public", "builtin-games");
+  const [indexHtml, sharedEngine] = await Promise.all([
+    readFile(path.join(publicRoot, slug, "index.html"), "utf8").catch(() => ""),
+    readFile(path.join(publicRoot, "shared", "engine.js"), "utf8").catch(() => ""),
+  ]);
+
+  if (!indexHtml.trim() && !sharedEngine.trim()) return "";
+
+  return capContext(
+    [
+      `Original game title: ${title}`,
+      "Original builtin template files:",
+      indexHtml.trim() ? `\n--- index.html ---\n${indexHtml}` : "",
+      sharedEngine.trim() ? `\n--- shared/engine.js ---\n${sharedEngine}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
 function capContext(value: string) {
   return value.length > MAX_CONTEXT_CHARS
     ? `${value.slice(0, MAX_CONTEXT_CHARS)}\n\n[Source context truncated for prompt budget.]`
@@ -86,6 +113,11 @@ function capContext(value: string) {
 }
 
 export async function buildSourceContext(game: SourceGame) {
+  if (game.playUrl) {
+    const builtinContext = await readBuiltinTemplateContext(game.playUrl, game.title).catch(() => "");
+    if (builtinContext) return builtinContext;
+  }
+
   if (game.sourceUrl) {
     const archive = await fetchAsBuffer(game.sourceUrl).catch(() => null);
     if (archive) {

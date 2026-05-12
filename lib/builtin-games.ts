@@ -362,9 +362,24 @@ export const BUILTIN_GAMES: BuiltinGame[] = [
 ];
 
 export type BuiltinClientGame = ReturnType<typeof toBuiltinClientGame>;
+const BUILTIN_COPY_PLAY_URL_PREFIX = "builtin://";
 
 export function isBuiltinGameId(id: string) {
   return id.startsWith("builtin-");
+}
+
+export function toBuiltinCopyPlayUrl(slug: string) {
+  return `${BUILTIN_COPY_PLAY_URL_PREFIX}${slug}`;
+}
+
+export function parseBuiltinCopyPlayUrl(playUrl?: string | null) {
+  if (!playUrl?.startsWith(BUILTIN_COPY_PLAY_URL_PREFIX)) return null;
+  const slug = playUrl.slice(BUILTIN_COPY_PLAY_URL_PREFIX.length).trim();
+  return slug || null;
+}
+
+export function builtinPublicFilePath(slug: string, filePath = "index.html") {
+  return `/builtin-games/${slug}/${filePath.replace(/^\/+/, "")}`;
 }
 
 export function getBuiltinGame(id: string) {

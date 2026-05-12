@@ -2,10 +2,12 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAnonId, getClientIp } from "@/lib/auth";
+import { DEFAULT_GAMEPLAY_SKELETON_KEY, normalizeGameplaySkeletonKey } from "@/lib/gameplay-skeleton";
 import { enforceGenerationLimit } from "@/lib/rate-limit";
+import { DEFAULT_GENERATION_MODEL_KEY, normalizeGenerationModelKey } from "@/lib/minimax-config";
 import { messageSchema } from "@/lib/schemas";
 import { buildSourceContext } from "@/lib/source-context";
-import { startOpenGameJob } from "@/lib/sandbox";
+import { retryOpenGameJob, startOpenGameJob } from "@/lib/sandbox";
 
 const ACTIVE_JOB_STATUSES = new Set(["QUEUED", "RUNNING", "VALIDATING", "REPAIRING", "FINISHING"]);
 
@@ -53,6 +55,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     .join("\n");
   const isFailureRetry = game.status === "FAILED";
   const sourceContext = isFailureRetry ? "" : await buildSourceContext(game);
+  const canUseContinue = !isFailureRetry && Boolean(game.sourceUrl);
   const prompt = isFailureRetry
     ? [
         "You are rebuilding an HTML5 game after the initial generation failed.",
@@ -69,9 +72,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         `Recent conversation:\n${history}`,
         `Apply this change:\n${parsed.data.prompt}`,
       ].join("\n\n");
+  const modelKey = normalizeGenerationModelKey(latestJob?.modelKey ?? DEFAULT_GENERATION_MODEL_KEY);
+  const skeletonKey = normalizeGameplaySkeletonKey(latestJob?.skeletonKey ?? DEFAULT_GAMEPLAY_SKELETON_KEY);
 
   const job = await prisma.job.create({
-    data: { gameId: game.id, prompt, status: "QUEUED" },
+    data: { gameId: game.id, prompt, status: "QUEUED", modelKey, skeletonKey },
   });
   await prisma.message.create({
     data: { gameId: game.id, role: "USER", content: parsed.data.prompt, jobId: job.id },
@@ -82,22 +87,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       gameId: game.id,
       jobId: job.id,
       prompt,
+      modelKey,
+      skeletonKey,
       sourceUrl: isFailureRetry ? null : game.sourceUrl,
-      useContinue: !isFailureRetry,
+      useContinue: canUseContinue,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "修改任务启动失败。";
-    await prisma.$transaction([
-      prisma.job.update({
-        where: { id: job.id },
-        data: { status: "FAILED", errorMsg: message, finishedAt: new Date() },
-      }),
-      prisma.game.update({
-        where: { id: game.id },
-        data: { status: game.playUrl ? "READY" : "FAILED" },
-      }),
-    ]);
-    return NextResponse.json({ error: message, jobId: job.id }, { status: 500 });
+    const retry = await retryOpenGameJob(job.id, message);
+    return NextResponse.json({ jobId: retry.nextJobId ?? job.id, retrying: true });
   }
 
   return NextResponse.json({ jobId: job.id });

@@ -204,12 +204,31 @@ async function screenshotHash(client) {
 
 const snapshotScript = "(() => {" +
   "function visible(el){const r=el.getBoundingClientRect();const s=getComputedStyle(el);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'&&Number(s.opacity||1)>0;}" +
+  "function hasGradient(s){return /gradient\\(/i.test(s.backgroundImage||'')||/gradient\\(/i.test(s.background||'');}" +
+  "function hasShadow(s){return (s.boxShadow&&s.boxShadow!=='none')||(s.textShadow&&s.textShadow!=='none');}" +
+  "function hasRadius(s){return parseFloat(s.borderTopLeftRadius||'0')>=6||parseFloat(s.borderTopRightRadius||'0')>=6||parseFloat(s.borderBottomLeftRadius||'0')>=6||parseFloat(s.borderBottomRightRadius||'0')>=6;}" +
   "const body=document.body;" +
   "const text=(body&&body.innerText?body.innerText:'').replace(/\\s+/g,' ').trim().slice(0,1200);" +
+  "const fullText=(body&&body.innerText?body.innerText:'')+' '+document.documentElement.innerHTML.slice(0,60000);" +
   "const controls=Array.from(document.querySelectorAll('button,[role=button],a,input[type=button],input[type=submit]')).filter(visible).map((el)=>(el.innerText||el.value||el.getAttribute('aria-label')||'').trim()).filter(Boolean).slice(0,12);" +
-  "const canvases=Array.from(document.querySelectorAll('canvas')).map((canvas)=>{let data='';try{data=canvas.toDataURL('image/png').slice(0,2048);}catch{}return {w:canvas.width,h:canvas.height,data};});" +
+  "const heroCandidates=Array.from(document.querySelectorAll('header,section,main > div,main > section,.hero,.start-screen,.title-screen,.intro,.overlay')).filter(visible).map((el)=>{const r=el.getBoundingClientRect();const s=getComputedStyle(el);const t=(el.innerText||'').replace(/\\s+/g,' ').trim();return {tag:el.tagName.toLowerCase(),text:t.slice(0,220),area:r.width*r.height,gradient:hasGradient(s),shadow:hasShadow(s),radius:hasRadius(s)};});" +
+  "const hudCandidates=Array.from(document.querySelectorAll('[data-hud],.hud,.game-hud,header,aside,.topbar,.scoreboard,.status-bar,.hud-panel')).filter(visible).map((el)=>({text:(el.innerText||'').replace(/\\s+/g,' ').trim().slice(0,220),count:el.querySelectorAll('span,div,li,strong,p').length}));" +
+  "const overlayCandidates=Array.from(document.querySelectorAll('.overlay,.modal,.dialog,.result,.game-over,.win,.lose,.end-screen,[data-overlay],[data-result]')).filter(visible).map((el)=>(el.innerText||'').replace(/\\s+/g,' ').trim().slice(0,240));" +
+  "const visibleEls=Array.from(document.querySelectorAll('body,*')).filter(visible).slice(0,220);" +
+  "const styled=visibleEls.map((el)=>{const s=getComputedStyle(el);return {tag:el.tagName.toLowerCase(),bg:s.backgroundColor,bgImage:s.backgroundImage,shadow:hasShadow(s),radius:hasRadius(s),gradient:hasGradient(s),imageRendering:s.imageRendering,font:s.fontFamily,color:s.color,w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height};});" +
+  "const gradients=styled.filter(x=>x.gradient).length;" +
+  "const shadows=styled.filter(x=>x.shadow).length;" +
+  "const radii=styled.filter(x=>x.radius).length;" +
+  "const colors=new Set(styled.map(x=>x.bg).concat(styled.map(x=>x.color)).filter(v=>v&&v!=='rgba(0, 0, 0, 0)'&&v!=='transparent')).size;" +
+  "const pixelatedElements=styled.filter(x=>/pixelated|crisp-edges/i.test(x.imageRendering||'')).length;" +
+  "const pixelTerms=(fullText.match(/\\b(pixel art|pixelated|8-bit|8 bit|16-bit|16 bit|low-res|low res|blocky sprite|blocky sprites|retro pixel)\\b/ig)||[]).slice(0,8);" +
+  "const buttons=Array.from(document.querySelectorAll('button,[role=button],input[type=button],input[type=submit],a')).filter(visible);" +
+  "const defaultControls=buttons.filter((el)=>{const s=getComputedStyle(el);return !hasGradient(s)&&!hasShadow(s)&&!hasRadius(s)&&parseFloat(s.borderTopWidth||'0')<=2&&/^(button|input)$/i.test(el.tagName);}).length;" +
+  "const canvases=Array.from(document.querySelectorAll('canvas')).map((canvas)=>{let data='';try{data=canvas.toDataURL('image/png').slice(0,2048);}catch{}const r=canvas.getBoundingClientRect();return {w:canvas.width,h:canvas.height,cssW:Math.round(r.width),cssH:Math.round(r.height),lowResScaled:(canvas.width<480||canvas.height<320)&&(r.width>canvas.width*1.4||r.height>canvas.height*1.4),data};});" +
   "const joined=(text+' '+controls.join(' '));" +
-  "return {title:document.title||'',text,htmlLength:body?body.innerHTML.length:0,bodyChildCount:body?body.children.length:0,controlCount:controls.length,controls,canvasCount:canvases.length,canvases,startGate:/\\b(start|play|begin|go|restart)\\b|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(joined)};" +
+  "const hero=heroCandidates.sort((a,b)=>b.area-a.area)[0]||null;" +
+  "const hudText=(hudCandidates.map(x=>x.text).join(' ')+' '+text);" +
+  "return {title:document.title||'',text,htmlLength:body?body.innerHTML.length:0,bodyChildCount:body?body.children.length:0,controlCount:controls.length,controls,canvasCount:canvases.length,canvases,startGate:/\\b(start|play|begin|go|restart)\\b|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(joined),hero,heroCount:heroCandidates.length,hud:{count:hudCandidates.length,text:hudText.slice(0,400),modules:hudCandidates.slice(0,4)},overlay:{count:overlayCandidates.length,text:overlayCandidates.join(' ').slice(0,400)},visual:{gradients,shadows,radii,colors,pixelatedElements,pixelTerms,defaultControls,lowResScaledCanvas:canvases.some(c=>c.lowResScaled),visibleElementCount:visibleEls.length}};" +
 "})()";
 
 const targetScript = "(() => {" +
@@ -234,6 +253,34 @@ async function press(client, key, code) {
 
 function summarizeErrors(errors) {
   return errors.map((error) => String(error).slice(0, 240)).slice(0, 8);
+}
+
+function assessVisualQuality(before, after) {
+  const visual = after.visual || before.visual || {};
+  const hero = before.hero || after.hero || null;
+  const hud = after.hud || before.hud || { count: 0, text: "", modules: [] };
+  const overlay = after.overlay || before.overlay || { count: 0, text: "" };
+  const reasons = [];
+  const polishSignals = Number(visual.gradients || 0) + Number(visual.shadows || 0) + Number(visual.radii || 0);
+  const hasEnoughPolish = polishSignals >= 4 || (Number(visual.radii || 0) >= 2 && Number(visual.colors || 0) >= 5);
+  const hasDesignedControls = Number(visual.defaultControls || 0) === 0 || Number(visual.radii || 0) > 0 || Number(visual.gradients || 0) > 0;
+  const hudSignals = (hud.text || "").match(/\b(score|combo|wave|time|level|life|lives|health|hp|ammo|coins|goal|progress)\b|得分|连击|波次|时间|等级|生命|血量|金币|目标|进度/gi) || [];
+  const endSignals = (overlay.text || after.text || "").match(/\b(restart|retry|play again|continue|victory|defeat|game over|you win|result)\b|再来|重试|继续|胜利|失败|游戏结束|结果/gi) || [];
+
+  if (Number(visual.pixelatedElements || 0) > 0) reasons.push("Uses pixelated/crisp-edges image rendering.");
+  if (Array.isArray(visual.pixelTerms) && visual.pixelTerms.length > 0) reasons.push("Contains pixel-art/8-bit/blocky visual language: " + visual.pixelTerms.join(", "));
+  if (visual.lowResScaledCanvas) reasons.push("Uses a low-resolution scaled canvas that looks pixelated.");
+  if (!hasEnoughPolish) reasons.push("UI lacks enough polish signals such as gradients, rounded panels, shadows/glow, or color depth.");
+  if (!hasDesignedControls) reasons.push("Visible controls look like default browser UI.");
+  if (!hero || !hero.text || hero.text.length < 12) reasons.push("Missing a designed first screen or hero section with title/hook/CTA framing.");
+  if ((hud.count || 0) < 1 || hudSignals.length < 2) reasons.push("HUD is too weak; expected multiple readable state modules such as score, lives, timer, wave, or progress.");
+  if (endSignals.length < 1) reasons.push("Missing a designed end-state or replay-ready result overlay.");
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    metrics: { ...visual, hero, hud, overlay, hudSignals: hudSignals.slice(0, 8), endSignals: endSignals.slice(0, 8) },
+  };
 }
 
 async function runValidation() {
@@ -326,6 +373,7 @@ async function runValidation() {
     const hasGameSignals = /score|level|life|health|time|hp|得分|等级|生命|时间|血量|分数/i.test(before.text + " " + after.text) || before.canvasCount > 0 || after.canvasCount > 0;
     const fatalErrors = runtimeErrors.concat(networkErrors.filter((error) => error.includes("/index.html")));
     const startGate = Boolean(before.startGate || (target.text && /start|play|begin|go|restart|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(target.text)));
+    const visualQuality = assessVisualQuality(before, after);
 
     const checks = {
       loaded: true,
@@ -333,6 +381,7 @@ async function runValidation() {
       startGate,
       changed,
       hasGameSignals,
+      visualQualityOk: visualQuality.ok,
       runtimeErrorCount: runtimeErrors.length,
       networkErrorCount: networkErrors.length,
       consoleErrorCount: consoleErrors.length,
@@ -341,19 +390,21 @@ async function runValidation() {
     let ok = fatalErrors.length === 0 && hasVisualSurface;
     if (ok && startGate && !changed) ok = false;
     if (ok && !startGate && !changed && !hasGameSignals) ok = false;
+    if (ok && !visualQuality.ok) ok = false;
 
     const report = {
       ok,
       url,
       checks,
       clicked: target,
-      before: { text: before.text.slice(0, 240), controls: before.controls, canvasCount: before.canvasCount, screenshotHash: beforeShot },
-      after: { text: after.text.slice(0, 240), controls: after.controls, canvasCount: after.canvasCount, screenshotHash: afterShot },
+      before: { text: before.text.slice(0, 240), controls: before.controls, canvasCount: before.canvasCount, screenshotHash: beforeShot, visual: before.visual },
+      after: { text: after.text.slice(0, 240), controls: after.controls, canvasCount: after.canvasCount, screenshotHash: afterShot, visual: after.visual },
+      visualQuality,
       runtimeErrors: summarizeErrors(runtimeErrors),
       consoleErrors: summarizeErrors(consoleErrors),
       networkErrors: summarizeErrors(networkErrors),
       chromeErrors: summarizeErrors(chromeErrors),
-      reason: ok ? "Playable smoke passed." : "Playable smoke failed: " + JSON.stringify(checks),
+      reason: ok ? "Playable and visual-quality smoke passed." : "Playable/visual smoke failed: " + JSON.stringify({ checks, visualQuality }),
     };
 
     await writeFile(reportPath, JSON.stringify(report, null, 2));

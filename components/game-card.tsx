@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Gamepad2, Heart, Play } from "lucide-react";
+import { GameCardProgress } from "@/components/game-card-progress";
+import { MakeSimilarButton } from "@/components/make-similar-button";
 
 export type GameCardGame = {
     id: string;
@@ -136,50 +138,55 @@ export function GameCard({ game, surface = "gallery", priority = false }: GameCa
   const href = hrefForGame(game, surface);
   const revisionStatusText = surface === "studio" && isPlayableRevisionActive(game) ? latestJobLabel(game.latestJob!.status) : "";
   const statusText = game.isBuiltin ? "内置精选" : revisionStatusText || statusLabel(game.status);
+  const canMakeSimilar = surface === "gallery" && !game.ownedByMe && Boolean(game.playUrl) && (game.isBuiltin || game.status === "ready");
 
   return (
-    <Link
-      href={href}
-      className={`game-card ${isReady ? "ready" : ""} ${isDraft ? "draft" : ""} ${game.isBuiltin ? "builtin" : ""} surface-${surface}`}
-      aria-label={`打开 ${game.title}`}
-    >
-      <div className="card-media">
-        {game.coverUrl ? (
-          <Image
-            src={game.coverUrl}
-            alt={`${game.title} 封面`}
-            fill
-            sizes="(max-width: 760px) calc(100vw - 28px), (max-width: 1180px) calc((100vw - 50px) / 2), 330px"
-            className="card-cover"
-            priority={priority}
-          />
-        ) : (
-          <span className="card-placeholder" aria-hidden>
-            <Gamepad2 size={34} />
-          </span>
-        )}
-        <span className="card-scrim" aria-hidden />
-        <span className={`status-pill ${isReady ? "ready" : ""}`}>{statusText}</span>
-        {isReady ? (
-          <span className="play-pill">
-            <Play size={14} aria-hidden fill="currentColor" />
-            {formatCount(game.playCount)}
-          </span>
-        ) : null}
-        <h3 className="card-title-overlay">{game.title}</h3>
-      </div>
-      <div className="card-body">
-        <div className="card-info-line">
-          <div className="card-chip-row" aria-label={tags.length ? "作品标签" : "创建日期"}>
-            {infoChips.map((chip) => (
-              <span key={chip}>{chip}</span>
-            ))}
-          </div>
-          <span className="card-like">
-            <Heart size={14} aria-hidden /> {formatCount(game.likeCount)}
-          </span>
+    <article className={`game-card ${isReady ? "ready" : ""} ${isDraft ? "draft" : ""} ${game.isBuiltin ? "builtin" : ""} surface-${surface}`}>
+      <Link href={href} className="game-card-link" aria-label={`打开 ${game.title}`}>
+        <div className="card-media">
+          {game.coverUrl ? (
+            <Image
+              src={game.coverUrl}
+              alt={`${game.title} 封面`}
+              fill
+              sizes="(max-width: 760px) calc(100vw - 28px), (max-width: 1180px) calc((100vw - 50px) / 2), 330px"
+              className="card-cover"
+              priority={priority}
+            />
+          ) : (
+            <span className="card-placeholder" aria-hidden>
+              <Gamepad2 size={34} />
+            </span>
+          )}
+          <span className="card-scrim" aria-hidden />
+          <span className={`status-pill ${isReady ? "ready" : ""}`}>{statusText}</span>
+          {hasActiveJob(game) ? <GameCardProgress status={game.latestJob!.status} /> : null}
+          {isReady ? (
+            <span className="play-pill">
+              <Play size={14} aria-hidden fill="currentColor" />
+              {formatCount(game.playCount)}
+            </span>
+          ) : null}
+          <h3 className="card-title-overlay">{game.title}</h3>
         </div>
-      </div>
-    </Link>
+        <div className="card-body">
+          <div className="card-info-line">
+            <div className="card-chip-row" aria-label={tags.length ? "作品标签" : "创建日期"}>
+              {infoChips.map((chip) => (
+                <span key={chip}>{chip}</span>
+              ))}
+            </div>
+            <span className="card-like">
+              <Heart size={14} aria-hidden /> {formatCount(game.likeCount)}
+            </span>
+          </div>
+        </div>
+      </Link>
+      {canMakeSimilar ? (
+        <div className="game-card-quick-actions">
+          <MakeSimilarButton gameId={game.id} compact />
+        </div>
+      ) : null}
+    </article>
   );
 }

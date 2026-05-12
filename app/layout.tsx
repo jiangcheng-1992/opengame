@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Analytics } from "@vercel/analytics/next";
 import { AppShellNav } from "@/components/app-shell-nav";
 import "./globals.css";
 
@@ -14,7 +13,12 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const AnalyticsComponent =
+    process.env.NODE_ENV === "production"
+      ? (await import("@vercel/analytics/next")).Analytics
+      : null;
+
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body suppressHydrationWarning>
@@ -22,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AppShellNav />
         </Suspense>
         <main className="app-main">{children}</main>
-        <Analytics />
+        {AnalyticsComponent ? <AnalyticsComponent /> : null}
       </body>
     </html>
   );

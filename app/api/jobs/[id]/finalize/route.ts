@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { uploadSandboxGame, uploadSourceArchive } from "@/lib/blob";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { generateCoverImage } from "@/lib/minimax";
-import { hasPlayableBuild, sandboxPaths, stopSandbox } from "@/lib/sandbox";
+import { hasPlayableBuild, retryOpenGameJob, sandboxPaths, stopSandbox } from "@/lib/sandbox";
 import { describeSandboxError } from "@/lib/vercel-sandbox-auth";
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
@@ -119,15 +119,8 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     return NextResponse.json({ ok: true, playUrl });
   } catch (error) {
     const message = describeSandboxError(error);
-    await prisma.job.update({
-      where: { id: job.id },
-      data: { status: "FAILED", errorMsg: message, finishedAt: new Date() },
-    });
-    await prisma.game.update({
-      where: { id: job.gameId },
-      data: { status: job.game.playUrl ? "READY" : "FAILED" },
-    });
     await stopSandbox(job.sandboxId).catch(() => undefined);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const retry = await retryOpenGameJob(job.id, message);
+    return NextResponse.json({ error: message, retrying: true, ...retry }, { status: 202 });
   }
 }

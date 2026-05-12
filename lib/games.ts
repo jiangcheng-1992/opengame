@@ -1,7 +1,13 @@
 import type { GameStatus, JobStatus, Message, Reaction, Role, Visibility } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAnonId, getExistingAnonId } from "@/lib/auth";
-import { getBuiltinGame, listBuiltinGames } from "@/lib/builtin-games";
+import {
+  builtinPublicFilePath,
+  getBuiltinGame,
+  isBuiltinGameId,
+  listBuiltinGames,
+  toBuiltinCopyPlayUrl,
+} from "@/lib/builtin-games";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { toClientGame } from "@/lib/status";
 
@@ -11,6 +17,8 @@ type SelectedJob = {
   id: string;
   status: JobStatus;
   errorMsg: string | null;
+  modelKey: string;
+  skeletonKey: string;
   createdAt: Date;
 };
 
@@ -83,10 +91,19 @@ function normalizeMessages(messages?: SelectedMessage[]) {
   }));
 }
 
+function clientPlayUrl(gameId: string, playUrl: string | null) {
+  if (!playUrl) return null;
+  if (playUrl.startsWith("builtin://")) {
+    const slug = playUrl.slice("builtin://".length).trim();
+    return slug ? builtinPublicFilePath(slug) : null;
+  }
+  return `/api/games/${gameId}/files/index.html`;
+}
+
 function toClientGameListItem(game: GameListRecord, viewerAnonId?: string) {
   return {
     ...game,
-    playUrl: game.playUrl ? `/api/games/${game.id}/files/index.html` : null,
+    playUrl: clientPlayUrl(game.id, game.playUrl),
     blobPlayUrl: game.playUrl,
     status: game.status.toLowerCase(),
     visibility: game.visibility.toLowerCase(),
@@ -108,7 +125,7 @@ function sortPublicHomeGames<T extends { id: string; createdAt: Date | string }>
 function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
   return {
     ...game,
-    playUrl: game.playUrl ? `/api/games/${game.id}/files/index.html` : null,
+    playUrl: clientPlayUrl(game.id, game.playUrl),
     blobPlayUrl: game.playUrl,
     status: game.status.toLowerCase(),
     visibility: game.visibility.toLowerCase(),
@@ -159,7 +176,7 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
         jobs: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: { id: true, status: true, errorMsg: true, createdAt: true },
+          select: { id: true, status: true, errorMsg: true, modelKey: true, skeletonKey: true, createdAt: true },
         },
         ...(anonId ? { reactions: { where: { anonId, type: "LIKE" as const }, take: 1, select: { id: true } } } : {}),
       },
@@ -213,7 +230,7 @@ export async function getGameDetail(id: string) {
       jobs: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { id: true, status: true, errorMsg: true, createdAt: true },
+        select: { id: true, status: true, errorMsg: true, modelKey: true, skeletonKey: true, createdAt: true },
       },
       reactions: { where: { anonId, type: "LIKE" }, take: 1, select: { id: true } },
     },
@@ -238,6 +255,124 @@ export async function getCreateDraft(id: string) {
 
   if (!game || game.ownerId !== anonId || !(game.status === "DRAFT" || (game.status === "GENERATING" && !game.playUrl))) return null;
   return toClientGame(game, anonId);
+}
+
+function editableCopyTitle(title: string) {
+  const text = title.trim() || "未命名游戏";
+  if (text.endsWith("同款")) return text;
+  const chars = Array.from(text);
+  return `${chars.slice(0, 18).join("")}同款`;
+}
+
+export async function createEditableCopyFromPublicGame(id: string) {
+  const anonId = await getAnonId();
+  const builtinGame = isBuiltinGameId(id) ? getBuiltinGame(id) : null;
+
+  if (builtinGame) {
+    const editableCopy = await prisma.$transaction(async (tx) => {
+      const game = await tx.game.create({
+        data: {
+          ownerId: anonId,
+          title: editableCopyTitle(builtinGame.title),
+          summary: builtinGame.summary,
+          genre: builtinGame.genre,
+          tags: builtinGame.tags,
+          controls: builtinGame.controls,
+          coverPrompt: builtinGame.coverPrompt,
+          coverUrl: builtinGame.coverUrl,
+          status: "READY",
+          visibility: "PRIVATE",
+          playUrl: toBuiltinCopyPlayUrl(builtinGame.id.replace(/^builtin-/, "")),
+          sourceUrl: null,
+          version: 1,
+        },
+      });
+
+      await tx.message.createMany({
+        data: [
+          {
+            gameId: game.id,
+            role: "SYSTEM",
+            content: `这个可编辑副本基于内置精选《${builtinGame.title}》创建。它保留模板玩法和演示结构，后续通过对话继续做成你的版本。`,
+          },
+          {
+            gameId: game.id,
+            role: "SYSTEM",
+            content: `内置模板基础 brief:\n${builtinGame.messages?.[0]?.content ?? builtinGame.summary}`,
+          },
+        ],
+      });
+
+      return game;
+    });
+
+    return { gameId: editableCopy.id, alreadyOwned: false as const };
+  }
+
+  const sourceGame = await prisma.game.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      ownerId: true,
+      title: true,
+      summary: true,
+      genre: true,
+      tags: true,
+      controls: true,
+      coverPrompt: true,
+      coverUrl: true,
+      status: true,
+      visibility: true,
+      playUrl: true,
+      sourceUrl: true,
+      version: true,
+    },
+  });
+
+  if (!sourceGame) {
+    return { error: "找不到这个游戏。", status: 404 as const };
+  }
+
+  if (sourceGame.ownerId === anonId) {
+    return { gameId: sourceGame.id, alreadyOwned: true as const };
+  }
+
+  if (sourceGame.visibility !== "PUBLIC" || sourceGame.status !== "READY" || !sourceGame.playUrl) {
+    return { error: "只有公共可玩的作品才能创建同款副本。", status: 409 as const };
+  }
+
+  const editableCopy = await prisma.$transaction(async (tx) => {
+    const game = await tx.game.create({
+      data: {
+        ownerId: anonId,
+        title: editableCopyTitle(sourceGame.title),
+        summary: sourceGame.summary,
+        genre: sourceGame.genre,
+        tags: sourceGame.tags,
+        controls: sourceGame.controls,
+        coverPrompt: sourceGame.coverPrompt,
+        coverUrl: sourceGame.coverUrl,
+        status: "READY",
+        visibility: "PRIVATE",
+        playUrl: sourceGame.playUrl,
+        sourceUrl: sourceGame.sourceUrl,
+        version: sourceGame.version,
+        parentGameId: sourceGame.id,
+      },
+    });
+
+    await tx.message.create({
+      data: {
+        gameId: game.id,
+        role: "SYSTEM",
+        content: `这个可编辑副本基于公共作品《${sourceGame.title}》创建。默认保留原始核心玩法、操作和视觉结构，除非后续用户明确要求修改。`,
+      },
+    });
+
+    return game;
+  });
+
+  return { gameId: editableCopy.id, alreadyOwned: false as const };
 }
 
 export function titleFromPrompt(prompt: string) {

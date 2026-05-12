@@ -14,6 +14,20 @@ import {
   formatVisibleBrainstormText,
   type BrainstormState,
 } from "@/lib/brainstorm";
+import {
+  DEFAULT_GAMEPLAY_SKELETON_KEY,
+  GAMEPLAY_SKELETON_OPTIONS,
+  getGameplaySkeletonOption,
+  getGameplaySkeletonLabel,
+  normalizeGameplaySkeletonKey,
+  type GameplaySkeletonKey,
+} from "@/lib/gameplay-skeleton";
+import {
+  GENERATION_MODEL_OPTIONS,
+  getGenerationModelLabel,
+  normalizeGenerationModelKey,
+  type GenerationModelKey,
+} from "@/lib/minimax-config";
 
 type DraftForCreate = {
   id: string;
@@ -23,6 +37,8 @@ type DraftForCreate = {
     id: string;
     status: string;
     errorMsg?: string | null;
+    modelKey?: string | null;
+    skeletonKey?: string | null;
   } | null;
   messages?: Array<{
     id: string;
@@ -155,6 +171,8 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   const [input, setInput] = useState(initialPrompt);
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">((draft?.visibility?.toUpperCase() as "PUBLIC" | "PRIVATE") ?? "PUBLIC");
   const [artEnhancementEnabled, setArtEnhancementEnabled] = useState(false);
+  const [modelKey, setModelKey] = useState<GenerationModelKey>(() => normalizeGenerationModelKey(draft?.latestJob?.modelKey));
+  const [skeletonKey, setSkeletonKey] = useState<GameplaySkeletonKey>(() => normalizeGameplaySkeletonKey(draft?.latestJob?.skeletonKey ?? DEFAULT_GAMEPLAY_SKELETON_KEY));
   const [pendingFirstMessage, setPendingFirstMessage] = useState("");
   const [brainstormState, setBrainstormState] = useState(() => stateFromMessages(initialMessages));
   const [activeJobId, setActiveJobId] = useState<string | null>(() => (draft?.status === "generating" ? draft.latestJob?.id ?? null : null));
@@ -210,6 +228,9 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   const createTaskStatus = createTaskStatusLabel(brainstormState.isReady, isGenerating, draftJobStatus);
   const createTaskResult = createTaskResultLabel(brainstormState.isReady, isGenerating, draftJobStatus, activeJobInitialProgress?.errorMsg);
   const createTaskResultTone = draftJobStatus === "failed" ? "danger" : draftJobStatus === "done" ? "success" : "muted";
+  const hasStartedGeneration = Boolean(isGenerating || draftJobStatus);
+  const hasLiveJobWatcher = Boolean(activeJobId && gameId);
+  const selectedSkeleton = useMemo(() => getGameplaySkeletonOption(skeletonKey), [skeletonKey]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -283,7 +304,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
       const response = await fetch(`/api/games/${gameId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief: brainstormState.brief, visibility, artEnhancementEnabled }),
+        body: JSON.stringify({ brief: brainstormState.brief, visibility, artEnhancementEnabled, modelKey, skeletonKey }),
       });
       const payload = await response.json().catch(() => ({}));
 
@@ -428,27 +449,115 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
                   </label>
 
                   <div className="brief-confirm-actions">
-                    <div className="segmented" aria-label="可见性">
-                      <button
-                        className={visibility === "PUBLIC" ? "active" : ""}
-                        type="button"
-                        onClick={() => setVisibility("PUBLIC")}
-                        aria-pressed={visibility === "PUBLIC"}
-                        disabled={isGenerating || isGenerationActive}
-                      >
-                        <Globe2 size={16} aria-hidden />
-                        公开
-                      </button>
-                      <button
-                        className={visibility === "PRIVATE" ? "active" : ""}
-                        type="button"
-                        onClick={() => setVisibility("PRIVATE")}
-                        aria-pressed={visibility === "PRIVATE"}
-                        disabled={isGenerating || isGenerationActive}
-                      >
-                        <Lock size={16} aria-hidden />
-                        私密
-                      </button>
+                    <div className="brief-confirm-settings">
+                      <div className="brief-setting-group">
+                        <span className="brief-setting-label">可见性</span>
+                        <div className="segmented" aria-label="可见性">
+                          <button
+                            className={visibility === "PUBLIC" ? "active" : ""}
+                            type="button"
+                            onClick={() => setVisibility("PUBLIC")}
+                            aria-pressed={visibility === "PUBLIC"}
+                            disabled={isGenerating || isGenerationActive}
+                          >
+                            <Globe2 size={16} aria-hidden />
+                            公开
+                          </button>
+                          <button
+                            className={visibility === "PRIVATE" ? "active" : ""}
+                            type="button"
+                            onClick={() => setVisibility("PRIVATE")}
+                            aria-pressed={visibility === "PRIVATE"}
+                            disabled={isGenerating || isGenerationActive}
+                          >
+                            <Lock size={16} aria-hidden />
+                            私密
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="brief-setting-group">
+                        <span className="brief-setting-label">玩法骨架</span>
+                        <div className="segmented segmented-rich" aria-label="玩法骨架">
+                          {GAMEPLAY_SKELETON_OPTIONS.map((option) => (
+                            <button
+                              key={option.key}
+                              className={skeletonKey === option.key ? "active" : ""}
+                              type="button"
+                              onClick={() => setSkeletonKey(option.key)}
+                              aria-pressed={skeletonKey === option.key}
+                              disabled={isGenerating || isGenerationActive}
+                              title={option.description}
+                            >
+                              <Sparkles size={16} aria-hidden />
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="skeleton-helper-card" aria-live="polite">
+                          <div className="skeleton-helper-head">
+                            <div>
+                              <span className="skeleton-helper-eyebrow">当前骨架</span>
+                              <strong>{selectedSkeleton.label}</strong>
+                            </div>
+                            <span className="task-status-pill">{selectedSkeleton.helperTitle}</span>
+                          </div>
+                          <p className="helper brief-setting-helper">{selectedSkeleton.helperBody}</p>
+
+                          <div className="skeleton-helper-grid">
+                            <section className="skeleton-preview-card">
+                              <span>适合需求</span>
+                              <ul>
+                                {selectedSkeleton.fitFor.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                              </ul>
+                            </section>
+
+                            <section className="skeleton-preview-card">
+                              <span>预期玩法</span>
+                              <ol>
+                                {selectedSkeleton.gameplayPreview.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                              </ol>
+                            </section>
+
+                            <section className="skeleton-preview-card">
+                              <span>界面示意</span>
+                              <ul>
+                                {selectedSkeleton.startScreenPreview.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                                {selectedSkeleton.hudPreview.map((item) => (
+                                  <li key={`hud-${item}`}>HUD: {item}</li>
+                                ))}
+                              </ul>
+                            </section>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="brief-setting-group">
+                        <span className="brief-setting-label">生成模型</span>
+                        <div className="segmented" aria-label="生成模型">
+                          {GENERATION_MODEL_OPTIONS.map((option) => (
+                            <button
+                              key={option.key}
+                              className={modelKey === option.key ? "active" : ""}
+                              type="button"
+                              onClick={() => setModelKey(option.key)}
+                              aria-pressed={modelKey === option.key}
+                              disabled={isGenerating || isGenerationActive}
+                              title={option.description}
+                            >
+                              <Sparkles size={16} aria-hidden />
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="helper brief-setting-helper">高质档已完成链路预留，后续可直接接付费限制。</p>
+                      </div>
                     </div>
 
                     <button className="button primary wide" type="button" onClick={generateGame} disabled={!canGenerate || isGenerating || isGenerationActive}>
@@ -509,11 +618,16 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
             { label: "当前", value: currentQuestion },
             { label: "可见性", value: visibility === "PUBLIC" ? "公开" : "私密" },
             { label: "美术", value: artEnhancementEnabled ? "增强" : "普通" },
+            { label: "骨架", value: getGameplaySkeletonLabel(skeletonKey) },
+            { label: "模型", value: getGenerationModelLabel(modelKey) },
           ]}
           steps={createTaskSteps}
           result={{ label: createTaskResult, tone: createTaskResultTone }}
+          progressStarted={hasStartedGeneration}
+          idleProgressLabel="发布生成任务后开始"
+          hideProgressMeter={hasLiveJobWatcher}
         >
-          {activeJobId && gameId ? (
+          {hasLiveJobWatcher ? (
             <Suspense fallback={null}>
               <JobWatcher
                 initialJobId={activeJobId}

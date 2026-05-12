@@ -1,4 +1,5 @@
 import type { Game, Job, Message, Reaction } from "@prisma/client";
+import { builtinPublicFilePath, parseBuiltinCopyPlayUrl } from "@/lib/builtin-games";
 
 export function toClientGame(
   game: Game & {
@@ -8,7 +9,12 @@ export function toClientGame(
   },
   viewerAnonId?: string,
 ) {
-  const playUrl = game.playUrl ? `/api/games/${game.id}/files/index.html` : null;
+  const builtinSlug = parseBuiltinCopyPlayUrl(game.playUrl);
+  const playUrl = builtinSlug
+    ? builtinPublicFilePath(builtinSlug)
+    : game.playUrl
+      ? `/api/games/${game.id}/files/index.html`
+      : null;
 
   return {
     ...game,

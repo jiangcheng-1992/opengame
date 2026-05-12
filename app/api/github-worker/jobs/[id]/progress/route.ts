@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { JobStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { retryOpenGameJob } from "@/lib/sandbox";
 
 export const dynamic = "force-dynamic";
 
@@ -33,22 +34,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Job not found." }, { status: 404 });
   }
 
+  if (status === "FAILED") {
+    const log = typeof body.log === "string" ? body.log.slice(-8000) : job.log;
+    const errorMsg = body.errorMsg ?? "GitHub Actions worker failed.";
+    const retry = await retryOpenGameJob(job.id, errorMsg, { log });
+    return NextResponse.json({ ok: true, retrying: true, ...retry });
+  }
+
   await prisma.job.update({
     where: { id: job.id },
     data: {
       status,
       log: typeof body.log === "string" ? body.log.slice(-8000) : job.log,
-      errorMsg: body.errorMsg ?? (status === "FAILED" ? "GitHub Actions worker failed." : job.errorMsg),
-      ...(status === "FAILED" ? { finishedAt: new Date() } : {}),
+      errorMsg: body.errorMsg ?? job.errorMsg,
     },
   });
-
-  if (status === "FAILED") {
-    await prisma.game.update({
-      where: { id: job.gameId },
-      data: { status: job.game.playUrl ? "READY" : "FAILED" },
-    });
-  }
 
   return NextResponse.json({ ok: true });
 }

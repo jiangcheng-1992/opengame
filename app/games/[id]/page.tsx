@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Heart, Play } from "lucide-react";
+import { MakeSimilarButton } from "@/components/make-similar-button";
 import { PlayTracker } from "@/components/play-tracker";
+import { ShareGameButton } from "@/components/share-game-button";
 import { getGameDetail } from "@/lib/games";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +33,7 @@ export default async function GameDetailPage({
   const statusText = isBuiltin ? "内置精选 · 可玩" : statusLabel(game.status);
   const playableUrl = game.playUrl && (game.status === "ready" || isBuiltin) ? game.playUrl : null;
   const summary = game.summary ?? "进入游戏后按画面提示操作。";
+  const canMakeSimilar = !game.ownedByMe && Boolean(game.playUrl) && (isBuiltin || game.status === "ready");
 
   return (
     <div className="page detail-page immersive-detail-page">
@@ -52,6 +55,7 @@ export default async function GameDetailPage({
           <span>
             <Heart size={15} aria-hidden /> {game.likeCount}
           </span>
+          <ShareGameButton gameId={game.id} title={game.title} summary={summary} />
         </div>
       </header>
 
@@ -59,6 +63,14 @@ export default async function GameDetailPage({
         <span>玩法说明</span>
         <p>{summary}</p>
       </section>
+
+      {canMakeSimilar ? (
+        <section className="play-brief-card similar-action-card" aria-label="基于当前作品继续创作">
+          <span>继续创作</span>
+          <p>{isBuiltin ? "基于这个内置精选模板创建到你的可编辑副本，然后通过对话继续二创玩法、画面和难度。" : "基于这个公开作品创建到你的可编辑副本，然后通过对话继续调整玩法、画面和难度。"}</p>
+          <MakeSimilarButton gameId={game.id} />
+        </section>
+      ) : null}
 
       <section className="game-stage play-stage" aria-label="游戏舞台">
         {playableUrl ? (
