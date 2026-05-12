@@ -3019,37 +3019,55 @@ h3 {
   gap: 10px;
 }
 
-.edit-visibility-control {
+.edit-publish-setting {
   display: grid;
-  gap: 6px;
-  min-width: 236px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.62);
+  grid-template-columns: minmax(0, 1fr) minmax(154px, 0.72fr);
+  gap: 12px;
+  align-items: center;
+  margin-top: 2px;
+  padding: 12px;
+  border: 1px solid rgba(92, 73, 49, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.54);
 }
 
-.edit-visibility-head {
+.edit-publish-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.edit-publish-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 18px;
-  padding: 0 4px;
-  color: var(--soft);
+  gap: 7px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.edit-publish-copy p {
+  margin: 0;
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
+  line-height: 1.45;
 }
 
 .edit-visibility-toggle {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface-2);
 }
 
 .edit-visibility-toggle button {
-  min-height: 34px;
+  min-height: 32px;
   border: 1px solid transparent;
-  border-radius: 15px;
+  border-radius: 11px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
@@ -3069,8 +3087,8 @@ h3 {
 }
 
 .edit-visibility-error {
+  grid-column: 1 / -1;
   margin: 0;
-  padding: 0 4px;
   color: #c74b4b;
   font-size: 12px;
   font-weight: 650;
@@ -3464,11 +3482,6 @@ h3 {
     justify-content: stretch;
   }
 
-  .edit-visibility-control {
-    width: 100%;
-    min-width: 0;
-  }
-
   .edit-status-pill {
     justify-content: center;
   }
@@ -3489,6 +3502,10 @@ h3 {
   .edit-title h1 {
     font-size: 24px;
     white-space: normal;
+  }
+
+  .edit-publish-setting {
+    grid-template-columns: 1fr;
   }
 
   .play-stats {

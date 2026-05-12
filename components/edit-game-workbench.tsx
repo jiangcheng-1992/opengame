@@ -285,6 +285,31 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
     }
   }
 
+  const publishSetting = (
+    <section className="edit-publish-setting" aria-label="发布设置">
+      <div className="edit-publish-copy">
+        <span className="edit-publish-label">
+          {visibility === "PUBLIC" ? <Globe2 size={15} aria-hidden /> : <LockKeyhole size={15} aria-hidden />}
+          发布设置
+        </span>
+        <p>{isVisibilitySaving ? "正在保存公开状态" : visibilityHint}</p>
+      </div>
+      <div className="edit-visibility-toggle" aria-label="作品可见性">
+        <button type="button" className={visibility === "PUBLIC" ? "active" : ""} onClick={() => updateVisibility("PUBLIC")} disabled={isVisibilitySaving} aria-pressed={visibility === "PUBLIC"}>
+          公开
+        </button>
+        <button type="button" className={visibility === "PRIVATE" ? "active" : ""} onClick={() => updateVisibility("PRIVATE")} disabled={isVisibilitySaving} aria-pressed={visibility === "PRIVATE"}>
+          私密
+        </button>
+      </div>
+      {visibilityError ? (
+        <p className="edit-visibility-error" role="alert">
+          {visibilityError}
+        </p>
+      ) : null}
+    </section>
+  );
+
   return (
     <section className="edit-workbench" aria-label="修改游戏工作台">
       <header className="edit-topbar">
@@ -297,25 +322,6 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
           <h1>{game.title}</h1>
         </div>
         <div className="edit-topbar-actions">
-          <div className="edit-visibility-control">
-            <div className="edit-visibility-head">
-              {visibility === "PUBLIC" ? <Globe2 size={15} aria-hidden /> : <LockKeyhole size={15} aria-hidden />}
-              <span>{isVisibilitySaving ? "保存中" : visibilityHint}</span>
-            </div>
-            <div className="edit-visibility-toggle" aria-label="作品可见性">
-              <button type="button" className={visibility === "PUBLIC" ? "active" : ""} onClick={() => updateVisibility("PUBLIC")} disabled={isVisibilitySaving} aria-pressed={visibility === "PUBLIC"}>
-                公开
-              </button>
-              <button type="button" className={visibility === "PRIVATE" ? "active" : ""} onClick={() => updateVisibility("PRIVATE")} disabled={isVisibilitySaving} aria-pressed={visibility === "PRIVATE"}>
-                私密
-              </button>
-            </div>
-            {visibilityError ? (
-              <p className="edit-visibility-error" role="alert">
-                {visibilityError}
-              </p>
-            ) : null}
-          </div>
           <div className="edit-status-pill">
             {isFailed ? <AlertTriangle size={16} aria-hidden /> : isGenerationActive ? <WandSparkles size={16} aria-hidden /> : <ShieldCheck size={16} aria-hidden />}
             {isFailed ? "等待重新生成" : isGenerationActive ? "新版本生成中" : "旧版本仍保留"}
@@ -404,6 +410,7 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
               ) : (
                 <p className="helper">正在启动真实生成链路，稍后会显示进度和运行日志。</p>
               )}
+              {publishSetting}
               {error ? (
                 <p className="error" role="alert">
                   {error}
@@ -459,6 +466,8 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
                 <WandSparkles size={18} aria-hidden />
                 {isPending ? "启动生成中" : isFailed ? "重新生成可玩版本" : "生成新版本"}
               </button>
+
+              {publishSetting}
 
               {latestFailedJob ? (
                 <Suspense fallback={null}>
