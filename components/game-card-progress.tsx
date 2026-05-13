@@ -1,19 +1,11 @@
 "use client";
 
-import { progressForJobStatus, progressMaxForJobStatus, useAnimatedProgress } from "@/components/progress-motion";
+import { clampProgress, progressForJobStatus } from "@/lib/job-progress";
 
-export function GameCardProgress({ status }: { status: string }) {
+export function GameCardProgress({ status, progress }: { status: string; progress?: number | null }) {
   const normalizedStatus = status.toLowerCase();
   const isSettled = normalizedStatus === "done" || normalizedStatus === "failed";
-  const basePercent = progressForJobStatus(normalizedStatus);
-  const maxPercent = progressMaxForJobStatus(normalizedStatus);
-  const displayPercent = useAnimatedProgress({
-    basePercent,
-    maxPercent,
-    active: !isSettled,
-    resetKey: normalizedStatus,
-    tickMs: 2400,
-  });
+  const displayPercent = clampProgress(progress ?? progressForJobStatus(normalizedStatus));
 
   return (
     <div className="game-card-progress" aria-label={`任务进度 ${displayPercent}%`}>

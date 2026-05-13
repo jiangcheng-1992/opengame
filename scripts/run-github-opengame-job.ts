@@ -1,9 +1,11 @@
 import { execFile, spawn } from "node:child_process";
 import { access, chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { normalizeGameplaySkeletonKey, type GameplaySkeletonKey } from "../lib/gameplay-skeleton";
+import { progressFromPhaseAndLog } from "../lib/job-progress";
 import { getOpenGameModelForKey } from "../lib/minimax-config";
 import { buildPlayabilityValidatorScript } from "../lib/playability-validator-script";
 import { buildOpenGameScript, buildPlayablePrompt, sandboxPaths } from "../lib/sandbox";
@@ -14,7 +16,7 @@ loadDotEnv();
 
 const execFileAsync = promisify(execFile);
 const MAX_LOG_CHARS = 8000;
-const MAX_GENERATION_ATTEMPTS = Number(process.env.OPENGAME_WORKER_MAX_ATTEMPTS || "3");
+const MAX_GENERATION_ATTEMPTS = Number(process.env.OPENGAME_WORKER_MAX_ATTEMPTS || "2");
 
 const requestedJobId: string | null | undefined = process.argv[2] || process.env.JOB_ID || process.env.INPUT_JOB_ID;
 let claimedJobId: string | null = null;
@@ -33,13 +35,18 @@ function appBaseUrl() {
   return (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
+function hostPath(filePath: string) {
+  if (process.platform !== "win32" || !filePath.startsWith("/tmp/")) return filePath;
+  return path.join(tmpdir(), filePath.slice("/tmp/".length));
+}
+
 async function readText(filePath: string) {
-  return readFile(filePath, "utf8").catch(() => "");
+  return readFile(hostPath(filePath), "utf8").catch(() => "");
 }
 
 async function exists(filePath: string) {
   try {
-    await access(filePath);
+    await access(hostPath(filePath));
     return true;
   } catch {
     return false;
@@ -105,6 +112,7 @@ async function syncProgress(jobId: string) {
     method: "POST",
     body: JSON.stringify({
       status: statusFromPhase(phase),
+      progress: progressFromPhaseAndLog(statusFromPhase(phase), log),
       log,
     }),
   });
@@ -134,6 +142,8 @@ function promptForAttempt(prompt: string, attempt: number, skeletonKey?: Gamepla
       `Reliability retry ${attempt}/${MAX_GENERATION_ATTEMPTS}: the previous generated output did not pass playable validation.`,
       "Prioritize a working, validated game over ambition. Simplify the mechanics, reduce asset/code complexity, and ship a stable core loop.",
       "The final answer must include a playable index.html that passes start/click/keyboard smoke validation.",
+      "Do not create or run Playwright, Puppeteer, Selenium, npm test, smoke_test, test.js, or any browser-download test harness; the platform validates the result after generation.",
+      "Do not spend tokens narrating plans, checklists, or self-tests. Modify the playable files directly and finish quickly.",
       "It must also pass product-grade visual validation: non-pixel-art, no 8-bit/blocky/pixelated styling, a designed hero/start screen, a readable multi-module HUD, a replay-ready end-state overlay, polished modern UI, gradients, rounded controls, shadows/glow, strong spacing hierarchy, and responsive layout.",
       "Reduce scope if needed, but the result must feel premium and curated, similar to a high-quality arcade template rather than a raw prototype.",
     ].join("\n"),
@@ -177,7 +187,7 @@ function shouldIgnoreFile(name: string) {
 }
 
 async function listGeneratedFiles(root: string, prefix = ""): Promise<Array<{ path: string; contentBase64: string }>> {
-  const entries = await readdir(path.join(root, prefix), { withFileTypes: true });
+  const entries = await readdir(path.join(hostPath(root), prefix), { withFileTypes: true });
   const files: Array<{ path: string; contentBase64: string }> = [];
 
   for (const entry of entries) {
@@ -189,7 +199,7 @@ async function listGeneratedFiles(root: string, prefix = ""): Promise<Array<{ pa
     } else if (entry.isFile()) {
       files.push({
         path: relativePath,
-        contentBase64: (await readFile(path.join(root, relativePath))).toString("base64"),
+        contentBase64: (await readFile(path.join(hostPath(root), relativePath))).toString("base64"),
       });
     }
   }
@@ -199,7 +209,7 @@ async function listGeneratedFiles(root: string, prefix = ""): Promise<Array<{ pa
 
 async function sourceArchiveBase64(jobId: string) {
   const archivePath = path.join("/tmp", `${jobId}.zip`);
-  await rm(archivePath, { force: true });
+  await rm(hostPath(archivePath), { force: true });
   await execFileAsync(
     "zip",
     [
@@ -221,9 +231,9 @@ async function sourceArchiveBase64(jobId: string) {
       "-x",
       "*.log",
     ],
-    { cwd: sandboxPaths.generatedDir },
+    { cwd: hostPath(sandboxPaths.generatedDir) },
   );
-  return (await readFile(archivePath)).toString("base64");
+  return (await readFile(hostPath(archivePath))).toString("base64");
 }
 
 async function publishJob(job: ClaimedJob) {
@@ -239,12 +249,22 @@ async function publishJob(job: ClaimedJob) {
 }
 
 async function prepareWorkspace(job: ClaimedJob) {
-  await rm(sandboxPaths.workspaceRoot, { recursive: true, force: true });
-  await mkdir(sandboxPaths.workspaceRoot, { recursive: true });
-  await writeFile(`${sandboxPaths.workspaceRoot}/prompt.txt`, promptForAttempt(job.prompt, 1, job.skeletonKey ?? undefined));
-  await writeFile(sandboxPaths.runScript, buildOpenGameScript());
-  await chmod(sandboxPaths.runScript, 0o755);
-  await writeFile(sandboxPaths.validatorScript, buildPlayabilityValidatorScript());
+  await mkdir(hostPath(sandboxPaths.workspaceRoot), { recursive: true });
+  await Promise.all([
+    rm(hostPath(sandboxPaths.generatedDir), { recursive: true, force: true }),
+    rm(hostPath(sandboxPaths.progressLog), { force: true }),
+    rm(hostPath(sandboxPaths.errorLog), { force: true }),
+    rm(hostPath(sandboxPaths.phaseFile), { force: true }),
+    rm(hostPath(sandboxPaths.validationLog), { force: true }),
+    rm(hostPath(sandboxPaths.validationReport), { force: true }),
+    rm(hostPath(sandboxPaths.playableMarker), { force: true }),
+    rm(hostPath(`${sandboxPaths.workspaceRoot}/source.zip`), { force: true }),
+    rm(hostPath(`${sandboxPaths.workspaceRoot}/original-prompt.txt`), { force: true }),
+  ]);
+  await writeFile(hostPath(`${sandboxPaths.workspaceRoot}/prompt.txt`), promptForAttempt(job.prompt, 1, job.skeletonKey ?? undefined));
+  await writeFile(hostPath(sandboxPaths.runScript), buildOpenGameScript());
+  await chmod(hostPath(sandboxPaths.runScript), 0o755);
+  await writeFile(hostPath(sandboxPaths.validatorScript), buildPlayabilityValidatorScript());
 }
 
 async function runUntilPlayable(job: ClaimedJob, env: NodeJS.ProcessEnv) {
@@ -253,8 +273,8 @@ async function runUntilPlayable(job: ClaimedJob, env: NodeJS.ProcessEnv) {
   for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt += 1) {
     if (attempt > 1) {
       console.log(`[github-worker] Retry ${attempt}/${MAX_GENERATION_ATTEMPTS}: regenerating with a simpler playable-first prompt.`);
-      await rm(sandboxPaths.generatedDir, { recursive: true, force: true });
-      await writeFile(`${sandboxPaths.workspaceRoot}/prompt.txt`, promptForAttempt(job.prompt, attempt, job.skeletonKey ?? undefined));
+      await rm(hostPath(sandboxPaths.generatedDir), { recursive: true, force: true });
+      await writeFile(hostPath(`${sandboxPaths.workspaceRoot}/prompt.txt`), promptForAttempt(job.prompt, attempt, job.skeletonKey ?? undefined));
     }
 
     const exitCode = await runOpenGameProcess({

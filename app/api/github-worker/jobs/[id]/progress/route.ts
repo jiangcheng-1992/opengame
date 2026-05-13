@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { JobStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { mergeProgress, progressFromPhaseAndLog } from "@/lib/job-progress";
 import { retryOpenGameJob } from "@/lib/sandbox";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ type ProgressRequest = {
   status?: string;
   log?: string;
   errorMsg?: string | null;
+  progress?: number;
 };
 
 function normalizeStatus(status?: string): JobStatus {
@@ -45,8 +47,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     where: { id: job.id },
     data: {
       status,
+      progress: mergeProgress(job.progress, body.progress ?? progressFromPhaseAndLog(status, body.log ?? job.log ?? "")),
       log: typeof body.log === "string" ? body.log.slice(-8000) : job.log,
       errorMsg: body.errorMsg ?? job.errorMsg,
+      startedAt: job.startedAt ?? (status === "RUNNING" ? new Date() : undefined),
     },
   });
 

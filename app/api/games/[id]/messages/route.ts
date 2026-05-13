@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAnonId, getClientIp } from "@/lib/auth";
 import { DEFAULT_GAMEPLAY_SKELETON_KEY, normalizeGameplaySkeletonKey } from "@/lib/gameplay-skeleton";
+import { progressForJobStatus } from "@/lib/job-progress";
 import { enforceGenerationLimit } from "@/lib/rate-limit";
 import { DEFAULT_GENERATION_MODEL_KEY, normalizeGenerationModelKey } from "@/lib/minimax-config";
 import { messageSchema } from "@/lib/schemas";
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const skeletonKey = normalizeGameplaySkeletonKey(latestJob?.skeletonKey ?? DEFAULT_GAMEPLAY_SKELETON_KEY);
 
   const job = await prisma.job.create({
-    data: { gameId: game.id, prompt, status: "QUEUED", modelKey, skeletonKey },
+    data: { gameId: game.id, prompt, status: "QUEUED", progress: progressForJobStatus("queued"), modelKey, skeletonKey },
   });
   await prisma.message.create({
     data: { gameId: game.id, role: "USER", content: parsed.data.prompt, jobId: job.id },

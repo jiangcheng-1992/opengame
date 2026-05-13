@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { uploadSandboxGame, uploadSourceArchive } from "@/lib/blob";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
+import { progressForJobStatus } from "@/lib/job-progress";
 import { generateCoverImage } from "@/lib/minimax";
 import { hasPlayableBuild, retryOpenGameJob, sandboxPaths, stopSandbox } from "@/lib/sandbox";
 import { describeSandboxError } from "@/lib/vercel-sandbox-auth";
@@ -14,6 +15,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
       timeout = setTimeout(() => reject(new Error(message)), ms);
     }),
   ]).finally(() => clearTimeout(timeout));
+}
+
+function generateCoverAfterPublish(gameId: string, metadata: Parameters<typeof generateCoverImage>[1]) {
+  after(async () => {
+    try {
+      const coverUrl = await withTimeout(generateCoverImage(gameId, metadata), 60_000, "封面图生成超时。");
+      if (coverUrl) await prisma.game.update({ where: { id: gameId }, data: { coverUrl } });
+    } catch (error) {
+      console.warn("[cover] Background cover generation failed.", error);
+    }
+  });
 }
 
 export async function POST(_: Request, context: { params: Promise<{ id: string }> }) {
@@ -78,11 +90,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
             coverPrompt: job.game.coverPrompt ?? "",
           }
         : fallbackGameMetadata(job.prompt);
-    const coverUrl = await withTimeout(
-      generateCoverImage(job.gameId, metadata),
-      60_000,
-      "封面图生成超时。",
-    ).catch(() => null);
+    generateCoverAfterPublish(job.gameId, metadata);
 
     await prisma.$transaction([
       prisma.game.update({
@@ -98,12 +106,11 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
           controls: metadata.controls,
           coverPrompt: metadata.coverPrompt,
           ...(job.game.playUrl ? { version: { increment: 1 } } : {}),
-          ...(coverUrl ? { coverUrl } : {}),
         },
       }),
       prisma.job.update({
         where: { id: job.id },
-        data: { status: "DONE", finishedAt: new Date() },
+        data: { status: "DONE", progress: progressForJobStatus("done"), finishedAt: new Date() },
       }),
       prisma.message.create({
         data: {

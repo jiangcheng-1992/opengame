@@ -3,15 +3,22 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, CheckCircle2, LoaderCircle, ScrollText, XCircle } from "lucide-react";
-import { progressForJobStatus, progressMaxForJobStatus, useAnimatedProgress } from "@/components/progress-motion";
+import { clampProgress, progressForJobStatus } from "@/lib/job-progress";
 
 type Progress = {
   status: string;
   log?: string;
   errorMsg?: string | null;
   error?: string;
+  progress?: number;
   nextJobId?: string;
   retrying?: boolean;
+  blocker?: {
+    kind: string;
+    title: string;
+    body: string;
+    actions?: string[];
+  } | null;
 };
 
 function statusLabel(status?: string) {
@@ -90,26 +97,33 @@ export function JobWatcher({
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectLabel, setRedirectLabel] = useState("正在打开下一步");
   const [isLogOpen, setIsLogOpen] = useState(logDefaultOpen);
+  const [isBlockerOpen, setIsBlockerOpen] = useState(false);
+  const [dismissedBlockerKey, setDismissedBlockerKey] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   const normalizedStatus = progress?.status?.toLowerCase();
   const isSettled = normalizedStatus === "done" || normalizedStatus === "failed";
   const logText = progress?.log || (normalizedStatus === "done" ? "游戏已发布。" : "等待 OpenGame 输出日志...");
-  const basePercent = progressForJobStatus(normalizedStatus, isFinalizing);
-  const maxPercent = progressMaxForJobStatus(normalizedStatus, isFinalizing);
-  const displayPercent = useAnimatedProgress({
-    basePercent,
-    maxPercent,
-    active: !isSettled,
-    resetKey: `${jobId ?? "none"}:${normalizedStatus ?? "pending"}:${isFinalizing ? "finalizing" : "polling"}`,
-    tickMs: 2200,
-  });
+  const serverPercent = clampProgress(progress?.progress ?? progressForJobStatus(normalizedStatus, isFinalizing));
+  const [displayPercent, setDisplayPercent] = useState(serverPercent);
   const elapsedText = isSettled ? "" : `已运行 ${formatElapsed(now - startedAt)}`;
+  const blocker = progress?.blocker ?? null;
+  const blockerKey = blocker ? `${jobId ?? "none"}:${blocker.kind}:${blocker.title}` : null;
+
+  useEffect(() => {
+    setDisplayPercent((current) => (isSettled ? serverPercent : Math.max(current, serverPercent)));
+  }, [isSettled, serverPercent]);
 
   useEffect(() => {
     setJobId(requestedJobId);
     setStartedAt(Date.now());
   }, [requestedJobId]);
+
+  useEffect(() => {
+    if (!blocker || !blockerKey) return;
+    if (dismissedBlockerKey === blockerKey) return;
+    setIsBlockerOpen(true);
+  }, [blocker, blockerKey, dismissedBlockerKey]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -147,11 +161,7 @@ export function JobWatcher({
 
         if (response.ok && next.nextJobId && next.nextJobId !== jobId) {
           setJobId(next.nextJobId);
-          setProgress({
-            status: "queued",
-            log: next.log,
-            errorMsg: next.errorMsg,
-          });
+          setProgress(next);
           router.refresh();
           break;
         }
@@ -164,17 +174,13 @@ export function JobWatcher({
 
           if (finalized.ok && payload.nextJobId && payload.nextJobId !== jobId) {
             setJobId(payload.nextJobId);
-            setProgress({
-              status: "queued",
-              log: payload.log,
-              errorMsg: payload.errorMsg,
-            });
+            setProgress(payload);
             router.refresh();
             break;
           }
 
           if (finalized.ok) {
-            complete({ status: "done", log: next.log });
+            complete({ status: "done", progress: progressForJobStatus("done"), log: next.log });
             break;
           }
 
@@ -198,7 +204,7 @@ export function JobWatcher({
           break;
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
 
@@ -235,6 +241,50 @@ export function JobWatcher({
         </div>
       </div>
       {progress?.errorMsg ? <p className="error">{progress.errorMsg}</p> : null}
+      {blocker && isBlockerOpen ? (
+        <div className="job-blocker-dialog" role="alertdialog" aria-live="assertive" aria-label={blocker.title}>
+          <div className="job-blocker-head">
+            <strong>{blocker.title}</strong>
+            <span>需要确认</span>
+          </div>
+          <p>{blocker.body}</p>
+          {blocker.actions?.length ? (
+            <ul className="job-blocker-list" aria-label="建议动作">
+              {blocker.actions.map((action) => (
+                <li key={action}>{action}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="job-blocker-actions">
+            <button
+              className="button button-ghost"
+              type="button"
+              onClick={() => {
+                setIsLogOpen(true);
+                setIsBlockerOpen(false);
+                setDismissedBlockerKey(blockerKey);
+              }}
+            >
+              展开日志
+            </button>
+            {failureHref ? (
+              <button className="button button-ghost" type="button" onClick={() => router.push(failureHref)}>
+                返回工作台
+              </button>
+            ) : null}
+            <button
+              className="button"
+              type="button"
+              onClick={() => {
+                setIsBlockerOpen(false);
+                setDismissedBlockerKey(blockerKey);
+              }}
+            >
+              继续等待
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="job-log">
         <button className="job-log-toggle" type="button" onClick={() => setIsLogOpen((current) => !current)} aria-expanded={isLogOpen}>
           <span>

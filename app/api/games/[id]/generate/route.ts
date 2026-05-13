@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { enforceGenerationLimit } from "@/lib/rate-limit";
 import { createArtEnhancement } from "@/lib/art-enhancement";
 import { generateGameMetadata } from "@/lib/game-metadata";
+import { progressForJobStatus } from "@/lib/job-progress";
 import { generateDraftSchema } from "@/lib/schemas";
 import { retryOpenGameJob, startOpenGameJob } from "@/lib/sandbox";
 
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         gameId: game.id,
         prompt: generationPrompt,
         status: "QUEUED",
+        progress: progressForJobStatus("queued"),
         modelKey,
         skeletonKey,
       },

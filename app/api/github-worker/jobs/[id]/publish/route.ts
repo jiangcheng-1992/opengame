@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { uploadGameFileBuffers, uploadSourceArchiveBuffer } from "@/lib/blob";
 import { prisma } from "@/lib/db";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
+import { mergeProgress, progressForJobStatus } from "@/lib/job-progress";
 import { generateCoverImage } from "@/lib/minimax";
 import { retryOpenGameJob } from "@/lib/sandbox";
 
@@ -25,6 +26,17 @@ function decodeFiles(files: PublishFile[]) {
   }));
 }
 
+function generateCoverAfterPublish(gameId: string, metadata: Parameters<typeof generateCoverImage>[1]) {
+  after(async () => {
+    try {
+      const coverUrl = await generateCoverImage(gameId, metadata);
+      if (coverUrl) await prisma.game.update({ where: { id: gameId }, data: { coverUrl } });
+    } catch (error) {
+      console.warn("[cover] Background cover generation failed.", error);
+    }
+  });
+}
+
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const body = (await req.json().catch(() => ({}))) as PublishRequest;
@@ -46,7 +58,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   await prisma.job.update({
     where: { id: job.id },
-    data: { status: "FINISHING", log: body.log?.slice(-8000) ?? job.log },
+    data: {
+      status: "FINISHING",
+      progress: mergeProgress(job.progress, progressForJobStatus("finishing")),
+      log: body.log?.slice(-8000) ?? job.log,
+    },
   });
 
   try {
@@ -71,7 +87,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
             coverPrompt: job.game.coverPrompt ?? "",
           }
         : fallbackGameMetadata(job.prompt);
-    const coverUrl = await generateCoverImage(job.gameId, metadata).catch(() => null);
+    generateCoverAfterPublish(job.gameId, metadata);
 
     await prisma.$transaction([
       prisma.game.update({
@@ -87,13 +103,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           controls: metadata.controls,
           coverPrompt: metadata.coverPrompt,
           ...(job.game.playUrl ? { version: { increment: 1 } } : {}),
-          ...(coverUrl ? { coverUrl } : {}),
         },
       }),
       prisma.job.update({
         where: { id: job.id },
         data: {
           status: "DONE",
+          progress: 100,
           log: [body.log, "[github] Game published."].filter(Boolean).join("\n").slice(-8000),
           finishedAt: new Date(),
         },

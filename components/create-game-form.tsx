@@ -18,6 +18,7 @@ import {
   DEFAULT_GAMEPLAY_SKELETON_KEY,
   GAMEPLAY_SKELETON_OPTIONS,
   getGameplaySkeletonOption,
+  inferGameplaySkeletonKey,
   getGameplaySkeletonLabel,
   normalizeGameplaySkeletonKey,
   type GameplaySkeletonKey,
@@ -36,6 +37,7 @@ type DraftForCreate = {
   latestJob?: {
     id: string;
     status: string;
+    progress?: number | null;
     errorMsg?: string | null;
     modelKey?: string | null;
     skeletonKey?: string | null;
@@ -221,6 +223,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   const activeJobInitialProgress = activeJobId
     ? {
         status: draftJobStatus ?? "queued",
+        progress: draft?.latestJob?.id === activeJobId ? draft.latestJob.progress ?? undefined : undefined,
         errorMsg: draft?.latestJob?.id === activeJobId ? draft.latestJob.errorMsg : null,
       }
     : null;
@@ -230,7 +233,13 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
   const createTaskResultTone = draftJobStatus === "failed" ? "danger" : draftJobStatus === "done" ? "success" : "muted";
   const hasStartedGeneration = Boolean(isGenerating || draftJobStatus);
   const hasLiveJobWatcher = Boolean(activeJobId && gameId);
-  const selectedSkeleton = useMemo(() => getGameplaySkeletonOption(skeletonKey), [skeletonKey]);
+  const inferredSkeletonKey = useMemo(
+    () => (skeletonKey === "auto" ? inferGameplaySkeletonKey(brainstormState.brief) : skeletonKey),
+    [brainstormState.brief, skeletonKey],
+  );
+  const selectedSkeleton = useMemo(() => getGameplaySkeletonOption(inferredSkeletonKey), [inferredSkeletonKey]);
+  const autoMatchedSkeletonLabel =
+    skeletonKey === "auto" && inferredSkeletonKey !== "auto" ? getGameplaySkeletonLabel(inferredSkeletonKey) : null;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -498,11 +507,17 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
                           <div className="skeleton-helper-head">
                             <div>
                               <span className="skeleton-helper-eyebrow">当前骨架</span>
-                              <strong>{selectedSkeleton.label}</strong>
+                              <strong>{skeletonKey === "auto" ? `自动匹配${autoMatchedSkeletonLabel ? ` · ${autoMatchedSkeletonLabel}` : ""}` : selectedSkeleton.label}</strong>
                             </div>
-                            <span className="task-status-pill">{selectedSkeleton.helperTitle}</span>
+                            <span className="task-status-pill">
+                              {skeletonKey === "auto" && autoMatchedSkeletonLabel ? `当前推断：${autoMatchedSkeletonLabel}` : selectedSkeleton.helperTitle}
+                            </span>
                           </div>
-                          <p className="helper brief-setting-helper">{selectedSkeleton.helperBody}</p>
+                          <p className="helper brief-setting-helper">
+                            {skeletonKey === "auto" && autoMatchedSkeletonLabel
+                              ? `已根据你确认的需求自动匹配为「${autoMatchedSkeletonLabel}」。如果你的重点更偏向别的主循环，可以手动切换到更贴近的骨架。`
+                              : selectedSkeleton.helperBody}
+                          </p>
 
                           <div className="skeleton-helper-grid">
                             <section className="skeleton-preview-card">
@@ -618,7 +633,7 @@ export function CreateGameForm({ initialPrompt = "", draft = null }: { initialPr
             { label: "当前", value: currentQuestion },
             { label: "可见性", value: visibility === "PUBLIC" ? "公开" : "私密" },
             { label: "美术", value: artEnhancementEnabled ? "增强" : "普通" },
-            { label: "骨架", value: getGameplaySkeletonLabel(skeletonKey) },
+            { label: "骨架", value: skeletonKey === "auto" && autoMatchedSkeletonLabel ? `自动匹配 · ${autoMatchedSkeletonLabel}` : getGameplaySkeletonLabel(skeletonKey) },
             { label: "模型", value: getGenerationModelLabel(modelKey) },
           ]}
           steps={createTaskSteps}

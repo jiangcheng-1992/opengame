@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { prisma } from "@/lib/db";
-import { normalizeGameplaySkeletonKey, type GameplaySkeletonKey } from "@/lib/gameplay-skeleton";
+import { inferGameplaySkeletonKey, normalizeGameplaySkeletonKey, type GameplaySkeletonKey } from "@/lib/gameplay-skeleton";
 import { maybeTriggerGithubOpenGameWorkflow } from "@/lib/github-actions";
+import { mergeProgress, progressForJobStatus, progressFromPhaseAndLog } from "@/lib/job-progress";
 import { getOpenGameModelForKey, normalizeGenerationModelKey, type GenerationModelKey } from "@/lib/minimax-config";
 import { buildPlayabilityValidatorScript } from "@/lib/playability-validator-script";
 import { tailLines } from "@/lib/status";
@@ -58,12 +59,77 @@ function sandboxProviderFromEnv(): SandboxProvider {
   return "e2b";
 }
 
+function githubDispatchRepoFromEnv() {
+  const explicit = process.env.GITHUB_DISPATCH_REPO?.trim();
+  if (explicit) return explicit;
+
+  const owner = process.env.GITHUB_DISPATCH_OWNER?.trim() || process.env.VERCEL_GIT_REPO_OWNER?.trim();
+  const slug = process.env.GITHUB_DISPATCH_REPO_SLUG?.trim() || process.env.VERCEL_GIT_REPO_SLUG?.trim();
+  if (owner && slug) return `${owner}/${slug}`;
+
+  return process.env.GITHUB_REPOSITORY?.trim() || "";
+}
+
 function queuedGithubWorkerLog() {
   if (process.env.VERCEL) return "Queued for the next scheduled GitHub Actions worker run.";
   if (process.platform === "win32") {
-    return "Queued for GitHub Actions worker. Windows local auto-worker is disabled because OpenGame requires a Linux-compatible runtime.";
+    const lines = [
+      "Queued for GitHub Actions worker. Windows local auto-worker is disabled because OpenGame requires a Linux-compatible runtime.",
+    ];
+
+    if (!process.env.GITHUB_DISPATCH_TOKEN) {
+      lines.push("- GITHUB_DISPATCH_TOKEN is missing, so this local app cannot immediately dispatch a GitHub Actions run.");
+    }
+
+    if (!githubDispatchRepoFromEnv()) {
+      lines.push("- GITHUB_DISPATCH_REPO is missing, so the target workflow repository is not configured.");
+    }
+
+    if (process.env.FORCE_GITHUB_DISPATCH !== "1") {
+      lines.push("- FORCE_GITHUB_DISPATCH=1 is not enabled, so local generation is only waiting for an external GitHub worker to claim the job.");
+    }
+
+    if (!process.env.APP_BASE_URL?.trim()) {
+      lines.push("- APP_BASE_URL is missing; local callback URLs and worker diagnostics may be incomplete.");
+    }
+
+    lines.push("- To continue quickly, configure GitHub dispatch env vars or run a Linux-compatible worker.");
+    return lines.join("\n");
   }
   return "Queued locally. A local GitHub-compatible worker is starting automatically and will claim this job.";
+}
+
+function queuedJobBlocker(job: { status: string; createdAt: Date; log?: string | null }) {
+  if (job.status !== "QUEUED") return null;
+
+  const queuedForMs = Date.now() - job.createdAt.getTime();
+  if (queuedForMs < 15_000) return null;
+
+  const log = job.log ?? "";
+  if (/Windows local auto-worker is disabled/i.test(log)) {
+    return {
+      kind: "worker_unavailable",
+      title: "当前没有可用生成 worker",
+      body:
+        "这个任务还没真正开始生成。当前运行环境是 Windows，本地 auto-worker 已禁用；同时 GitHub Actions 的即时 dispatch 配置也没有生效，所以任务会一直停在排队中，直到有外部 Linux worker 来认领。",
+      actions: [
+        "继续等待外部 worker",
+        "返回工作台调整需求或稍后重试",
+        "展开日志查看缺失配置项",
+      ],
+    };
+  }
+
+  if (/workflow dispatch failed/i.test(log)) {
+    return {
+      kind: "dispatch_failed",
+      title: "GitHub Actions 触发失败",
+      body: "任务已进入排队，但即时触发 GitHub Actions workflow 失败了。当前只能等待 scheduled worker，或修复 dispatch 配置后重新发起生成。",
+      actions: ["继续等待 scheduled worker", "展开日志查看 dispatch 错误", "返回工作台后重试"],
+    };
+  }
+
+  return null;
 }
 
 function shouldDispatchGithubWorkflow() {
@@ -125,6 +191,16 @@ function startLocalGithubWorker(jobId: string) {
   });
   child.unref();
   return true;
+}
+
+async function updateJobProgress(jobId: string, nextProgress: number) {
+  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { progress: true } });
+  if (!job) return nextProgress;
+  const progress = mergeProgress(job.progress, nextProgress);
+  if (progress !== job.progress) {
+    await prisma.job.update({ where: { id: jobId }, data: { progress } });
+  }
+  return progress;
 }
 
 function encodeSandboxId(provider: SandboxProvider, sandboxId: string) {
@@ -380,36 +456,6 @@ function gameplayBlueprintForKey(key: GameplaySkeletonKey): GameplayBlueprint {
   }
 }
 
-function inferGameplaySkeletonKey(prompt: string): GameplaySkeletonKey {
-  const text = prompt.toLowerCase();
-
-  if (/(brick|breakout|挡板|砖块|反弹球|打砖块)/i.test(text)) {
-    return "breakout";
-  }
-
-  if (/(runner|跑酷|车道|lane|dash|冲刺)/i.test(text)) {
-    return "runner";
-  }
-
-  if (/(shoot|shooter|bullet|弹幕|射击|飞船|战机)/i.test(text)) {
-    return "shooter";
-  }
-
-  if (/(tower defense|defense|wave|守塔|防守|塔防)/i.test(text)) {
-    return "defense";
-  }
-
-  if (/(puzzle|match|merge|memory|connect|sokoban|解谜|连线|记忆|推箱子|消除)/i.test(text)) {
-    return "puzzle";
-  }
-
-  if (/(collect|gather|clean|salvage|拾取|收集|清理|回收)/i.test(text)) {
-    return "collector";
-  }
-
-  return "auto";
-}
-
 function inferGameplayBlueprint(prompt: string, skeletonKey?: GameplaySkeletonKey): GameplayBlueprint {
   const normalizedSkeletonKey = normalizeGameplaySkeletonKey(skeletonKey);
   const resolvedSkeletonKey = normalizedSkeletonKey === "auto" ? inferGameplaySkeletonKey(prompt) : normalizedSkeletonKey;
@@ -569,7 +615,7 @@ set_phase() {
 
 ensure_tools() {
   local missing_core=""
-  for tool in git zip unzip node npm; do
+  for tool in git node npm; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       missing_core="$missing_core $tool"
     fi
@@ -579,11 +625,11 @@ ensure_tools() {
     echo "[setup] Installing sandbox system tools..."
     if command -v apt-get >/dev/null 2>&1; then
       sudo apt-get update || return $?
-      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git zip unzip nodejs npm curl ca-certificates || return $?
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git nodejs npm curl ca-certificates || return $?
     elif command -v dnf >/dev/null 2>&1; then
-      sudo dnf install -y git zip unzip nodejs npm curl-minimal || return $?
+      sudo dnf install -y git nodejs npm curl-minimal || return $?
     elif command -v yum >/dev/null 2>&1; then
-      sudo yum install -y git zip unzip nodejs npm curl || return $?
+      sudo yum install -y git nodejs npm curl || return $?
     else
       echo "[setup] No supported package manager found for missing tools:$missing_core" >&2
       return 1
@@ -732,6 +778,9 @@ write_repair_prompt() {
     echo "- Keep a non-empty index.html as the playable entry."
     echo "- Do not remove the user's theme; simplify mechanics if needed to make the game playable."
     echo "- Preserve the visual quality contract; do not replace designed backgrounds, HUD, characters, or effects with bare placeholders while repairing mechanics."
+    echo "- Do not create or run Playwright, Puppeteer, Selenium, npm test, or browser-install test suites; the platform performs validation after generation."
+    echo "- Focus only on fixing the self-contained playable index.html quickly."
+    echo "- Do not spend tokens narrating plans, checklists, or self-tests. Modify the playable files directly and finish quickly."
     echo "- Rebuild toward an Astrocade-grade result: one clean gameplay archetype, one coherent visual system, one polished interaction loop."
     echo "- Also fix visual quality failures: keep the game non-pixel-art, remove 8-bit/blocky/pixelated styling, replace default/plain UI with polished modern panels, gradients, rounded controls, shadows/glow, animated background accents, a clear multi-module HUD, a designed hero/start screen, and a replay-ready end-state screen."
     echo "- The next version must look curated before interaction: strong title treatment, concise hook text, branded CTA, and a framed playfield."
@@ -818,6 +867,9 @@ export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkelet
     "",
     "Hard delivery contract:",
     "- Produce a playable HTML5 game with a non-empty index.html entry. Keep it self-contained unless the creative request provides explicit HTTPS asset URLs; those assets may be referenced directly.",
+    "- Do not create, install, or run Playwright, Puppeteer, Selenium, npm test, smoke_test, test.js, or any browser-download test harness. The platform will validate playability automatically after you finish.",
+    "- Keep the deliverable fast: write the game files directly, especially index.html, without running package installs or external verification scripts.",
+    "- Keep the response/action concise: do not narrate long plans, checklists, or self-tests. Create the files directly and finish.",
     "- The first visible start/play button or centered start area must respond to a click.",
     "- The game must enter a core loop after start, with visible state such as score, level, lives, timer, enemies, or progress.",
     "- Keyboard input with arrows, WASD, and Space should affect gameplay when relevant.",
@@ -926,11 +978,15 @@ export async function startOpenGameJob({
 }) {
   const normalizedModelKey = normalizeGenerationModelKey(modelKey);
   const normalizedSkeletonKey = normalizeGameplaySkeletonKey(skeletonKey);
-  const game = await prisma.game.findUnique({
-    where: { id: gameId },
-    select: { playUrl: true },
-  });
+  const [game, currentJob] = await Promise.all([
+    prisma.game.findUnique({
+      where: { id: gameId },
+      select: { playUrl: true },
+    }),
+    prisma.job.findUnique({ where: { id: jobId }, select: { progress: true } }),
+  ]);
   const hasPlayableVersion = Boolean(game?.playUrl);
+  const currentProgress = currentJob?.progress ?? 0;
 
   if (sandboxProviderFromEnv() === "github") {
     const sandboxId = encodeSandboxId("github", jobId);
@@ -950,6 +1006,7 @@ export async function startOpenGameJob({
       data: {
         sandboxId,
         status: "QUEUED",
+        progress: mergeProgress(currentProgress, progressForJobStatus("queued")),
         modelKey: normalizedModelKey,
         skeletonKey: normalizedSkeletonKey,
         sourceUrl: sourceUrl ?? null,
@@ -1014,6 +1071,7 @@ export async function startOpenGameJob({
     data: {
       sandboxId,
       status: "RUNNING",
+        progress: mergeProgress(currentProgress, progressForJobStatus("running")),
       modelKey: normalizedModelKey,
       skeletonKey: normalizedSkeletonKey,
       sourceUrl: sourceUrl ?? null,
@@ -1132,7 +1190,7 @@ async function findNewerLiveJob(job: { id: string; gameId: string; createdAt: Da
       status: { in: [...ACTIVE_JOB_STATUSES, "DONE"] },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, status: true, log: true, errorMsg: true },
+    select: { id: true, status: true, progress: true, log: true, errorMsg: true },
   });
 }
 
@@ -1170,6 +1228,7 @@ export async function retryOpenGameJob(jobId: string, errorMsg: string, options:
   if (newerActiveJob) {
     return {
       status: newerActiveJob.status.toLowerCase(),
+      progress: newerActiveJob.progress,
       log: tailLines(newerActiveJob.log ?? options.log ?? "", 40),
       errorMsg: newerActiveJob.errorMsg,
       nextJobId: newerActiveJob.id,
@@ -1224,6 +1283,7 @@ export async function retryOpenGameJob(jobId: string, errorMsg: string, options:
       skeletonKey: normalizedSkeletonKey,
       prompt: retryPrompt,
       status: "QUEUED",
+      progress: progressForJobStatus("queued"),
       sourceUrl: job.game.sourceUrl ?? job.sourceUrl,
       useContinue: Boolean(job.game.playUrl && (job.useContinue || job.game.sourceUrl || job.sourceUrl)),
       log: "Queued retry after the previous generation attempt failed. The service will keep retrying until a READY build is published.",
@@ -1245,6 +1305,7 @@ export async function retryOpenGameJob(jobId: string, errorMsg: string, options:
       where: { id: job.id },
       data: {
         status: "REPAIRING",
+        progress: mergeProgress(job.progress, progressForJobStatus("repairing")),
         errorMsg,
         log: retryLog,
         finishedAt: new Date(),
@@ -1278,6 +1339,7 @@ export async function retryOpenGameJob(jobId: string, errorMsg: string, options:
       where: { id: retryJob.id },
       data: {
         status: "QUEUED",
+        progress: mergeProgress(retryJob.progress, progressForJobStatus("queued")),
         errorMsg: message,
         log: `Retry job is still queued, but automatic start reported: ${message}`.slice(-8000),
       },
@@ -1286,6 +1348,7 @@ export async function retryOpenGameJob(jobId: string, errorMsg: string, options:
 
   return {
     status: "repairing",
+    progress: mergeProgress(job.progress, progressForJobStatus("repairing")),
     log: tailLines(retryLog, 40),
     errorMsg,
     nextJobId: retryJob.id,
@@ -1298,9 +1361,11 @@ export async function getJobProgress(jobId: string) {
   if (newerLiveJob) {
     return {
       status: newerLiveJob.status.toLowerCase(),
+      progress: newerLiveJob.progress,
       log: tailLines(newerLiveJob.log ?? job.log ?? "", 40),
       errorMsg: newerLiveJob.errorMsg,
       nextJobId: newerLiveJob.id,
+      blocker: queuedJobBlocker({ status: newerLiveJob.status, createdAt: job.createdAt, log: newerLiveJob.log }),
     };
   }
 
@@ -1313,8 +1378,9 @@ export async function getJobProgress(jobId: string) {
       const started = startLocalGithubWorker(job.id);
       if (started) {
         const log = queuedGithubWorkerLog();
-        await prisma.job.update({ where: { id: job.id }, data: { log } });
-        return { status: "queued", log, errorMsg: job.errorMsg };
+        const progress = await updateJobProgress(job.id, progressForJobStatus("queued"));
+        await prisma.job.update({ where: { id: job.id }, data: { log, progress } });
+        return { status: "queued", progress, log, errorMsg: job.errorMsg, blocker: queuedJobBlocker({ status: "QUEUED", createdAt: job.createdAt, log }) };
       }
     }
 
@@ -1328,11 +1394,19 @@ export async function getJobProgress(jobId: string) {
       return failJob(job.id, job.gameId, errorMsg);
     }
 
-    return { status: job.status.toLowerCase(), log: tailLines(job.log ?? "", 40), errorMsg: job.errorMsg };
+    const progress = await updateJobProgress(job.id, progressForJobStatus(job.status));
+    return {
+      status: job.status.toLowerCase(),
+      progress,
+      log: tailLines(job.log ?? "", 40),
+      errorMsg: job.errorMsg,
+      blocker: queuedJobBlocker({ status: job.status, createdAt: job.createdAt, log: job.log }),
+    };
   }
 
   if (job.status === "DONE") {
-    return { status: job.status.toLowerCase(), log: tailLines(job.log ?? "", 40), errorMsg: job.errorMsg };
+    const progress = await updateJobProgress(job.id, progressForJobStatus("done"));
+    return { status: job.status.toLowerCase(), progress, log: tailLines(job.log ?? "", 40), errorMsg: job.errorMsg };
   }
 
   if (job.status === "FAILED") {
@@ -1368,8 +1442,9 @@ export async function getJobProgress(jobId: string) {
   const combinedLog = [log, validationLog ? `[validation log]\n${validationLog}` : ""].filter(Boolean).join("\n");
 
   if (hasPlayable) {
-    await prisma.job.update({ where: { id: job.id }, data: { status: "FINISHING" } });
-    return { status: "finishing", log: tailLines(combinedLog, 40), errorMsg: null };
+    const progress = mergeProgress(job.progress, progressFromPhaseAndLog("finishing", combinedLog));
+    await prisma.job.update({ where: { id: job.id }, data: { status: "FINISHING", progress } });
+    return { status: "finishing", progress, log: tailLines(combinedLog, 40), errorMsg: null };
   }
 
   let exitCode = "";
@@ -1393,11 +1468,14 @@ export async function getJobProgress(jobId: string) {
 
   if (phase === "VALIDATING" || phase === "REPAIRING") {
     const nextStatus = phase === "VALIDATING" ? "VALIDATING" : "REPAIRING";
-    await prisma.job.update({ where: { id: job.id }, data: { status: nextStatus } });
-    return { status: nextStatus.toLowerCase(), log: tailLines(combinedLog, 40), errorMsg: null };
+    const progress = mergeProgress(job.progress, progressFromPhaseAndLog(nextStatus, combinedLog));
+    await prisma.job.update({ where: { id: job.id }, data: { status: nextStatus, progress } });
+    return { status: nextStatus.toLowerCase(), progress, log: tailLines(combinedLog, 40), errorMsg: null };
   }
 
-  return { status: "running", log: tailLines(combinedLog, 40), errorMsg: null };
+  const fallbackStatus = job.status === "VALIDATING" || job.status === "REPAIRING" ? job.status : "RUNNING";
+  const progress = await updateJobProgress(job.id, progressFromPhaseAndLog(fallbackStatus, combinedLog));
+  return { status: fallbackStatus.toLowerCase(), progress, log: tailLines(combinedLog, 40), errorMsg: null };
 }
 
 export async function stopSandbox(sandboxId: string) {

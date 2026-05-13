@@ -16,6 +16,7 @@ const PINNED_HOME_GAME_ID = "builtin-starport-dash";
 type SelectedJob = {
   id: string;
   status: JobStatus;
+  progress: number;
   errorMsg: string | null;
   modelKey: string;
   skeletonKey: string;
@@ -176,7 +177,7 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
         jobs: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: { id: true, status: true, errorMsg: true, modelKey: true, skeletonKey: true, createdAt: true },
+          select: { id: true, status: true, progress: true, errorMsg: true, modelKey: true, skeletonKey: true, createdAt: true },
         },
         ...(anonId ? { reactions: { where: { anonId, type: "LIKE" as const }, take: 1, select: { id: true } } } : {}),
       },
@@ -230,7 +231,7 @@ export async function getGameDetail(id: string) {
       jobs: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { id: true, status: true, errorMsg: true, modelKey: true, skeletonKey: true, createdAt: true },
+        select: { id: true, status: true, progress: true, errorMsg: true, modelKey: true, skeletonKey: true, createdAt: true },
       },
       reactions: { where: { anonId, type: "LIKE" }, take: 1, select: { id: true } },
     },

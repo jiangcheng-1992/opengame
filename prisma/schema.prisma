@@ -83,6 +83,7 @@ model Job {
   status      JobStatus @default(QUEUED)
   modelKey    String    @default("standard") @db.VarChar(32)
   skeletonKey String    @default("auto") @db.VarChar(32)
+  progress    Int       @default(0)
   sandboxId   String?
   prompt      String    @db.Text
   log         String?   @db.Text

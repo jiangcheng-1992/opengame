@@ -2,10 +2,12 @@ node_modules
 .DS_Store
 .next
 .vercel
+.claude/
 .env
 .env.vercel
 .env*.local
 *.log
+debug-*.md
 tsconfig.tsbuildinfo
 dist
 coverage

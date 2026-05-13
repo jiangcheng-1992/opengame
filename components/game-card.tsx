@@ -22,6 +22,7 @@ export type GameCardGame = {
     latestJob?: {
       id?: string;
       status: string;
+      progress?: number | null;
       errorMsg?: string | null;
     } | null;
   };
@@ -160,7 +161,7 @@ export function GameCard({ game, surface = "gallery", priority = false }: GameCa
           )}
           <span className="card-scrim" aria-hidden />
           <span className={`status-pill ${isReady ? "ready" : ""}`}>{statusText}</span>
-          {hasActiveJob(game) ? <GameCardProgress status={game.latestJob!.status} /> : null}
+          {hasActiveJob(game) ? <GameCardProgress status={game.latestJob!.status} progress={game.latestJob!.progress} /> : null}
           {isReady ? (
             <span className="play-pill">
               <Play size={14} aria-hidden fill="currentColor" />

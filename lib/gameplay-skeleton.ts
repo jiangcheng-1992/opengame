@@ -15,6 +15,8 @@ export type GameplaySkeletonOption = {
   startScreenPreview: string[];
 };
 
+type ConcreteGameplaySkeletonKey = Exclude<GameplaySkeletonKey, "auto">;
+
 export const GAMEPLAY_SKELETON_OPTIONS: GameplaySkeletonOption[] = [
   {
     key: "auto",
@@ -99,6 +101,77 @@ export function normalizeGameplaySkeletonKey(value?: string | null): GameplaySke
   return GAMEPLAY_SKELETON_KEYS.includes(value as GameplaySkeletonKey)
     ? (value as GameplaySkeletonKey)
     : DEFAULT_GAMEPLAY_SKELETON_KEY;
+}
+
+function scorePattern(text: string, pattern: RegExp, score: number) {
+  return pattern.test(text) ? score : 0;
+}
+
+export function inferGameplaySkeletonKey(value?: string | null): GameplaySkeletonKey {
+  const text = value?.toLowerCase().trim() ?? "";
+  if (!text) return "auto";
+
+  const scores: Record<ConcreteGameplaySkeletonKey, number> = {
+    breakout: 0,
+    runner: 0,
+    shooter: 0,
+    defense: 0,
+    puzzle: 0,
+    collector: 0,
+  };
+
+  scores.breakout += scorePattern(text, /(brick|breakout|paddle|bounce|bouncing|pinball|挡板|砖块|反弹|弹球|接球)/i, 4);
+  scores.breakout += scorePattern(text, /(ball|orb).*(paddle|挡板)|(挡板).*(球|弹球)/i, 4);
+
+  scores.runner += scorePattern(text, /(runner|endless run|跑酷|车道|lane|冲刺|dash|追逐|持续前进|向前推进|距离)/i, 4);
+  scores.runner += scorePattern(text, /(躲避障碍|避开障碍|survive the run|生存冲刺|冲线)/i, 3);
+  scores.runner += scorePattern(text, /(dodge|avoid|躲避|闪避|避开)/i, 1);
+
+  scores.shooter += scorePattern(text, /(shoot|shooter|fire|weapon|gun|bullet|projectile|laser|弹幕|射击|开火|武器|子弹|激光|清怪|boss)/i, 4);
+  scores.shooter += scorePattern(text, /(enemy wave|波次战斗|空战|战机射击|飞船射击)/i, 3);
+
+  scores.defense += scorePattern(text, /(tower defense|defense|defend|base|turret|fortress|守塔|塔防|防守|守住|基地|炮塔|布置防线)/i, 4);
+  scores.defense += scorePattern(text, /(resource|upgrade|shop|build|资源管理|升级|建造|部署)/i, 2);
+  scores.defense += scorePattern(text, /(wave|波次)/i, 1);
+
+  scores.puzzle += scorePattern(text, /(puzzle|match|merge|memory|connect|sokoban|logic|解谜|连线|记忆|推箱子|消除|机关|逻辑)/i, 4);
+  scores.puzzle += scorePattern(text, /(steps|moves|步数|回合|提示|解法|拼图)/i, 2);
+
+  scores.collector += scorePattern(text, /(collect|collector|gather|pick up|pickup|salvage|harvest|拾取|收集|采集|回收|收集物|目标物)/i, 4);
+  scores.collector += scorePattern(text, /(arena|top-down|bounded map|俯视角|区域内移动|arena|小地图)/i, 2);
+  scores.collector += scorePattern(text, /(energy|coin|gem|key|orb|能量|金币|宝石|钥匙|能量球)/i, 2);
+
+  if (/(collect|pickup|拾取|收集|采集|回收)/i.test(text) && /(dodge|avoid|hazard|躲避|闪避|危险|障碍)/i.test(text)) {
+    scores.collector += 3;
+  }
+
+  if (/(runner|跑酷|车道|lane|冲刺|持续前进|距离)/i.test(text) && /(dodge|avoid|躲避|闪避|障碍)/i.test(text)) {
+    scores.runner += 3;
+  }
+
+  if (/(shoot|fire|bullet|weapon|射击|开火|弹幕|武器)/i.test(text) && /(dodge|avoid|躲避|闪避)/i.test(text)) {
+    scores.shooter += 2;
+  }
+
+  if (/(defense|守塔|塔防|防守|基地|炮塔)/i.test(text) && /(wave|波次|资源|升级|建造)/i.test(text)) {
+    scores.defense += 3;
+  }
+
+  if (/(puzzle|解谜|机关|消除|连线)/i.test(text) && /(steps|moves|步数|目标|通关)/i.test(text)) {
+    scores.puzzle += 2;
+  }
+
+  const ranked = (Object.entries(scores) as Array<[ConcreteGameplaySkeletonKey, number]>).sort((a, b) => b[1] - a[1]);
+  const [top, second] = ranked;
+
+  if (!top || top[1] < 3) return "auto";
+  if (second && top[1] - second[1] < 2) return "auto";
+  return top[0];
+}
+
+export function resolveGameplaySkeletonKey(value?: string | null, brief?: string | null): GameplaySkeletonKey {
+  const normalized = normalizeGameplaySkeletonKey(value);
+  return normalized === "auto" ? inferGameplaySkeletonKey(brief) : normalized;
 }
 
 export function getGameplaySkeletonLabel(value?: string | null) {

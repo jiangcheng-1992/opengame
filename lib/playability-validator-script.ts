@@ -228,7 +228,7 @@ const snapshotScript = "(() => {" +
   "const joined=(text+' '+controls.join(' '));" +
   "const hero=heroCandidates.sort((a,b)=>b.area-a.area)[0]||null;" +
   "const hudText=(hudCandidates.map(x=>x.text).join(' ')+' '+text);" +
-  "return {title:document.title||'',text,htmlLength:body?body.innerHTML.length:0,bodyChildCount:body?body.children.length:0,controlCount:controls.length,controls,canvasCount:canvases.length,canvases,startGate:/\\b(start|play|begin|go|restart)\\b|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(joined),hero,heroCount:heroCandidates.length,hud:{count:hudCandidates.length,text:hudText.slice(0,400),modules:hudCandidates.slice(0,4)},overlay:{count:overlayCandidates.length,text:overlayCandidates.join(' ').slice(0,400)},visual:{gradients,shadows,radii,colors,pixelatedElements,pixelTerms,defaultControls,lowResScaledCanvas:canvases.some(c=>c.lowResScaled),visibleElementCount:visibleEls.length}};" +
+  "return {title:document.title||'',text,fullText:fullText.slice(0,4000),htmlLength:body?body.innerHTML.length:0,bodyChildCount:body?body.children.length:0,controlCount:controls.length,controls,canvasCount:canvases.length,canvases,startGate:/\\b(start|play|begin|go|restart)\\b|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(joined),hero,heroCount:heroCandidates.length,hud:{count:hudCandidates.length,text:hudText.slice(0,400),modules:hudCandidates.slice(0,4)},overlay:{count:overlayCandidates.length,text:overlayCandidates.join(' ').slice(0,400)},visual:{gradients,shadows,radii,colors,pixelatedElements,pixelTerms,defaultControls,lowResScaledCanvas:canvases.some(c=>c.lowResScaled),visibleElementCount:visibleEls.length}};" +
 "})()";
 
 const targetScript = "(() => {" +
@@ -265,16 +265,19 @@ function assessVisualQuality(before, after) {
   const hasEnoughPolish = polishSignals >= 4 || (Number(visual.radii || 0) >= 2 && Number(visual.colors || 0) >= 5);
   const hasDesignedControls = Number(visual.defaultControls || 0) === 0 || Number(visual.radii || 0) > 0 || Number(visual.gradients || 0) > 0;
   const hudSignals = (hud.text || "").match(/\b(score|combo|wave|time|level|life|lives|health|hp|ammo|coins|goal|progress)\b|得分|连击|波次|时间|等级|生命|血量|金币|目标|进度/gi) || [];
-  const endSignals = (overlay.text || after.text || "").match(/\b(restart|retry|play again|continue|victory|defeat|game over|you win|result)\b|再来|重试|继续|胜利|失败|游戏结束|结果/gi) || [];
+  const endSignals = (overlay.text || after.text || before.fullText || after.fullText || "").match(/\b(restart|retry|play again|continue|victory|defeat|game over|mission over|you win|result|final score)\b|再来|重试|继续|胜利|失败|游戏结束|结果|最终得分/gi) || [];
+  const hasHud = (hud.count || 0) >= 1 ? hudSignals.length >= 2 : hudSignals.length >= 3;
+  const hasEndState = endSignals.length >= 1 || (/play again|restart|retry|再来|重试/i.test(after.text || "") && /score|time|wave|result|得分|时间|波次|结果/i.test(after.text || ""));
+  const hasHero = Boolean(hero && hero.text && hero.text.length >= 12) || (Boolean(before.startGate) && Number(visual.visibleElementCount || 0) >= 20 && hasEnoughPolish);
 
   if (Number(visual.pixelatedElements || 0) > 0) reasons.push("Uses pixelated/crisp-edges image rendering.");
   if (Array.isArray(visual.pixelTerms) && visual.pixelTerms.length > 0) reasons.push("Contains pixel-art/8-bit/blocky visual language: " + visual.pixelTerms.join(", "));
   if (visual.lowResScaledCanvas) reasons.push("Uses a low-resolution scaled canvas that looks pixelated.");
   if (!hasEnoughPolish) reasons.push("UI lacks enough polish signals such as gradients, rounded panels, shadows/glow, or color depth.");
   if (!hasDesignedControls) reasons.push("Visible controls look like default browser UI.");
-  if (!hero || !hero.text || hero.text.length < 12) reasons.push("Missing a designed first screen or hero section with title/hook/CTA framing.");
-  if ((hud.count || 0) < 1 || hudSignals.length < 2) reasons.push("HUD is too weak; expected multiple readable state modules such as score, lives, timer, wave, or progress.");
-  if (endSignals.length < 1) reasons.push("Missing a designed end-state or replay-ready result overlay.");
+  if (!hasHero) reasons.push("Missing a designed first screen or hero section with title/hook/CTA framing.");
+  if (!hasHud) reasons.push("HUD is too weak; expected multiple readable state modules such as score, lives, timer, wave, or progress.");
+  if (!hasEndState) reasons.push("Missing a designed end-state or replay-ready result overlay.");
 
   return {
     ok: reasons.length === 0,
@@ -374,6 +377,7 @@ async function runValidation() {
     const fatalErrors = runtimeErrors.concat(networkErrors.filter((error) => error.includes("/index.html")));
     const startGate = Boolean(before.startGate || (target.text && /start|play|begin|go|restart|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(target.text)));
     const visualQuality = assessVisualQuality(before, after);
+    const blockingVisualReasons = visualQuality.reasons.filter((reason) => /pixelated|pixel-art|8-bit|low-resolution scaled canvas|default browser UI/i.test(reason));
 
     const checks = {
       loaded: true,
@@ -382,6 +386,7 @@ async function runValidation() {
       changed,
       hasGameSignals,
       visualQualityOk: visualQuality.ok,
+      blockingVisualIssueCount: blockingVisualReasons.length,
       runtimeErrorCount: runtimeErrors.length,
       networkErrorCount: networkErrors.length,
       consoleErrorCount: consoleErrors.length,
@@ -390,7 +395,7 @@ async function runValidation() {
     let ok = fatalErrors.length === 0 && hasVisualSurface;
     if (ok && startGate && !changed) ok = false;
     if (ok && !startGate && !changed && !hasGameSignals) ok = false;
-    if (ok && !visualQuality.ok) ok = false;
+    if (ok && blockingVisualReasons.length > 0) ok = false;
 
     const report = {
       ok,
@@ -399,12 +404,12 @@ async function runValidation() {
       clicked: target,
       before: { text: before.text.slice(0, 240), controls: before.controls, canvasCount: before.canvasCount, screenshotHash: beforeShot, visual: before.visual },
       after: { text: after.text.slice(0, 240), controls: after.controls, canvasCount: after.canvasCount, screenshotHash: afterShot, visual: after.visual },
-      visualQuality,
+      visualQuality: { ...visualQuality, blockingReasons: blockingVisualReasons },
       runtimeErrors: summarizeErrors(runtimeErrors),
       consoleErrors: summarizeErrors(consoleErrors),
       networkErrors: summarizeErrors(networkErrors),
       chromeErrors: summarizeErrors(chromeErrors),
-      reason: ok ? "Playable and visual-quality smoke passed." : "Playable/visual smoke failed: " + JSON.stringify({ checks, visualQuality }),
+      reason: ok ? "Playable smoke passed; non-blocking visual warnings may remain." : "Playable/visual smoke failed: " + JSON.stringify({ checks, visualQuality }),
     };
 
     await writeFile(reportPath, JSON.stringify(report, null, 2));

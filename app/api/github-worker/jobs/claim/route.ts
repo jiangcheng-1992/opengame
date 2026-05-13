@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { mergeProgress, progressForJobStatus } from "@/lib/job-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
     },
     data: {
       status: "RUNNING",
+      progress: mergeProgress(candidate.progress, progressForJobStatus("running")),
       startedAt: new Date(),
       log: "GitHub Actions runner claimed this job.",
     },
