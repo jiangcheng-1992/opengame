@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Suspense } from "react";
 import { AppShellNav } from "@/components/app-shell-nav";
 import "./globals.css";
@@ -28,20 +27,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         {shouldLoadAnalytics ? (
           <>
-            <Script
-              id="google-analytics-loader"
+            <script
               src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
-              strategy="beforeInteractive"
+              async
             />
-            <Script id="google-analytics" strategy="beforeInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                window.gtag = gtag;
-                gtag('js', new Date());
-                gtag('config', '${GOOGLE_ANALYTICS_ID}');
-              `}
-            </Script>
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  window.gtag = gtag;
+                  gtag('js', new Date());
+                  gtag('config', '${GOOGLE_ANALYTICS_ID}');
+                `,
+              }}
+            />
           </>
         ) : null}
       </head>
