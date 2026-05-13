@@ -191,6 +191,7 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
     };
   } catch (error) {
     if (tab === "all") {
+      console.error("[games] listGames(all) fallback to builtin only.", error);
       return { games: builtinGames, nextCursor: null };
     }
     throw error;
