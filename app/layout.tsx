@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Suspense } from "react";
 import { AppShellNav } from "@/components/app-shell-nav";
 import "./globals.css";
+
+const GOOGLE_ANALYTICS_ID = "G-05Z5WGWPD8";
 
 export const metadata: Metadata = {
   title: "OpenGame 游戏创作器",
@@ -18,9 +21,30 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     process.env.NODE_ENV === "production"
       ? (await import("@vercel/analytics/next")).Analytics
       : null;
+  const shouldLoadAnalytics = process.env.NODE_ENV === "production";
 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        {shouldLoadAnalytics ? (
+          <>
+            <Script
+              id="google-analytics-loader"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
+              strategy="beforeInteractive"
+            />
+            <Script id="google-analytics" strategy="beforeInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                window.gtag = gtag;
+                gtag('js', new Date());
+                gtag('config', '${GOOGLE_ANALYTICS_ID}');
+              `}
+            </Script>
+          </>
+        ) : null}
+      </head>
       <body suppressHydrationWarning>
         <Suspense fallback={null}>
           <AppShellNav />
