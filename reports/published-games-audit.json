@@ -1,0 +1,3170 @@
+{
+  "generatedAt": "2026-05-14T05:59:41.020Z",
+  "gameCount": 62,
+  "issueCount": 52,
+  "chromeErrors": [
+    "[19736:27660:0514/134811.458:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
+    "[19736:27660:0514/134903.035:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
+    "[19736:27660:0514/135050.472:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
+    "[19736:27660:0514/135407.160:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
+    "[19736:27660:0514/135516.005:ERROR:google_apis\\gcm\\engine\\connection_factory_impl.cc:484] ConnectionHandler failed with net error: -2\r\n[19736:27660:0514/135549.535:ERROR:google_apis\\gcm\\engine\\connection_factory_impl.cc:435] Failed to connect to MCS endpoint with error -105",
+    "[19736:27660:0514/135552.662:ERROR:google_apis\\gcm\\engine\\connection_factory_impl.cc:435] Failed to connect to MCS endpoint with error -105",
+    "[19736:27660:0514/135710.736:ERROR:google_apis\\gcm\\engine\\connection_factory_impl.cc:435] Failed to connect to MCS endpoint with error -105",
+    "[19736:27660:0514/135715.422:ERROR:google_apis\\gcm\\engine\\connection_factory_impl.cc:435] Failed to connect to MCS endpoint with error -105"
+  ],
+  "results": [
+    {
+      "id": "cmp0s25ii0001ks0408z7dtyh",
+      "title": "糖果甜品风的三消游戏",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0s25ii0001ks0408z7dtyh/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0s25ii0001ks0408z7dtyh/play/index.html",
+      "severity": 170,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "vertical_overflow",
+          "weight": 35,
+          "message": "需要明显滚动才能看全游戏。"
+        },
+        {
+          "code": "pointer_no_response",
+          "weight": 30,
+          "message": "鼠标拖拽/点击未观察到明显响应。"
+        },
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        },
+        {
+          "code": "touch_no_response",
+          "weight": 35,
+          "message": "手机触摸/滑动未观察到明显响应。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": false,
+        "keyboardChanged": false,
+        "touchChanged": false,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 152,
+          "offscreenCritical": true
+        },
+        "mobileViewport": {
+          "width": 427,
+          "height": 925,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 515,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp225gxw0001k104z17t0ukl",
+      "title": "ASMR放松音效叠加应用",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp225gxw0001k104z17t0ukl/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp225gxw0001k104z17t0ukl/play/index.html",
+      "severity": 145,
+      "issues": [
+        {
+          "code": "horizontal_overflow",
+          "weight": 45,
+          "message": "画面存在横向溢出。"
+        },
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "vertical_overflow",
+          "weight": 35,
+          "message": "需要明显滚动才能看全游戏。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 292,
+          "overflowY": 396,
+          "offscreenCritical": true
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 1182,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 138,
+        "y": 891,
+        "text": "15 MIN"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmozfepoi0003jt04g7i5zlpu",
+      "title": "2D 横版格斗（拳皇97风格）",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozfepoi0003jt04g7i5zlpu/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozfepoi0003jt04g7i5zlpu/play/index.html",
+      "severity": 135,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "pointer_no_response",
+          "weight": 30,
+          "message": "鼠标拖拽/点击未观察到明显响应。"
+        },
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        },
+        {
+          "code": "touch_no_response",
+          "weight": 35,
+          "message": "手机触摸/滑动未观察到明显响应。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": false,
+        "keyboardChanged": false,
+        "touchChanged": false,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 599,
+          "height": 1297,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "回合",
+          "回合",
+          "回合"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp4ttljd0001l5044q8zltte",
+      "title": "四花色蜘蛛纸牌（困难模式）",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp4ttljd0001l5044q8zltte/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp4ttljd0001l5044q8zltte/play/index.html",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "pointer_no_response",
+          "weight": 30,
+          "message": "鼠标拖拽/点击未观察到明显响应。"
+        },
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": false,
+        "keyboardChanged": false,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 4,
+          "overflowY": 88,
+          "offscreenCritical": true
+        },
+        "mobileViewport": {
+          "width": 679,
+          "height": 1470,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp18dz2c0001l804m18ujr9w",
+      "title": "横版跳跃闯关游戏",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "Audit timed out after 30000ms."
+        }
+      ]
+    },
+    {
+      "id": "cmozfnwyn000bjt04eyf9w5le",
+      "title": "## 霓虹太空维修游戏 **画面要求**",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozq1g2e0001l904wchzqe4i",
+      "title": "竖屏单屏键盘动作游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozq4osw000fjo044hz9y9df",
+      "title": "7x7 网格炼金连锁解谜游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozq3wya0007jo04kussc6mr",
+      "title": "单屏鼠标点击防守游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozk2e4c0007jo04b18m9brs",
+      "title": "炼金连锁反应 HTML5 游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozk14z00001l404p2rao5ac",
+      "title": "俯视角像素霓虹博物馆潜入盗宝游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozikjlr000fjv04hbph3kny",
+      "title": "6×6 宝石网格连线解谜 HTML5 游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozih9mv0001l104nlcdkguw",
+      "title": "《像素陨石冲刺》",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozijfbb0007jv04iro469oy",
+      "title": "俯视角横屏防守射击游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozhs4wq0001l7047npliord",
+      "title": "Create a tiny one-screen…",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmozeh6kc0001ju044n5lovla",
+      "title": "复古像素风贪吃蛇游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "severity": 120,
+      "issues": [
+        {
+          "code": "audit_crashed",
+          "weight": 120,
+          "message": "CDP timeout: Emulation.setDeviceMetricsOverride"
+        }
+      ]
+    },
+    {
+      "id": "cmp2k50un0001jo044txuxoak",
+      "title": "像素风格竖屏厨房模拟游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2k50un0001jo044txuxoak/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2k50un0001jo044txuxoak/play/index.html",
+      "severity": 110,
+      "issues": [
+        {
+          "code": "pointer_no_response",
+          "weight": 30,
+          "message": "鼠标拖拽/点击未观察到明显响应。"
+        },
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        },
+        {
+          "code": "touch_no_response",
+          "weight": 35,
+          "message": "手机触摸/滑动未观察到明显响应。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": false,
+        "keyboardChanged": false,
+        "touchChanged": false,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2ncsnb000djr04mmgvhm58",
+      "title": "像素风炒菜馆模拟游戏",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2ncsnb000djr04mmgvhm58/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2ncsnb000djr04mmgvhm58/play/index.html",
+      "severity": 110,
+      "issues": [
+        {
+          "code": "pointer_no_response",
+          "weight": 30,
+          "message": "鼠标拖拽/点击未观察到明显响应。"
+        },
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        },
+        {
+          "code": "touch_no_response",
+          "weight": 35,
+          "message": "手机触摸/滑动未观察到明显响应。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": false,
+        "keyboardChanged": false,
+        "touchChanged": false,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2nc1xs0003jr043s3kyayk",
+      "title": "星港空战同款",
+      "version": 2,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2nc1xs0003jr043s3kyayk/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2nc1xs0003jr043s3kyayk/play/index.html",
+      "severity": 110,
+      "issues": [
+        {
+          "code": "pointer_no_response",
+          "weight": 30,
+          "message": "鼠标拖拽/点击未观察到明显响应。"
+        },
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        },
+        {
+          "code": "touch_no_response",
+          "weight": 35,
+          "message": "手机触摸/滑动未观察到明显响应。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": false,
+        "keyboardChanged": false,
+        "touchChanged": false,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3z8akj0001l804cv9sz7kt",
+      "title": "游戏名称",
+      "version": 3,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp3z8akj0001l804cv9sz7kt/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3z8akj0001l804cv9sz7kt/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "horizontal_overflow",
+          "weight": 45,
+          "message": "画面存在横向溢出。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 3,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 575,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 456,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2s7qus0001l804bwvq1anl",
+      "title": "🍬 糖果消消乐 — 无尽冲分版",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2s7qus0001l804bwvq1anl/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2s7qus0001l804bwvq1anl/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 80,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 691,
+        "y": 40,
+        "text": "重新开始"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp1btk0t0001l4042wm20mei",
+      "title": "横版射击通关游戏",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp1btk0t0001l4042wm20mei/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp1btk0t0001l4042wm20mei/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 3,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 678,
+          "height": 1468,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 401,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp22wvoc0001k004gdohmwam",
+      "title": "竖屏单宠Q萌卡通电子宠物游戏",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp22wvoc0001k004gdohmwam/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp22wvoc0001k004gdohmwam/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 60,
+          "offscreenCritical": true
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 535,
+        "text": "开始冒险 ✨"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2tgsm1000jpvoctueu9j4g",
+      "title": "快速冒烟测试",
+      "version": 2,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2tgsm1000jpvoctueu9j4g/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2tgsm1000jpvoctueu9j4g/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 60,
+          "offscreenCritical": true
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 479,
+        "y": 516,
+        "text": "开始冒险 ✨"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp1eagnj0001pvd4vu03x58r",
+      "title": "竖屏弹珠台游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp1eagnj0001pvd4vu03x58r/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp1eagnj0001pvd4vu03x58r/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 30,
+          "offscreenCritical": true
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 5,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp23070d0001pvr87dif64n2",
+      "title": "竖屏弹珠台游戏同款",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp1eagnj0001pvd4vu03x58r/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp1eagnj0001pvd4vu03x58r/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 30,
+          "offscreenCritical": true
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 5,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null,
+      "duplicateOf": "cmp1eagnj0001pvd4vu03x58r"
+    },
+    {
+      "id": "cmozkurao000pjo04eyjuyztx",
+      "title": "《宝可梦江湖传》单屏横版格斗游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozkurao000pjo04eyjuyztx/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozkurao000pjo04eyjuyztx/play/index.html",
+      "severity": 65,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 651,
+          "height": 1409,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 403,
+        "text": "开始对战"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2sm5dd0001ib046a57ynst",
+      "title": "经典 Windows 风格扫雷",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2sm5dd0001ib046a57ynst/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2sm5dd0001ib046a57ynst/play/index.html",
+      "severity": 45,
+      "issues": [
+        {
+          "code": "horizontal_overflow",
+          "weight": 45,
+          "message": "画面存在横向溢出。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 25,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 493,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "难度",
+          "难度",
+          "难度",
+          "难度",
+          "难度",
+          "难度"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp0qbvu80001l404aicloeuj",
+      "title": "单屏键盘动作游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0qbvu80001l404aicloeuj/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0qbvu80001l404aicloeuj/play/index.html",
+      "severity": 45,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 519,
+          "height": 1124,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 429,
+        "text": "[ 开始游戏 ]"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp20t3rn0003l404mukg9lp3",
+      "title": "【丛林探险】横版射击闯关游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp20t3rn0003l404mukg9lp3/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp20t3rn0003l404mukg9lp3/play/index.html",
+      "severity": 45,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 395,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "波次",
+          "波次",
+          "波次",
+          "波次",
+          "波次",
+          "波次"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp0lhe1x0001l104v4vo3097",
+      "title": "像素风定了",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0lhe1x0001l104v4vo3097/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0lhe1x0001l104v4vo3097/play/index.html",
+      "severity": 45,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 599,
+          "height": 1297,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "阶段",
+          "阶段",
+          "阶段"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp0plcuv0001jt042jcafn0m",
+      "title": "横屏横版射击游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0plcuv0001jt042jcafn0m/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0plcuv0001jt042jcafn0m/play/index.html",
+      "severity": 45,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 2,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 677,
+          "height": 1466,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 355,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp0qcjwc000jl404do8jmehp",
+      "title": "轻量单屏防守策略游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0qcjwc000jl404do8jmehp/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0qcjwc000jl404do8jmehp/play/index.html",
+      "severity": 45,
+      "issues": [
+        {
+          "code": "offscreen_critical",
+          "weight": 45,
+          "message": "关键 UI 或游戏画面出屏/被裁切。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 597,
+          "height": 1292,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": true
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 543,
+        "y": 578,
+        "text": "开始波次"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "波次",
+          "波次",
+          "波次",
+          "波次",
+          "波次",
+          "波次",
+          "波次",
+          "波次"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp0lob8z0005l104spt65jfe",
+      "title": "像素厨房·大排档风云",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0lob8z0005l104spt65jfe/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0lob8z0005l104spt65jfe/play/index.html",
+      "severity": 25,
+      "issues": [
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": false,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp1epf7i0001kv04yf0xugn1",
+      "title": "星座运势答题游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp1epf7i0001kv04yf0xugn1/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp1epf7i0001kv04yf0xugn1/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 420,
+        "text": "开始答题"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp419b1f0001l504u74xsf3f",
+      "title": "游戏名称",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp419b1f0001l504u74xsf3f/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp419b1f0001l504u74xsf3f/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 32,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 599,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3j6vuc0001l504g4p3hykp",
+      "title": "【糖果切切乐】竖屏水果忍者游戏",
+      "version": 5,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp3j6vuc0001l504g4p3hykp/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3j6vuc0001l504g4p3hykp/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 443,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": {
+        "gameState": "playing",
+        "score": 0,
+        "lives": 3,
+        "wave": 1,
+        "playfield": {
+          "top": 107.33333333333331,
+          "bottom": 736.6666666666667,
+          "height": 629.3333333333334,
+          "hudHeight": 53.49333333333334
+        },
+        "activeTargets": [
+          {
+            "x": 263.5728591701275,
+            "y": 637.423140841183,
+            "size": 45.27906976744186,
+            "minY": 341.26251967624455,
+            "apexY": 305.337490822807,
+            "reachable": true
+          },
+          {
+            "x": 300.0427507394473,
+            "y": 273.41892337938924,
+            "size": 32.93023255813954,
+            "minY": 270.6302012057241,
+            "apexY": 228.35090106127436,
+            "reachable": true
+          },
+          {
+            "x": 246.84372163152776,
+            "y": 424.30445672955454,
+            "size": 32.93023255813954,
+            "minY": 424.30445672955454,
+            "apexY": 232.57282072149152,
+            "reachable": false
+          }
+        ],
+        "targetHistory": [
+          {
+            "id": 1,
+            "spawnedAt": 1778737687743,
+            "apexY": 305.337490822807,
+            "minY": 341.26251967624455,
+            "reachedUpperMiddle": true,
+            "sliced": false,
+            "missed": false
+          },
+          {
+            "id": 2,
+            "spawnedAt": 1778737688817,
+            "apexY": 228.35090106127436,
+            "minY": 270.6302012057241,
+            "reachedUpperMiddle": true,
+            "sliced": false,
+            "missed": false
+          },
+          {
+            "id": 3,
+            "spawnedAt": 1778737689749,
+            "apexY": 232.57282072149152,
+            "minY": 424.30445672955454,
+            "reachedUpperMiddle": false,
+            "sliced": false,
+            "missed": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "cmp4wod580001ke0pbx7quwjl",
+      "title": "【糖果切切乐】竖屏水果忍者游戏同款",
+      "version": 4,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3j6vuc0001l504g4p3hykp/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3j6vuc0001l504g4p3hykp/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 443,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": {
+        "gameState": "playing",
+        "score": 0,
+        "lives": 3,
+        "wave": 1,
+        "playfield": {
+          "top": 107.33333333333331,
+          "bottom": 736.6666666666667,
+          "height": 629.3333333333334,
+          "hudHeight": 53.49333333333334
+        },
+        "activeTargets": [
+          {
+            "x": 263.5728591701275,
+            "y": 637.423140841183,
+            "size": 45.27906976744186,
+            "minY": 341.26251967624455,
+            "apexY": 305.337490822807,
+            "reachable": true
+          },
+          {
+            "x": 300.0427507394473,
+            "y": 273.41892337938924,
+            "size": 32.93023255813954,
+            "minY": 270.6302012057241,
+            "apexY": 228.35090106127436,
+            "reachable": true
+          },
+          {
+            "x": 246.84372163152776,
+            "y": 424.30445672955454,
+            "size": 32.93023255813954,
+            "minY": 424.30445672955454,
+            "apexY": 232.57282072149152,
+            "reachable": false
+          }
+        ],
+        "targetHistory": [
+          {
+            "id": 1,
+            "spawnedAt": 1778737687743,
+            "apexY": 305.337490822807,
+            "minY": 341.26251967624455,
+            "reachedUpperMiddle": true,
+            "sliced": false,
+            "missed": false
+          },
+          {
+            "id": 2,
+            "spawnedAt": 1778737688817,
+            "apexY": 228.35090106127436,
+            "minY": 270.6302012057241,
+            "reachedUpperMiddle": true,
+            "sliced": false,
+            "missed": false
+          },
+          {
+            "id": 3,
+            "spawnedAt": 1778737689749,
+            "apexY": 232.57282072149152,
+            "minY": 424.30445672955454,
+            "reachedUpperMiddle": false,
+            "sliced": false,
+            "missed": false
+          }
+        ]
+      },
+      "duplicateOf": "cmp3j6vuc0001l504g4p3hykp"
+    },
+    {
+      "id": "cmp2csu4r0005pvr8t1ddnny5",
+      "title": "竖屏打飞机游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2csu4r0005pvr8t1ddnny5/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2csu4r0005pvr8t1ddnny5/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 10,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 5,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 343,
+        "text": "Play"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp237d9j000bk004qrf0pbx3",
+      "title": "第一视角追逐躲避游戏",
+      "version": 6,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp237d9j000bk004qrf0pbx3/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp237d9j000bk004qrf0pbx3/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 961,
+          "height": 2080,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 409,
+        "text": "START"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3ozq5i000dl104huuhqu5w",
+      "title": "3D 竖屏跑酷飞行闯关游戏",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp3ozq5i000dl104huuhqu5w/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3ozq5i000dl104huuhqu5w/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 398,
+        "text": "START"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2poqil0001jm04g9vwjrui",
+      "title": "横屏武侠水墨风格斗游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2poqil0001jm04g9vwjrui/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2poqil0001jm04g9vwjrui/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 358,
+        "text": "开始战斗"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2ozosj0005ic04onfz8tvp",
+      "title": "3×3滑块拼图游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2ozosj0005ic04onfz8tvp/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2ozosj0005ic04onfz8tvp/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 24,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 544,
+          "height": 1178,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 479,
+        "y": 525,
+        "text": "START GAME"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2mkpay0001l104ljhzn3kj",
+      "title": "竖屏保龄球单局挑战游戏",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2mkpay0001l104ljhzn3kj/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2mkpay0001l104ljhzn3kj/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 479,
+        "y": 376,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2q6gfw0003l204nwjoiok5",
+      "title": "【心情测试问答游戏】竖屏操作",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2q6gfw0003l204nwjoiok5/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2q6gfw0003l204nwjoiok5/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 458,
+        "text": "开始测试"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3nn9s80001pvogzi12ay1b",
+      "title": "完美同款",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2nd0d0000fjr044ktvntjm/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2nd0d0000fjr044ktvntjm/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 363,
+        "text": "A\n秒回，很开心"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2kk4ox0001pveo7sgbul7i",
+      "title": "竖屏卡通跳跃游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2kk4ox0001pveo7sgbul7i/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2kk4ox0001pveo7sgbul7i/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 504,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2nd0d0000fjr044ktvntjm",
+      "title": "完美",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2nd0d0000fjr044ktvntjm/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2nd0d0000fjr044ktvntjm/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 363,
+        "text": "A\n秒回，很开心"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null,
+      "duplicateOf": "cmp3nn9s80001pvogzi12ay1b"
+    },
+    {
+      "id": "cmp2ouo8s0001pv78sq8bi1sh",
+      "title": "测试生成速度与真实进度",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2ouo8s0001pv78sq8bi1sh/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2ouo8s0001pv78sq8bi1sh/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 489,
+        "text": "再玩一次"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2ozlj30003ic04c1xs4aeh",
+      "title": "竖屏极简贪吃蛇游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp2ozlj30003ic04c1xs4aeh/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp2ozlj30003ic04c1xs4aeh/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 361,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmozk4hbm000fjo04xlr72h8y",
+      "title": "单屏 Boss 弹幕躲避游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozk4hbm000fjo04xlr72h8y/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozk4hbm000fjo04xlr72h8y/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp0qc83n000al404mtb4bffv",
+      "title": "单屏鼠标点击反应游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0qc83n000al404mtb4bffv/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0qc83n000al404mtb4bffv/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 961,
+          "height": 2080,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 390,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3o55sp000jl404v8lcb5dz",
+      "title": "第一人称狙击射击关卡游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp3o55sp000jl404v8lcb5dz/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3o55sp000jl404v8lcb5dz/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 961,
+          "height": 2080,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 354,
+        "text": "开始任务"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3insjq0001pv8gmtvzzmby",
+      "title": "奇幻翻牌大冒险是一款适合熟人聚会的派对互动游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp3insjq0001pv8gmtvzzmby/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3insjq0001pv8gmtvzzmby/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 479,
+        "y": 399,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "回合",
+          "回合",
+          "回合"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3qrren0001ib044kpknhmt",
+      "title": "需求非常完整",
+      "version": 2,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3qrren0001ib044kpknhmt/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3qrren0001ib044kpknhmt/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 479,
+        "y": 463,
+        "text": "确认开始"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "回合",
+          "回合",
+          "回合",
+          "回合",
+          "回合"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp3o29y90009l4047u9xqijh",
+      "title": "第一人称狙击游戏",
+      "version": 2,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3o29y90009l4047u9xqijh/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3o29y90009l4047u9xqijh/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 570,
+        "y": 354,
+        "text": "🎯\n大冒险 完成奇葩任务"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "回合",
+          "回合",
+          "回合",
+          "回合",
+          "回合",
+          "回合"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp0qdtqq000yl4040x24b208",
+      "title": "竖屏横版僵尸末日生存射击",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp0qdtqq000yl4040x24b208/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp0qdtqq000yl4040x24b208/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 338,
+        "text": "开始游戏 START"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp2k9w5d0001pvb44utogej5",
+      "title": "颜色连线同款",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "auditUrl": "builtin://color-links",
+      "playUrl": "builtin://color-links",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp20ouyq0001l1049mr1ewg3",
+      "title": "横版射击闯关游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp20ouyq0001l1049mr1ewg3/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp20ouyq0001l1049mr1ewg3/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 334,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "波次",
+          "关卡",
+          "波次",
+          "关卡",
+          "波次"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmozoasi80001l204kjg2j01l",
+      "title": "横屏像素闯关平台跳跃游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozoasi80001l204kjg2j01l/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozoasi80001l204kjg2j01l/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmp1coqtq0001ju04lyq6lpc8",
+      "title": "像素厨房手忙脚乱游戏",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp1coqtq0001ju04lyq6lpc8/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp1coqtq0001ju04lyq6lpc8/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "debug": null
+    },
+    {
+      "id": "cmozeir330003ju044lk0wgic",
+      "title": "丛林贪吃蛇",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozeir330003ju044lk0wgic/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozeir330003ju044lk0wgic/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 21,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 431,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 0,
+        "signals": [
+          "关卡",
+          "难度",
+          "关卡",
+          "关卡",
+          "关卡",
+          "难度",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "debug": null
+    }
+  ]
+}

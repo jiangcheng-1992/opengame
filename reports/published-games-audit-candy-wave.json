@@ -1,0 +1,135 @@
+{
+  "generatedAt": "2026-05-14T07:42:26.186Z",
+  "gameCount": 1,
+  "issueCount": 0,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9358/devtools/browser/ccbe156e-7d77-459a-b20a-52d89086b1fe",
+    "[27808:28712:0514/154220.242:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: QUOTA_EXCEEDED"
+  ],
+  "results": [
+    {
+      "id": "cmp3j6vuc0001l504g4p3hykp",
+      "title": "【糖果切切乐】竖屏水果忍者游戏",
+      "version": 8,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp3j6vuc0001l504g4p3hykp/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp3j6vuc0001l504g4p3hykp/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 443,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 15,
+        "signals": []
+      },
+      "debug": {
+        "gameState": "playing",
+        "score": 0,
+        "lives": 3,
+        "wave": 1,
+        "maxWave": 15,
+        "totalWaves": 15,
+        "level": 1,
+        "maxLevel": 15,
+        "totalLevels": 15,
+        "spawnedFruitCount": 3,
+        "targetFruitCount": 3,
+        "liveFruitCount": 3,
+        "fruitHalfCount": 0,
+        "waveComplete": false,
+        "waveSpawnDelay": 0,
+        "playfield": {
+          "top": 107.33333333333331,
+          "bottom": 736.6666666666667,
+          "height": 629.3333333333334,
+          "hudHeight": 53.49333333333334
+        },
+        "activeTargets": [
+          {
+            "x": 35.771832735052385,
+            "y": 502.25248081440776,
+            "size": 28.813953488372093,
+            "minY": 372.68901351332636,
+            "apexY": 340.4900623549287,
+            "reachable": true
+          },
+          {
+            "x": 242.7677638885156,
+            "y": 288.1411586980151,
+            "size": 32.93023255813954,
+            "minY": 288.1411586980151,
+            "apexY": 215.68444316125976,
+            "reachable": true
+          },
+          {
+            "x": 161.63538128068504,
+            "y": 649.8195950542965,
+            "size": 28.813953488372093,
+            "minY": 649.8195950542965,
+            "apexY": 348.6296807284023,
+            "reachable": false
+          }
+        ],
+        "targetHistory": [
+          {
+            "id": 1,
+            "spawnedAt": 1778744543356,
+            "apexY": 340.4900623549287,
+            "minY": 372.68901351332636,
+            "reachedUpperMiddle": true,
+            "sliced": false,
+            "missed": false
+          },
+          {
+            "id": 2,
+            "spawnedAt": 1778744544693,
+            "apexY": 215.68444316125976,
+            "minY": 288.1411586980151,
+            "reachedUpperMiddle": true,
+            "sliced": false,
+            "missed": false
+          },
+          {
+            "id": 3,
+            "spawnedAt": 1778744545902,
+            "apexY": 348.6296807284023,
+            "minY": 649.8195950542965,
+            "reachedUpperMiddle": false,
+            "sliced": false,
+            "missed": false
+          }
+        ]
+      }
+    }
+  ]
+}

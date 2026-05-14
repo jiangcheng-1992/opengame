@@ -3,16 +3,21 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Sparkles, WandSparkles } from "lucide-react";
+import { PwaInstallButton } from "@/components/pwa-install-button";
 
 function isActive(href: string, pathname: string, tab: string | null) {
   if (href === "/") return pathname === "/" && tab !== "mine";
-  if (href === "/?tab=mine") return (pathname === "/" && tab === "mine") || (pathname.startsWith("/games/") && pathname.endsWith("/edit"));
+  if (href === "/feed") return pathname === "/feed";
+  if (href === "/create") return pathname === "/create";
+  if (href === "/me") return pathname === "/me" || (pathname === "/" && tab === "mine") || (pathname.startsWith("/games/") && pathname.endsWith("/edit"));
   return pathname.startsWith(href);
 }
 
 const navItems = [
   { href: "/", label: "广场" },
-  { href: "/?tab=mine", label: "我的" },
+  { href: "/feed", label: "信息流" },
+  { href: "/create", label: "创建" },
+  { href: "/me", label: "我的" },
 ];
 
 export function AppShellNav() {
@@ -41,10 +46,13 @@ export function AppShellNav() {
           })}
         </nav>
 
-        <Link href="/create" className="button primary top-create-button">
-          <WandSparkles size={17} aria-hidden />
+        <div className="top-actions">
+          <PwaInstallButton />
+          <Link href="/create" className="button primary top-create-button">
+            <WandSparkles size={17} aria-hidden />
           创建游戏
-        </Link>
+          </Link>
+        </div>
       </div>
     </header>
   );

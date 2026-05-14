@@ -16,6 +16,8 @@ export type GameCardGame = {
     playUrl?: string | null;
     playCount: number;
     likeCount: number;
+    shareCount?: number;
+    likedByMe?: boolean;
     createdAt: Date | string;
     ownedByMe?: boolean;
     isBuiltin?: boolean;

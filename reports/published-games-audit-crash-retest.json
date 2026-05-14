@@ -1,0 +1,191 @@
+{
+  "generatedAt": "2026-05-14T06:16:21.196Z",
+  "gameCount": 3,
+  "issueCount": 3,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9344/devtools/browser/5df5e2c2-e3f8-4db5-86fb-dcaf95693516",
+    "[15596:12416:0514/141546.854:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
+    "[15596:12416:0514/141610.566:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+  ],
+  "results": [
+    {
+      "id": "cmp18dz2c0001l804m18ujr9w",
+      "title": "横版跳跃闯关游戏",
+      "version": 1,
+      "visibility": "PRIVATE",
+      "auditUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp18dz2c0001l804m18ujr9w/play/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp18dz2c0001l804m18ujr9w/play/index.html",
+      "severity": 210,
+      "issues": [
+        {
+          "code": "blank_page",
+          "weight": 100,
+          "message": "页面没有可见内容。"
+        },
+        {
+          "code": "pointer_no_response",
+          "weight": 30,
+          "message": "鼠标拖拽/点击未观察到明显响应。"
+        },
+        {
+          "code": "keyboard_no_response",
+          "weight": 25,
+          "message": "键盘输入未观察到明显响应。"
+        },
+        {
+          "code": "touch_no_response",
+          "weight": 35,
+          "message": "手机触摸/滑动未观察到明显响应。"
+        },
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": false,
+        "keyboardChanged": false,
+        "touchChanged": false,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 980,
+          "height": 2121,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmozfnwyn000bjt04eyf9w5le",
+      "title": "## 霓虹太空维修游戏 **画面要求**",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozfnwyn000bjt04eyf9w5le/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozfnwyn000bjt04eyf9w5le/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 342,
+        "text": "开始游戏"
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    },
+    {
+      "id": "cmozq1g2e0001l904wchzqe4i",
+      "title": "竖屏单屏键盘动作游戏",
+      "version": 1,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozq1g2e0001l904wchzqe4i/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozq1g2e0001l904wchzqe4i/play/index.html",
+      "severity": 20,
+      "issues": [
+        {
+          "code": "shallow_progression",
+          "weight": 20,
+          "message": "未识别到 3 个以上关卡/波次/阶段。"
+        }
+      ],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": false,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": false,
+        "maxProgression": 0,
+        "signals": []
+      },
+      "debug": null
+    }
+  ]
+}

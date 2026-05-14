@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>糖果消消乐</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Fredoka One', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #FFF8F0 0%, #FFF0F5 25%, #FFE8E0 50%, #F8E8FF 75%, #E8F0FF 100%);
+            width: 100vw;
+            height: 100vh;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+
+        .game-container {
+            position: relative;
+            background: linear-gradient(180deg, #FFFFFF 0%, #FFF8F5 50%, #F8F0FF 100%);
+            border-radius: 24px;
+            padding: clamp(10px, 2.2vmin, 18px);
+            box-shadow: 0 10px 40px rgba(155, 93, 229, 0.2),
+                        0 0 60px rgba(255, 200, 220, 0.3),
+                        inset 0 2px 0 rgba(255,255,255,0.9);
+            transform-origin: center center;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: linear-gradient(90deg, #FF6B6B, #FFE66D, #4ECDC4);
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat {
+            text-align: center;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            opacity: 0.9;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+        }
+
+        .board-wrapper {
+            position: relative;
+            background: linear-gradient(145deg, #7B68C0 0%, #9B7BD0 50%, #A890D0 100%);
+            border-radius: 16px;
+            padding: 8px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.2),
+                        0 4px 15px rgba(155, 93, 229, 0.3),
+                        0 0 30px rgba(200, 180, 255, 0.4);
+        }
+
+        #gameCanvas {
+            display: block;
+            border-radius: 12px;
+            cursor: pointer;
+            max-width: 100%;
+            touch-action: none;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, rgba(255, 240, 250, 0.98) 0%, rgba(230, 210, 255, 0.98) 100%);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .overlay h1 {
+            color: #7B4FC0;
+            font-size: 36px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(200, 150, 255, 0.5);
+        }
+
+        .overlay p {
+            color: #8B6FC0;
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+
+        .overlay .score-display {
+            color: #FF6B8A;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 10px rgba(255, 100, 130, 0.3);
+        }
+
+        .btn {
+            padding: 14px 40px;
+            font-family: 'Fredoka One', sans-serif;
+            font-size: 18px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #9B5DE5, #B57EEE);
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(155, 93, 229, 0.5);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(155, 93, 229, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .jelly-indicator {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #9B5DE5;
+            font-size: 14px;
+        }
+
+        .jelly-bar {
+            width: 200px;
+            height: 8px;
+            background: rgba(155, 93, 229, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .jelly-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #FF6B6B, #FFE66D, #4ECDC4);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .title-section {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .title-section h2 {
+            background: linear-gradient(90deg, #FF6B6B, #FFE66D, #4ECDC4, #9B5DE5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 28px;
+            letter-spacing: 3px;
+        }
+
+        .instructions {
+            font-size: 12px;
+            color: #C090D0;
+            margin-top: 8px;
+        }
+
+        @media (max-height: 700px), (max-width: 520px) {
+            .title-section {
+                margin-bottom: 8px;
+            }
+
+            .title-section h2 {
+                font-size: 22px;
+            }
+
+            .instructions {
+                font-size: 10px;
+                margin-top: 4px;
+            }
+
+            .header {
+                margin-bottom: 8px;
+                padding: 7px 10px;
+            }
+
+            .stat-value {
+                font-size: 18px;
+            }
+
+            .jelly-indicator {
+                margin-top: 7px;
+                font-size: 12px;
+            }
+
+            .overlay h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="title-section">
+            <h2>糖果消消乐</h2>
+            <p class="instructions">点击两个相邻糖果交换位置 | 空格键/回车确认 | R键重新开始</p>
+        </div>
+        
+        <div class="header">
+            <div class="stat">
+                <div class="stat-label">关卡</div>
+                <div class="stat-value" id="levelDisplay">1</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">剩余步数</div>
+                <div class="stat-value" id="movesDisplay">5</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">得分</div>
+                <div class="stat-value" id="scoreDisplay">0</div>
+            </div>
+        </div>
+        
+        <div class="board-wrapper">
+            <canvas id="gameCanvas" width="408" height="544"></canvas>
+            
+            <div class="overlay" id="startOverlay">
+                <h1>糖果消消乐</h1>
+                <p>消除糖果，清除所有果冻！</p>
+                <button class="btn btn-primary" id="startBtn">开始游戏</button>
+            </div>
+            
+            <div class="overlay" id="winOverlay">
+                <h1>🎉 恭喜过关！</h1>
+                <div class="score-display" id="winScore">0</div>
+                <button class="btn btn-primary" id="nextBtn">下一关</button>
+            </div>
+            
+            <div class="overlay" id="loseOverlay">
+                <h1>😢 游戏结束</h1>
+                <div class="score-display" id="loseScore">0</div>
+                <button class="btn btn-secondary" id="retryBtn">重新挑战</button>
+            </div>
+        </div>
+        
+        <div class="jelly-indicator">
+            <span>果冻进度</span>
+            <div class="jelly-bar">
+                <div class="jelly-progress" id="jellyProgress" style="width: 0%"></div>
+            </div>
+            <span id="jellyCount">0/0</span>
+        </div>
+    </div>
+
+    <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const COLS = 6;
+    const ROWS = 8;
+    const CELL_SIZE = 64;
+    const CANDY_SIZE = 56;
+    const CANDY_GAP = 4;
+    const BOARD_X = 8;
+    const BOARD_Y = 8;
+
+    const CANDY_COLORS = [
+        { name: 'red', color: '#FF6B6B', shadow: '#CC5555' },
+        { name: 'yellow', color: '#FFE66D', shadow: '#CCB855' },
+        { name: 'green', color: '#4ECDC4', shadow: '#3EA39C' },
+        { name: 'purple', color: '#9B5DE5', shadow: '#7C4AB7' },
+        { name: 'orange', color: '#FF9F43', shadow: '#CC7F35' },
+        { name: 'blue', color: '#74B9FF', shadow: '#5C94CC' }
+    ];
+
+    const NORMAL = 0;
+    const STRIPED_H = 1;
+    const STRIPED_V = 2;
+    const BOMB = 3;
+    const RAINBOW = 4;
+
+    let board = [];
+    let jellyBoard = [];
+    let selected = null;
+    let score = 0;
+    let moves = 5;
+    let level = 1;
+    let totalJellies = 0;
+    let clearedJellies = 0;
+    let gameRunning = false;
+    let isAnimating = false;
+    let particles = [];
+    let specialEffects = [];
+    let pointerStartCell = null;
+    const inputCoverage = { pointer: false, keyboard: false, touch: false };
+
+    function fitGameContainer() {
+        const container = document.querySelector('.game-container');
+        if (!container) return;
+        container.style.transform = 'scale(1)';
+        const rect = container.getBoundingClientRect();
+        const scale = Math.min(
+            1,
+            (window.innerWidth - 16) / Math.max(rect.width, 1),
+            (window.innerHeight - 16) / Math.max(rect.height, 1)
+        );
+        container.style.transform = `scale(${Math.max(0.68, scale)})`;
+    }
+
+    class Candy {
+        constructor(col, row, colorIndex, specialType = NORMAL) {
+            this.col = col;
+            this.row = row;
+            this.colorIndex = colorIndex;
+            this.specialType = specialType;
+            this.x = col * CELL_SIZE + CELL_SIZE / 2;
+            this.y = row * CELL_SIZE + CELL_SIZE / 2;
+            this.targetX = this.x;
+            this.targetY = this.y;
+            this.scale = 1;
+            this.alpha = 1;
+            this.removing = false;
+        }
+    }
+
+    function initBoard() {
+        board = [];
+        jellyBoard = [];
+        
+        for (let r = 0; r < ROWS; r++) {
+            board[r] = [];
+            jellyBoard[r] = [];
+            for (let c = 0; c < COLS; c++) {
+                let colorIndex;
+                do {
+                    colorIndex = Math.floor(Math.random() * CANDY_COLORS.length);
+                } while (wouldMatch(c, r, colorIndex));
+                
+                board[r][c] = new Candy(c, r, colorIndex);
+                jellyBoard[r][c] = 0;
+            }
+        }
+
+        clearedJellies = 0;
+        setupLevelJellies();
+        totalJellies = jellyBoard.flat().filter(j => j > 0).length;
+        updateJellyProgress();
+    }
+
+    function wouldMatch(col, row, colorIndex) {
+        if (col >= 2) {
+            if (board[row][col-1]?.colorIndex === colorIndex && 
+                board[row][col-2]?.colorIndex === colorIndex) {
+                return true;
+            }
+        }
+        if (row >= 2) {
+            if (board[row-1]?.[col]?.colorIndex === colorIndex && 
+                board[row-2]?.[col]?.colorIndex === colorIndex) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function setupLevelJellies() {
+        const jellyCounts = [
+            [8, 0],
+            [12, 0],
+            [8, 8],
+            [15, 5],
+            [18, 8],
+            [20, 10],
+            [22, 12],
+            [24, 14],
+            [26, 16],
+            [28, 18]
+        ];
+        
+        const idx = Math.min(level - 1, jellyCounts.length - 1);
+        const [singleLayer, doubleLayer] = jellyCounts[idx];
+        
+        for (let r = ROWS - 4; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                jellyBoard[r][c] = 0;
+            }
+        }
+        
+        let placed = 0;
+        const singleTarget = singleLayer;
+        const doubleTarget = doubleLayer;
+        
+        while (placed < singleTarget + doubleTarget) {
+            const r = Math.floor(Math.random() * ROWS);
+            const c = Math.floor(Math.random() * COLS);
+            
+            if (jellyBoard[r][c] === 0) {
+                if (placed < singleTarget) {
+                    jellyBoard[r][c] = 1;
+                } else {
+                    jellyBoard[r][c] = 2;
+                }
+                placed++;
+            }
+        }
+    }
+
+    function setupLevel() {
+        moves = Math.min(5 + Math.floor((level - 1) * 0.5), 10);
+        initBoard();
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('levelDisplay').textContent = level;
+        document.getElementById('movesDisplay').textContent = moves;
+        document.getElementById('scoreDisplay').textContent = score;
+        updateJellyProgress();
+    }
+
+    function updateJellyProgress() {
+        const total = totalJellies;
+        const cleared = clearedJellies;
+        const progress = total > 0 ? (cleared / total) * 100 : 100;
+        document.getElementById('jellyProgress').style.width = progress + '%';
+        document.getElementById('jellyCount').textContent = `${cleared}/${total}`;
+    }
+
+    function drawCandy(candy) {
+        if (!candy || candy.alpha <= 0) return;
+        
+        const x = candy.x;
+        const y = candy.y;
+        const size = CANDY_SIZE * candy.scale;
+        const color = CANDY_COLORS[candy.colorIndex];
+        
+        ctx.save();
+        ctx.globalAlpha = candy.alpha;
+        
+        if (candy.specialType === RAINBOW) {
+            const gradient = ctx.createLinearGradient(x - size/2, y - size/2, x + size/2, y + size/2);
+            gradient.addColorStop(0, '#FF6B6B');
+            gradient.addColorStop(0.2, '#FFE66D');
+            gradient.addColorStop(0.4, '#4ECDC4');
+            gradient.addColorStop(0.6, '#74B9FF');
+            gradient.addColorStop(0.8, '#9B5DE5');
+            gradient.addColorStop(1, '#FF6B6B');
+            
+            ctx.beginPath();
+            ctx.arc(x, y, size/2 + 4, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(x, y, size/2, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFF';
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(x, y, size/2 - 4, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.roundRect(x - size/2, y - size/2, size, size, 12);
+            
+            const grad = ctx.createRadialGradient(x - size/4, y - size/4, 0, x, y, size);
+            grad.addColorStop(0, '#FFF');
+            grad.addColorStop(0.3, color.color);
+            grad.addColorStop(1, color.shadow);
+            
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.roundRect(x - size/3, y - size/3, size/4, size/6, 4);
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fill();
+        }
+        
+        if (candy.specialType === STRIPED_H || candy.specialType === STRIPED_V) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = 3;
+            
+            if (candy.specialType === STRIPED_H) {
+                for (let i = -2; i <= 2; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x - size/2, y + i * 10);
+                    ctx.lineTo(x + size/2, y + i * 10);
+                    ctx.stroke();
+                }
+            } else {
+                for (let i = -2; i <= 2; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + i * 10, y - size/2);
+                    ctx.lineTo(x + i * 10, y + size/2);
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        if (candy.specialType === BOMB) {
+            ctx.beginPath();
+            ctx.arc(x, y, size/3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fill();
+            
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('💥', x, y);
+        }
+        
+        ctx.restore();
+    }
+
+    function drawJelly(row, col) {
+        const x = col * CELL_SIZE + CELL_SIZE / 2;
+        const y = row * CELL_SIZE + CELL_SIZE / 2;
+        const layers = jellyBoard[row][col];
+        
+        if (layers <= 0) return;
+        
+        ctx.save();
+        
+        const size = CANDY_SIZE - 8;
+        
+        if (layers >= 1) {
+            ctx.beginPath();
+            ctx.roundRect(x - size/2, y - size/2, size, size, 10);
+            ctx.fillStyle = 'rgba(255, 107, 150, 0.5)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 150, 180, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        if (layers >= 2) {
+            ctx.beginPath();
+            ctx.roundRect(x - size/2 + 4, y - size/2 + 4, size - 8, size - 8, 8);
+            ctx.fillStyle = 'rgba(150, 220, 255, 0.5)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(180, 240, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    }
+
+    function drawSelection(candy) {
+        if (!selected) return;
+        
+        ctx.save();
+        ctx.strokeStyle = '#FFE66D';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(
+            selected.x - CANDY_SIZE/2 - 4,
+            selected.y - CANDY_SIZE/2 - 4,
+            CANDY_SIZE + 8,
+            CANDY_SIZE + 8,
+            14
+        );
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 230, 109, 0.5)';
+        ctx.lineWidth = 8;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawSpecialEffects() {
+        specialEffects = specialEffects.filter(e => {
+            e.life -= 0.02;
+            if (e.life <= 0) return false;
+            
+            ctx.save();
+            ctx.globalAlpha = e.life;
+            
+            if (e.type === 'line_h') {
+                ctx.fillStyle = '#FFE66D';
+                ctx.fillRect(0, e.y - 8, canvas.width, 16);
+            } else if (e.type === 'line_v') {
+                ctx.fillStyle = '#FFE66D';
+                ctx.fillRect(e.x - 8, 0, 16, canvas.height);
+            } else if (e.type === 'bomb') {
+                const grad = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius * (1 - e.life) + 20);
+                grad.addColorStop(0, 'rgba(255, 107, 107, 0.8)');
+                grad.addColorStop(1, 'rgba(255, 107, 107, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.radius * (1 - e.life) + 20, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (e.type === 'rainbow') {
+                const grad = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, 80);
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                grad.addColorStop(0.5, 'rgba(255, 200, 255, 0.4)');
+                grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, 80, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+            return true;
+        });
+    }
+
+    function drawParticles() {
+        particles = particles.filter(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2;
+            p.life -= 0.02;
+            
+            if (p.life <= 0) return false;
+            
+            ctx.save();
+            ctx.globalAlpha = p.life;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            ctx.restore();
+            
+            return true;
+        });
+    }
+
+    function spawnParticles(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8 - 3,
+                size: 4 + Math.random() * 4,
+                color: color,
+                life: 1
+            });
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (jellyBoard[r][c] > 0) {
+                    drawJelly(r, c);
+                }
+            }
+        }
+        
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (board[r][c]) {
+                    drawCandy(board[r][c]);
+                }
+            }
+        }
+        
+        drawSelection(selected);
+        drawSpecialEffects();
+        drawParticles();
+    }
+
+    function animate() {
+        let needsUpdate = false;
+        
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const candy = board[r][c];
+                if (!candy) continue;
+                
+                const targetX = c * CELL_SIZE + CELL_SIZE / 2;
+                const targetY = r * CELL_SIZE + CELL_SIZE / 2;
+                
+                if (Math.abs(candy.x - targetX) > 0.5) {
+                    candy.x += (targetX - candy.x) * 0.25;
+                    needsUpdate = true;
+                } else {
+                    candy.x = targetX;
+                }
+                
+                if (Math.abs(candy.y - targetY) > 0.5) {
+                    candy.y += (targetY - candy.y) * 0.25;
+                    needsUpdate = true;
+                } else {
+                    candy.y = targetY;
+                }
+                
+                if (candy.removing && candy.scale > 0.01) {
+                    candy.scale *= 0.85;
+                    candy.alpha *= 0.85;
+                    if (candy.scale < 0.1) {
+                        candy.alpha = 0;
+                    }
+                    needsUpdate = true;
+                }
+            }
+        }
+        
+        draw();
+        
+        if (needsUpdate || particles.length > 0 || specialEffects.length > 0) {
+            requestAnimationFrame(animate);
+        } else {
+            isAnimating = false;
+            if (gameRunning) {
+                checkForWinLose();
+            }
+        }
+    }
+
+    function startAnimation() {
+        if (!isAnimating) {
+            isAnimating = true;
+            animate();
+        }
+    }
+
+    function getClickedCell(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / Math.max(rect.width, 1);
+        const scaleY = canvas.height / Math.max(rect.height, 1);
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        
+        const col = Math.floor(x / CELL_SIZE);
+        const row = Math.floor(y / CELL_SIZE);
+        
+        if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+            return { col, row };
+        }
+        return null;
+    }
+
+    function isAdjacent(c1, r1, c2, r2) {
+        return (Math.abs(c1 - c2) === 1 && r1 === r2) || 
+               (Math.abs(r1 - r2) === 1 && c1 === c2);
+    }
+
+    async function handleClick(e) {
+        if (!gameRunning || isAnimating) return;
+        inputCoverage.pointer = true;
+        
+        const cell = getClickedCell(e);
+        if (!cell) return;
+        
+        const { col, row } = cell;
+        
+        if (!board[row][col]) return;
+        
+        if (!selected) {
+            selected = board[row][col];
+        } else {
+            if (selected === board[row][col]) {
+                selected = null;
+                return;
+            }
+            
+            if (isAdjacent(selected.col, selected.row, col, row)) {
+                await trySwap(selected.col, selected.row, col, row);
+            } else {
+                selected = board[row][col];
+            }
+        }
+    }
+
+    function selectCell(col, row) {
+        if (col >= 0 && col < COLS && row >= 0 && row < ROWS && board[row][col]) {
+            selected = board[row][col];
+            draw();
+            return true;
+        }
+        return false;
+    }
+
+    async function handlePointerDown(e) {
+        if (!gameRunning || isAnimating) return;
+        e.preventDefault();
+        inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+        pointerStartCell = getClickedCell(e);
+        if (pointerStartCell) selectCell(pointerStartCell.col, pointerStartCell.row);
+    }
+
+    async function handlePointerUp(e) {
+        if (!gameRunning || isAnimating || !pointerStartCell) return;
+        e.preventDefault();
+        inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+        const endCell = getClickedCell(e);
+        const startCell = pointerStartCell;
+        pointerStartCell = null;
+
+        if (!endCell) return;
+        if (startCell.col === endCell.col && startCell.row === endCell.row) {
+            await handleClick(e);
+            return;
+        }
+        if (isAdjacent(startCell.col, startCell.row, endCell.col, endCell.row)) {
+            await trySwap(startCell.col, startCell.row, endCell.col, endCell.row);
+        } else {
+            selectCell(endCell.col, endCell.row);
+        }
+    }
+
+    async function trySwap(c1, r1, c2, r2) {
+        isAnimating = true;
+        
+        const candy1 = board[r1][c1];
+        const candy2 = board[r2][c2];
+        
+        board[r1][c1] = candy2;
+        board[r2][c2] = candy1;
+        candy1.col = c2;
+        candy1.row = r2;
+        candy2.col = c1;
+        candy2.row = r1;
+        
+        startAnimation();
+        
+        await sleep(200);
+        
+        const matches = findMatches();
+        
+        if (matches.length === 0) {
+            board[r1][c1] = candy1;
+            board[r2][c2] = candy2;
+            candy1.col = c1;
+            candy1.row = r1;
+            candy2.col = c2;
+            candy2.row = r2;
+            
+            startAnimation();
+            await sleep(200);
+            
+            selected = null;
+            isAnimating = false;
+            return;
+        }
+        
+        moves--;
+        updateUI();
+        
+        selected = null;
+        
+        await processMatches(matches);
+    }
+
+    function findMatches() {
+        const matches = [];
+        const checked = new Set();
+        
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (!board[r][c]) continue;
+                
+                let hCount = 1;
+                while (c + hCount < COLS && board[r][c + hCount]?.colorIndex === board[r][c].colorIndex) {
+                    hCount++;
+                }
+                if (hCount >= 3) {
+                    const match = [];
+                    for (let i = 0; i < hCount; i++) {
+                        const key = `${r},${c + i}`;
+                        if (!checked.has(key)) {
+                            match.push({ r, c: c + i });
+                            checked.add(key);
+                        }
+                    }
+                    if (match.length >= 3) {
+                        matches.push({ candies: match, length: hCount, direction: 'h' });
+                    }
+                }
+                
+                let vCount = 1;
+                while (r + vCount < ROWS && board[r + vCount]?.[c]?.colorIndex === board[r][c].colorIndex) {
+                    vCount++;
+                }
+                if (vCount >= 3) {
+                    const match = [];
+                    for (let i = 0; i < vCount; i++) {
+                        const key = `${r + i},${c}`;
+                        if (!checked.has(key)) {
+                            match.push({ r: r + i, c });
+                            checked.add(key);
+                        }
+                    }
+                    if (match.length >= 3) {
+                        matches.push({ candies: match, length: vCount, direction: 'v' });
+                    }
+                }
+            }
+        }
+        
+        return matches;
+    }
+
+    async function processMatches(matches) {
+        const toRemove = new Set();
+        const specialsToCreate = [];
+        const comboSpecials = [];
+        
+        for (const match of matches) {
+            const len = match.candies.length;
+            
+            if (len >= 5) {
+                let rainbowCandy = null;
+                for (const pos of match.candies) {
+                    if (board[pos.r][pos.c]?.specialType === RAINBOW) {
+                        rainbowCandy = pos;
+                    }
+                }
+                
+                if (rainbowCandy) {
+                    const targetColor = board[rainbowCandy.r][rainbowCandy.c].colorIndex;
+                    for (let r = 0; r < ROWS; r++) {
+                        for (let c = 0; c < COLS; c++) {
+                            if (board[r][c]?.colorIndex === targetColor) {
+                                toRemove.add(`${r},${c}`);
+                            }
+                        }
+                    }
+                    toRemove.add(`${rainbowCandy.r},${rainbowCandy.c}`);
+                    
+                    specialEffects.push({
+                        type: 'rainbow',
+                        x: rainbowCandy.c * CELL_SIZE + CELL_SIZE/2,
+                        y: rainbowCandy.r * CELL_SIZE + CELL_SIZE/2,
+                        life: 1
+                    });
+                } else {
+                    for (const pos of match.candies) {
+                        toRemove.add(`${pos.r},${pos.c}`);
+                    }
+                    specialsToCreate.push({ 
+                        pos: match.candies[Math.floor(len/2)], 
+                        type: BOMB,
+                        colorIndex: board[match.candies[0].r][match.candies[0].c].colorIndex
+                    });
+                }
+            } else if (len === 4) {
+                const firstCandy = board[match.candies[0].r][match.candies[0].c];
+                
+                for (const pos of match.candies) {
+                    toRemove.add(`${pos.r},${pos.c}`);
+                }
+                
+                specialsToCreate.push({ 
+                    pos: match.candies[1], 
+                    type: match.direction === 'h' ? STRIPED_H : STRIPED_V,
+                    colorIndex: firstCandy.colorIndex
+                });
+            } else if (len === 3) {
+                for (const pos of match.candies) {
+                    toRemove.add(`${pos.r},${pos.c}`);
+                }
+            }
+        }
+        
+        for (const match of matches) {
+            for (const pos of match.candies) {
+                const candy = board[pos.r][pos.c];
+                if (!candy) continue;
+                
+                if (candy.specialType === STRIPED_H) {
+                    specialEffects.push({
+                        type: 'line_h',
+                        y: pos.r * CELL_SIZE + CELL_SIZE/2,
+                        life: 1
+                    });
+                    for (let c = 0; c < COLS; c++) {
+                        toRemove.add(`${pos.r},${c}`);
+                    }
+                } else if (candy.specialType === STRIPED_V) {
+                    specialEffects.push({
+                        type: 'line_v',
+                        x: pos.c * CELL_SIZE + CELL_SIZE/2,
+                        life: 1
+                    });
+                    for (let r = 0; r < ROWS; r++) {
+                        toRemove.add(`${r},${pos.c}`);
+                    }
+                } else if (candy.specialType === BOMB) {
+                    const cx = pos.c * CELL_SIZE + CELL_SIZE/2;
+                    const cy = pos.r * CELL_SIZE + CELL_SIZE/2;
+                    specialEffects.push({
+                        type: 'bomb',
+                        x: cx,
+                        y: cy,
+                        radius: CELL_SIZE * 2,
+                        life: 1
+                    });
+                    
+                    const bombR = pos.r;
+                    const bombC = pos.c;
+                    for (let dr = -2; dr <= 2; dr++) {
+                        for (let dc = -2; dc <= 2; dc++) {
+                            const nr = bombR + dr;
+                            const nc = bombC + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                toRemove.add(`${nr},${nc}`);
+                            }
+                        }
+                    }
+                }
+                
+                comboSpecials.push({ r: pos.r, c: pos.c });
+            }
+        }
+        
+        const toRemoveArray = Array.from(toRemove).map(k => {
+            const [r, c] = k.split(',').map(Number);
+            return { r, c };
+        });
+        
+        for (const pos of toRemoveArray) {
+            if (jellyBoard[pos.r][pos.c] > 0) {
+                jellyBoard[pos.r][pos.c]--;
+                if (jellyBoard[pos.r][pos.c] === 0) {
+                    clearedJellies++;
+                }
+                score += 500;
+            }
+            
+            const candy = board[pos.r][pos.c];
+            if (candy) {
+                spawnParticles(candy.x, candy.y, CANDY_COLORS[candy.colorIndex].color);
+                candy.removing = true;
+                score += 100;
+            }
+        }
+        
+        updateUI();
+        startAnimation();
+        
+        await sleep(300);
+        
+        for (const pos of toRemoveArray) {
+            board[pos.r][pos.c] = null;
+        }
+        
+        for (const special of specialsToCreate) {
+            if (!board[special.pos.r][special.pos.c]) {
+                const newCandy = new Candy(special.pos.c, special.pos.r, special.colorIndex, special.type);
+                newCandy.x = special.pos.c * CELL_SIZE + CELL_SIZE/2;
+                newCandy.y = -CELL_SIZE;
+                board[special.pos.r][special.pos.c] = newCandy;
+            }
+        }
+        
+        await dropCandies();
+        
+        const newMatches = findMatches();
+        if (newMatches.length > 0) {
+            await processMatches(newMatches);
+        } else {
+            isAnimating = false;
+            checkForWinLose();
+        }
+    }
+
+    async function dropCandies() {
+        let dropped = false;
+        
+        for (let c = 0; c < COLS; c++) {
+            let emptyRow = ROWS - 1;
+            
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r][c]) {
+                    if (r !== emptyRow) {
+                        board[emptyRow][c] = board[r][c];
+                        board[r][c] = null;
+                        board[emptyRow][c].row = emptyRow;
+                        dropped = true;
+                    }
+                    emptyRow--;
+                }
+            }
+            
+            while (emptyRow >= 0) {
+                let colorIndex;
+                do {
+                    colorIndex = Math.floor(Math.random() * CANDY_COLORS.length);
+                } while (wouldMatchAfterDrop(c, emptyRow, colorIndex));
+                
+                const newCandy = new Candy(c, emptyRow, colorIndex);
+                newCandy.y = -(ROWS - emptyRow) * CELL_SIZE;
+                board[emptyRow][c] = newCandy;
+                dropped = true;
+                emptyRow--;
+            }
+        }
+        
+        if (dropped) {
+            startAnimation();
+            await sleep(350);
+        }
+    }
+
+    function wouldMatchAfterDrop(col, row, colorIndex) {
+        if (col >= 2) {
+            if (board[row][col-1]?.colorIndex === colorIndex && 
+                board[row][col-2]?.colorIndex === colorIndex) {
+                return true;
+            }
+        }
+        if (row < ROWS - 2) {
+            if (board[row+1]?.[col]?.colorIndex === colorIndex && 
+                board[row+2]?.[col]?.colorIndex === colorIndex) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function checkForWinLose() {
+        if (!gameRunning) return;
+        
+        const remainingJellies = jellyBoard.flat().filter(j => j > 0).length;
+        
+        if (remainingJellies === 0) {
+            gameRunning = false;
+            document.getElementById('winScore').textContent = score;
+            document.getElementById('winOverlay').classList.add('active');
+        } else if (moves <= 0) {
+            gameRunning = false;
+            document.getElementById('loseScore').textContent = score;
+            document.getElementById('loseOverlay').classList.add('active');
+        }
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function startGame() {
+        document.getElementById('startOverlay').classList.remove('active');
+        document.getElementById('winOverlay').classList.remove('active');
+        document.getElementById('loseOverlay').classList.remove('active');
+        
+        score = 0;
+        level = 1;
+        gameRunning = true;
+        selected = null;
+        particles = [];
+        specialEffects = [];
+        
+        setupLevel();
+        selectCell(Math.floor(COLS / 2), Math.floor(ROWS / 2));
+        draw();
+        fitGameContainer();
+    }
+
+    function nextLevel() {
+        document.getElementById('winOverlay').classList.remove('active');
+        
+        level++;
+        gameRunning = true;
+        selected = null;
+        particles = [];
+        specialEffects = [];
+        
+        setupLevel();
+        selectCell(Math.floor(COLS / 2), Math.floor(ROWS / 2));
+        draw();
+        fitGameContainer();
+    }
+
+    function retryLevel() {
+        document.getElementById('loseOverlay').classList.remove('active');
+        
+        gameRunning = true;
+        selected = null;
+        particles = [];
+        specialEffects = [];
+        
+        setupLevel();
+        selectCell(Math.floor(COLS / 2), Math.floor(ROWS / 2));
+        draw();
+        fitGameContainer();
+    }
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('nextBtn').addEventListener('click', nextLevel);
+    document.getElementById('retryBtn').addEventListener('click', retryLevel);
+    canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('resize', fitGameContainer);
+    window.addEventListener('orientationchange', () => setTimeout(fitGameContainer, 120));
+
+    document.addEventListener('keydown', (e) => {
+        if (!gameRunning || isAnimating) return;
+        inputCoverage.keyboard = true;
+        e.preventDefault();
+        
+        if (e.key === 'r' || e.key === 'R') {
+            retryLevel();
+            return;
+        }
+        
+        if (!selected && !selectCell(Math.floor(COLS / 2), Math.floor(ROWS / 2))) return;
+        
+        let targetC = selected.col;
+        let targetR = selected.row;
+        
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') targetC--;
+        else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') targetC++;
+        else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') targetR--;
+        else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') targetR++;
+        else if (e.key === ' ' || e.key === 'Enter') {
+            if (selected) {
+                selected = null;
+                draw();
+            }
+            return;
+        }
+        
+        if (targetC >= 0 && targetC < COLS && targetR >= 0 && targetR < ROWS) {
+            if (isAdjacent(selected.col, selected.row, targetC, targetR)) {
+                trySwap(selected.col, selected.row, targetC, targetR);
+            } else if (board[targetR][targetC]) {
+                selected = board[targetR][targetC];
+                draw();
+            }
+        }
+    });
+
+    document.getElementById('startOverlay').classList.add('active');
+    initBoard();
+    draw();
+    fitGameContainer();
+    window.__OPENGAME_DEBUG__ = () => ({
+        gameState: gameRunning ? 'playing' : 'menu',
+        score,
+        level,
+        maxLevel: 10,
+        totalLevels: 10,
+        moves,
+        inputCoverage,
+        playfield: { top: 0, bottom: canvas.height, width: canvas.width, height: canvas.height },
+        activeTargets: board.flat().filter(Boolean).map((candy) => ({
+            x: candy.x,
+            y: candy.y,
+            size: CANDY_SIZE,
+            reachable: true
+        })).slice(0, 16)
+    });
+    </script>
+</body>
+</html>

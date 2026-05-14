@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>炼金连锁 - Alchemy Chain</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #1a1410;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Noto Serif SC', 'Palatino Linotype', serif;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at center, transparent 0%, #1a1410 70%),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255,200,100,0.03) 2px,
+                    rgba(255,200,100,0.03) 4px
+                );
+            pointer-events: none;
+        }
+        
+        #gameContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(6px, 1.4vmin, 12px);
+            padding: clamp(6px, 1.5vmin, 14px);
+            position: relative;
+            z-index: 1;
+            transform-origin: center center;
+        }
+        
+        #title {
+            font-size: clamp(1.25rem, 4vmin, 2.1rem);
+            color: #f4c430;
+            text-shadow: 0 0 20px rgba(244,196,48,0.5), 2px 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: clamp(3px, 1vmin, 8px);
+            margin-bottom: 0;
+        }
+        
+        #statsBar {
+            display: flex;
+            gap: clamp(12px, 3vmin, 30px);
+            padding: clamp(8px, 1.6vmin, 12px) clamp(14px, 3vmin, 24px);
+            background: linear-gradient(135deg, #2d2318 0%, #3d3020 100%);
+            border: 2px solid #5a4a32;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.5);
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            color: #a89070;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #e8d5b0;
+            text-shadow: 0 0 10px rgba(232,213,176,0.3);
+        }
+        
+        #chainDisplay {
+            color: #ff6b35;
+            transition: all 0.2s;
+        }
+        
+        #chainDisplay.active {
+            color: #f4c430;
+            transform: scale(1.2);
+            text-shadow: 0 0 20px rgba(244,196,48,0.8);
+        }
+        
+        #mainArea {
+            display: flex;
+            gap: clamp(8px, 1.8vmin, 16px);
+            align-items: flex-start;
+        }
+        
+        .recipePanel {
+            width: clamp(104px, 17vmin, 132px);
+            padding: clamp(8px, 1.5vmin, 12px);
+            background: linear-gradient(180deg, #2d2318 0%, #251d15 100%);
+            border: 2px solid #5a4a32;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .recipePanel h3 {
+            color: #f4c430;
+            font-size: clamp(0.72rem, 1.8vmin, 0.95rem);
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #5a4a32;
+        }
+        
+        .recipe {
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            padding: 7px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        
+        .recipe.complete {
+            background: rgba(244,196,48,0.15);
+            box-shadow: 0 0 15px rgba(244,196,48,0.3);
+        }
+        
+        .recipe-name {
+            color: #e8d5b0;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .recipe-icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .recipe-req {
+            color: #a89070;
+            font-size: 0.75rem;
+            margin-bottom: 6px;
+        }
+        
+        .recipe-progress {
+            height: 8px;
+            background: #1a1410;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .recipe-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b35, #f4c430);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        
+        .recipe.complete .recipe-progress-fill {
+            background: linear-gradient(90deg, #98fb98, #f4c430);
+        }
+        
+        #gameBoard {
+            position: relative;
+            background: linear-gradient(135deg, #4a3c2a 0%, #3a2c1a 100%);
+            padding: clamp(6px, 1.2vmin, 10px);
+            border-radius: 12px;
+            box-shadow: 
+                inset 0 2px 4px rgba(255,255,255,0.1),
+                0 8px 20px rgba(0,0,0,0.6),
+                0 0 40px rgba(0,0,0,0.4);
+        }
+        
+        #boardCanvas {
+            display: block;
+            border-radius: 6px;
+            cursor: pointer;
+            width: min(490px, 58vmin);
+            height: min(490px, 58vmin);
+            touch-action: none;
+        }
+        
+        #controls {
+            margin-top: 4px;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 8px 18px;
+            font-size: clamp(0.78rem, 1.8vmin, 0.95rem);
+            font-family: inherit;
+            background: linear-gradient(135deg, #4a3c2a 0%, #3a2c1a 100%);
+            color: #e8d5b0;
+            border: 2px solid #6a5a42;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #5a4c3a 0%, #4a3c2a 100%);
+            border-color: #f4c430;
+            color: #f4c430;
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        #modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+        }
+        
+        #modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        #modalContent {
+            background: linear-gradient(135deg, #2d2318 0%, #1a1410 100%);
+            padding: 40px 50px;
+            border-radius: 15px;
+            border: 3px solid #5a4a32;
+            text-align: center;
+            transform: scale(0.8);
+            transition: transform 0.4s;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8);
+        }
+        
+        #modal.show #modalContent {
+            transform: scale(1);
+        }
+        
+        #modalTitle {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px currentColor;
+        }
+        
+        #modalTitle.win {
+            color: #98fb98;
+        }
+        
+        #modalTitle.lose {
+            color: #ff6b35;
+        }
+        
+        #modalMessage {
+            color: #a89070;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        #modalScore {
+            color: #f4c430;
+            font-size: 1.5rem;
+            margin-bottom: 25px;
+        }
+        
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, #2d2318 0%, #1a1410 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+        
+        #startScreen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        #startScreen h1 {
+            font-size: 3.5rem;
+            color: #f4c430;
+            text-shadow: 0 0 30px rgba(244,196,48,0.5), 3px 3px 6px rgba(0,0,0,0.8);
+            letter-spacing: 10px;
+            margin-bottom: 20px;
+        }
+        
+        #startScreen p {
+            color: #a89070;
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+        
+        #startBtn {
+            padding: 18px 50px;
+            font-size: 1.3rem;
+            background: linear-gradient(135deg, #f4c430 0%, #d4a420 100%);
+            color: #1a1410;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(244,196,48,0.4);
+        }
+        
+        #startBtn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 30px rgba(244,196,48,0.6);
+        }
+        
+        #instructions {
+            margin-top: 30px;
+            color: #6a5a42;
+            font-size: 0.85rem;
+        }
+        
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 50;
+        }
+        
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(244,196,48,0.5); }
+            50% { box-shadow: 0 0 25px rgba(244,196,48,0.9); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        @media (max-width: 720px), (max-height: 720px) {
+            #mainArea {
+                align-items: stretch;
+                gap: 3px;
+            }
+
+            .recipePanel {
+                width: min(24vw, 84px);
+                padding: 4px;
+            }
+
+            .recipe {
+                padding: 5px;
+                margin-bottom: 5px;
+            }
+
+            .recipe-name,
+            .recipe-req {
+                font-size: 0.52rem;
+            }
+
+            .recipe-icon {
+                width: 16px;
+                height: 16px;
+            }
+
+            #statsBar {
+                width: min(96vw, 620px);
+                justify-content: space-around;
+            }
+
+            #boardCanvas {
+                width: min(490px, 47vw, 52vh);
+                height: min(490px, 47vw, 52vh);
+            }
+
+            .stat-label {
+                font-size: 0.62rem;
+            }
+
+            .stat-value {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="startScreen">
+        <h1>炼金连锁</h1>
+        <p>在40步内合成三种炼金配方：火焰、水晶、风暴。<br>点击相邻元素交换位置，三个以上连成一线即可消除！</p>
+        <button id="startBtn">开始游戏</button>
+        <p id="instructions">方向键移动 | 空格键确认 | R键重新开始</p>
+    </div>
+    
+    <div id="gameContainer">
+        <h1 id="title">炼金连锁</h1>
+        
+        <div id="statsBar">
+            <div class="stat">
+                <span class="stat-label">剩余步数</span>
+                <span class="stat-value" id="stepsDisplay">40</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">连锁倍率</span>
+                <span class="stat-value" id="chainDisplay">1.0×</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">得分</span>
+                <span class="stat-value" id="scoreDisplay">0</span>
+            </div>
+        </div>
+        
+        <div id="mainArea">
+            <div class="recipePanel">
+                <h3>目标配方</h3>
+                <div class="recipe" id="recipe1">
+                    <div class="recipe-name">
+                        <svg class="recipe-icon" viewBox="0 0 24 24"><path fill="#ff4500" d="M12 2c-2.4 3.5-4 6.5-4 9.5C8 14 10.2 16 12 16s4-2 4-4.5C16 8.5 14.4 5.5 12 2zm0 12c-1.1 0-2-.9-2-2 0-1.5.8-3 2-5 .2 1.4.5 2.7.8 4-.8.7-1.2 1.6-1.2 2.5 0 1.7 1.3 3 3 3 .5 0 1-.1 1.4-.4-.8.4-1.3 1-1.3 1.7 0 .3.1.6.3.8-.8 0-1.5-.3-2-.8z"/></svg>
+                        火焰
+                    </div>
+                    <div class="recipe-req">火×5 + 灵×3</div>
+                    <div class="recipe-progress"><div class="recipe-progress-fill" id="progress1" style="width:0%"></div></div>
+                </div>
+                <div class="recipe" id="recipe2">
+                    <div class="recipe-name">
+                        <svg class="recipe-icon" viewBox="0 0 24 24"><path fill="#9932cc" d="M12 2L4 8l8 14 8-14-8-6zm0 3.5L16.5 8 12 16.5 7.5 8 12 5.5z"/><path fill="#ba55d3" d="M12 8l-3 5 3 5 3-5-3-5z"/></svg>
+                        水晶
+                    </div>
+                    <div class="recipe-req">晶×4 + 土×4</div>
+                    <div class="recipe-progress"><div class="recipe-progress-fill" id="progress2" style="width:0%"></div></div>
+                </div>
+                <div class="recipe" id="recipe3">
+                    <div class="recipe-name">
+                        <svg class="recipe-icon" viewBox="0 0 24 24"><path fill="#4da6ff" d="M13 2L4 14h7l-2 8 9-12h-7l2-8z"/></svg>
+                        风暴
+                    </div>
+                    <div class="recipe-req">风×3 + 水×3 + 灵×2</div>
+                    <div class="recipe-progress"><div class="recipe-progress-fill" id="progress3" style="width:0%"></div></div>
+                </div>
+            </div>
+            
+            <div id="gameBoard">
+                <canvas id="boardCanvas" width="490" height="490"></canvas>
+            </div>
+            
+            <div class="recipePanel">
+                <h3>已完成</h3>
+                <div id="completedRecipes" style="color:#6a5a42;font-size:0.85rem;padding:10px 0;text-align:center;">
+                    暂无
+                </div>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <button class="btn" id="restartBtn">重新开始</button>
+        </div>
+    </div>
+    
+    <div id="modal">
+        <div id="modalContent">
+            <h2 id="modalTitle">胜利</h2>
+            <p id="modalMessage">恭喜完成所有配方！</p>
+            <p id="modalScore">得分: 0</p>
+            <button class="btn" id="modalRestartBtn">再来一局</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
+        const GRID_SIZE = 7;
+        const CELL_SIZE = 70;
+        const ELEMENT_TYPES = 6;
+        
+        const COLORS = {
+            fire: { main: '#ff4500', glow: '#ff6b35', dark: '#cc3700' },
+            water: { main: '#1e90ff', glow: '#4da6ff', dark: '#1868cc' },
+            earth: { main: '#8b4513', glow: '#a0522d', dark: '#6b3410' },
+            wind: { main: '#98fb98', glow: '#b8ffb8', dark: '#6bc96b' },
+            crystal: { main: '#9932cc', glow: '#ba55d3', dark: '#7a29a3' },
+            spirit: { main: '#ffd700', glow: '#ffec8b', dark: '#ccac00' }
+        };
+        
+        const ELEMENT_NAMES = ['fire', 'water', 'earth', 'wind', 'crystal', 'spirit'];
+        const ELEMENT_CN = ['火', '水', '土', '风', '晶', '灵'];
+        
+        const RECIPES = [
+            { name: '火焰', elements: { fire: 5, spirit: 3 }, progress: 0, complete: false },
+            { name: '水晶', elements: { crystal: 4, earth: 4 }, progress: 0, complete: false },
+            { name: '风暴', elements: { wind: 3, water: 3, spirit: 2 }, progress: 0, complete: false }
+        ];
+        
+        let grid = [];
+        let selected = null;
+        let steps = 40;
+        let score = 0;
+        let chainLevel = 0;
+        let isAnimating = false;
+        let gameOver = false;
+        let collectedElements = {};
+        let cursorPos = { x: 0, y: 0 };
+        let particles = [];
+        let floatingTexts = [];
+        let pointerStartCell = null;
+        const inputCoverage = { pointer: false, keyboard: false, touch: false, gesture: true };
+
+        function canvasCellFromEvent(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / Math.max(rect.width, 1);
+            const scaleY = canvas.height / Math.max(rect.height, 1);
+            return {
+                x: Math.floor(((e.clientX - rect.left) * scaleX) / CELL_SIZE),
+                y: Math.floor(((e.clientY - rect.top) * scaleY) / CELL_SIZE)
+            };
+        }
+        
+        function initGrid() {
+            grid = [];
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    let type;
+                    do {
+                        type = Math.floor(Math.random() * ELEMENT_TYPES);
+                    } while (wouldMatch(x, y, type));
+                    grid[y][x] = { type, scale: 1, alpha: 1, offsetY: 0 };
+                }
+            }
+        }
+        
+        function wouldMatch(x, y, type) {
+            if (x >= 2 && grid[y][x-1]?.type === type && grid[y][x-2]?.type === type) return true;
+            if (y >= 2 && grid[y-1]?.[x]?.type === type && grid[y-2]?.[x]?.type === type) return true;
+            return false;
+        }
+        
+        function drawElement(x, y, type, alpha = 1, scale = 1, offsetY = 0) {
+            const cx = x * CELL_SIZE + CELL_SIZE / 2;
+            const cy = y * CELL_SIZE + CELL_SIZE / 2 + offsetY;
+            const size = (CELL_SIZE - 16) * scale;
+            const color = COLORS[ELEMENT_NAMES[type]];
+            
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(cx, cy);
+            
+            // Glow effect
+            ctx.shadowColor = color.glow;
+            ctx.shadowBlur = 15 * scale;
+            
+            // Draw based on element type
+            ctx.fillStyle = color.main;
+            ctx.strokeStyle = color.dark;
+            ctx.lineWidth = 2;
+            
+            switch(type) {
+                case 0: // Fire
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size/2);
+                    ctx.bezierCurveTo(size/2, -size/4, size/2, size/4, 0, size/2);
+                    ctx.bezierCurveTo(-size/2, size/4, -size/2, -size/4, 0, -size/2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Inner flame
+                    ctx.fillStyle = color.glow;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size/4);
+                    ctx.bezierCurveTo(size/4, 0, size/4, size/4, 0, size/3);
+                    ctx.bezierCurveTo(-size/4, size/4, -size/4, 0, 0, -size/4);
+                    ctx.fill();
+                    break;
+                    
+                case 1: // Water
+                    ctx.beginPath();
+                    ctx.arc(0, 0, size/2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Wave lines
+                    ctx.strokeStyle = color.glow;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(-size/6, -size/8, size/8, 0, Math.PI);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(size/6, size/8, size/8, Math.PI, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+                    
+                case 2: // Earth
+                    ctx.beginPath();
+                    ctx.moveTo(-size/2, size/3);
+                    ctx.lineTo(0, -size/2);
+                    ctx.lineTo(size/2, size/3);
+                    ctx.lineTo(-size/2, size/3);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Layer lines
+                    ctx.strokeStyle = color.glow;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-size/3, size/6);
+                    ctx.lineTo(size/3, size/6);
+                    ctx.moveTo(-size/4, 0);
+                    ctx.lineTo(size/4, 0);
+                    ctx.stroke();
+                    break;
+                    
+                case 3: // Wind
+                    ctx.strokeStyle = color.main;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        const yOff = (i - 1) * size/4;
+                        ctx.moveTo(-size/2, yOff);
+                        ctx.quadraticCurveTo(-size/4, yOff - size/6, 0, yOff);
+                        ctx.quadraticCurveTo(size/4, yOff + size/6, size/2, yOff);
+                        ctx.stroke();
+                    }
+                    break;
+                    
+                case 4: // Crystal
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size/2);
+                    ctx.lineTo(size/2.5, -size/6);
+                    ctx.lineTo(size/2.5, size/4);
+                    ctx.lineTo(0, size/2);
+                    ctx.lineTo(-size/2.5, size/4);
+                    ctx.lineTo(-size/2.5, -size/6);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    // Inner shine
+                    ctx.fillStyle = color.glow;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size/4);
+                    ctx.lineTo(size/5, 0);
+                    ctx.lineTo(0, size/4);
+                    ctx.lineTo(-size/5, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    break;
+                    
+                case 5: // Spirit
+                    ctx.beginPath();
+                    ctx.arc(0, -size/6, size/3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Body
+                    ctx.beginPath();
+                    ctx.moveTo(-size/4, size/4);
+                    ctx.quadraticCurveTo(-size/3, size/2, 0, size/2);
+                    ctx.quadraticCurveTo(size/3, size/2, size/4, size/4);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Eyes
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(-size/8, -size/5, size/10, 0, Math.PI * 2);
+                    ctx.arc(size/8, -size/5, size/10, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawGrid() {
+            // Background
+            ctx.fillStyle = '#2a1f15';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Grid cells
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const px = x * CELL_SIZE + 2;
+                    const py = y * CELL_SIZE + 2;
+                    
+                    // Cell background
+                    ctx.fillStyle = (x + y) % 2 === 0 ? '#352a20' : '#2d2318';
+                    ctx.fillRect(px, py, CELL_SIZE - 4, CELL_SIZE - 4);
+                    
+                    // Selected highlight
+                    if (selected && selected.x === x && selected.y === y) {
+                        ctx.fillStyle = 'rgba(244,196,48,0.3)';
+                        ctx.fillRect(px, py, CELL_SIZE - 4, CELL_SIZE - 4);
+                        ctx.strokeStyle = '#f4c430';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(px + 1, py + 1, CELL_SIZE - 6, CELL_SIZE - 6);
+                    }
+                    
+                    // Cursor highlight
+                    if (cursorPos.x === x && cursorPos.y === y && !selected) {
+                        ctx.strokeStyle = 'rgba(232,213,176,0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(px + 2, py + 2, CELL_SIZE - 8, CELL_SIZE - 8);
+                    }
+                }
+            }
+            
+            // Draw elements
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (grid[y][x]) {
+                        drawElement(x, y, grid[y][x].type, grid[y][x].alpha, grid[y][x].scale, grid[y][x].offsetY);
+                    }
+                }
+            }
+            
+            // Draw particles
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.vy += 0.1;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    return;
+                }
+                
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+        }
+        
+        function createParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x * CELL_SIZE + CELL_SIZE/2,
+                    y: y * CELL_SIZE + CELL_SIZE/2,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6 - 2,
+                    size: 3 + Math.random() * 4,
+                    color: color,
+                    life: 1
+                });
+            }
+        }
+        
+        function createFloatingText(x, y, text, color) {
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.textContent = text;
+            el.style.left = (canvas.offsetLeft + x * CELL_SIZE + CELL_SIZE/2) + 'px';
+            el.style.top = (canvas.offsetTop + y * CELL_SIZE) + 'px';
+            el.style.color = color;
+            el.style.fontSize = '1.2rem';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+        
+        function findMatches() {
+            const matches = [];
+            const matched = new Set();
+            
+            // Horizontal matches
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE - 2; x++) {
+                    if (grid[y][x] && grid[y][x+1] && grid[y][x+2]) {
+                        const type = grid[y][x].type;
+                        if (grid[y][x+1].type === type && grid[y][x+2].type === type) {
+                            let end = x + 2;
+                            while (end + 1 < GRID_SIZE && grid[y][end+1]?.type === type) end++;
+                            
+                            const match = [];
+                            for (let i = x; i <= end; i++) {
+                                const key = `${i},${y}`;
+                                if (!matched.has(key)) {
+                                    matched.add(key);
+                                    match.push({x: i, y: y});
+                                }
+                            }
+                            if (match.length >= 3) matches.push(match);
+                            x = end;
+                        }
+                    }
+                }
+            }
+            
+            // Vertical matches
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE - 2; y++) {
+                    if (grid[y][x] && grid[y+1][x] && grid[y+2][x]) {
+                        const type = grid[y][x].type;
+                        if (grid[y+1][x].type === type && grid[y+2][x].type === type) {
+                            let end = y + 2;
+                            while (end + 1 < GRID_SIZE && grid[end+1]?.[x]?.type === type) end++;
+                            
+                            const match = [];
+                            for (let i = y; i <= end; i++) {
+                                const key = `${x},${i}`;
+                                if (!matched.has(key)) {
+                                    matched.add(key);
+                                    match.push({x: x, y: i});
+                                }
+                            }
+                            if (match.length >= 3) matches.push(match);
+                            y = end;
+                        }
+                    }
+                }
+            }
+            
+            return matches;
+        }
+        
+        async function removeMatches(matches) {
+            let tilesRemoved = 0;
+            
+            for (const match of matches) {
+                const color = COLORS[ELEMENT_NAMES[grid[match[0].y][match[0].x].type]].main;
+                
+                for (const pos of match) {
+                    if (grid[pos.y][pos.x]) {
+                        const elementType = ELEMENT_NAMES[grid[pos.y][pos.x].type];
+                        collectedElements[elementType] = (collectedElements[elementType] || 0) + 1;
+                        
+                        createParticles(pos.x, pos.y, color);
+                        grid[pos.y][pos.x] = null;
+                        tilesRemoved++;
+                    }
+                }
+                
+                const midX = match[Math.floor(match.length/2)].x;
+                const midY = match[Math.floor(match.length/2)].y;
+                const points = Math.floor(match.length * 100 * (1 + chainLevel * 0.5));
+                score += points;
+                createFloatingText(midX, midY, `+${points}`, '#f4c430');
+            }
+            
+            updateRecipeProgress();
+            return tilesRemoved;
+        }
+        
+        async function dropTiles() {
+            return new Promise(resolve => {
+                let dropped = false;
+                
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    for (let y = GRID_SIZE - 1; y >= 0; y--) {
+                        if (!grid[y][x]) {
+                            for (let above = y - 1; above >= 0; above--) {
+                                if (grid[above][x]) {
+                                    grid[y][x] = grid[above][x];
+                                    grid[y][x].offsetY = -(above + 1) * CELL_SIZE;
+                                    grid[above][x] = null;
+                                    dropped = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Fill empty top cells
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    for (let y = 0; y < GRID_SIZE; y++) {
+                        if (!grid[y][x]) {
+                            grid[y][x] = { 
+                                type: Math.floor(Math.random() * ELEMENT_TYPES), 
+                                scale: 1, 
+                                alpha: 1, 
+                                offsetY: -(y + 1) * CELL_SIZE 
+                            };
+                            dropped = true;
+                        }
+                    }
+                }
+                
+                resolve(dropped);
+            });
+        }
+        
+        async function animateDrop() {
+            return new Promise(resolve => {
+                let stillAnimating = true;
+                
+                function animate() {
+                    stillAnimating = false;
+                    
+                    for (let y = 0; y < GRID_SIZE; y++) {
+                        for (let x = 0; x < GRID_SIZE; x++) {
+                            if (grid[y][x] && grid[y][x].offsetY < 0) {
+                                grid[y][x].offsetY += CELL_SIZE / 4;
+                                if (grid[y][x].offsetY > 0) grid[y][x].offsetY = 0;
+                                stillAnimating = true;
+                            }
+                        }
+                    }
+                    
+                    drawGrid();
+                    
+                    if (stillAnimating) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        resolve();
+                    }
+                }
+                
+                animate();
+            });
+        }
+        
+        async function processChain() {
+            chainLevel = 0;
+            let chainMultiplier = 1;
+            
+            while (true) {
+                const matches = findMatches();
+                if (matches.length === 0) break;
+                
+                chainLevel++;
+                chainMultiplier = 1 + (chainLevel - 1) * 0.5;
+                
+                const chainDisplay = document.getElementById('chainDisplay');
+                chainDisplay.textContent = chainMultiplier.toFixed(1) + '×';
+                chainDisplay.classList.add('active');
+                
+                await removeMatches(matches);
+                await dropTiles();
+                await animateDrop();
+                
+                await new Promise(r => setTimeout(r, 200));
+            }
+            
+            chainDisplay.classList.remove('active');
+            document.getElementById('scoreDisplay').textContent = score;
+        }
+        
+        function updateRecipeProgress() {
+            let completedCount = 0;
+            
+            RECIPES.forEach((recipe, index) => {
+                let totalRequired = 0;
+                let totalCollected = 0;
+                
+                for (const [element, count] of Object.entries(recipe.elements)) {
+                    totalRequired += count;
+                    totalCollected += Math.min(collectedElements[element] || 0, count);
+                }
+                
+                recipe.progress = totalRequired > 0 ? (totalCollected / totalRequired) * 100 : 0;
+                
+                // Check completion
+                let isComplete = true;
+                for (const [element, count] of Object.entries(recipe.elements)) {
+                    if ((collectedElements[element] || 0) < count) {
+                        isComplete = false;
+                        break;
+                    }
+                }
+                
+                if (isComplete && !recipe.complete) {
+                    recipe.complete = true;
+                    score += 500;
+                    createFloatingText(3.5, index * 2 + 1, '+500!', '#98fb98');
+                }
+                
+                document.getElementById(`progress${index + 1}`).style.width = recipe.progress + '%';
+                
+                const recipeEl = document.getElementById(`recipe${index + 1}`);
+                if (recipe.complete) {
+                    recipeEl.classList.add('complete');
+                    completedCount++;
+                }
+            });
+            
+            // Update completed panel
+            const completedPanel = document.getElementById('completedRecipes');
+            if (completedCount > 0) {
+                completedPanel.innerHTML = RECIPES.filter(r => r.complete).map(r => 
+                    `<div style="color:#98fb98;margin-bottom:8px;">✓ ${r.name}</div>`
+                ).join('');
+            }
+            
+            return completedCount === RECIPES.length;
+        }
+        
+        function swapTiles(x1, y1, x2, y2) {
+            const temp = grid[y1][x1];
+            grid[y1][x1] = grid[y2][x2];
+            grid[y2][x2] = temp;
+        }
+        
+        async function trySwap(x1, y1, x2, y2) {
+            if (isAnimating || gameOver) return;
+            
+            swapTiles(x1, y1, x2, y2);
+            const matches = findMatches();
+            
+            if (matches.length === 0) {
+                swapTiles(x1, y1, x2, y2);
+                drawGrid();
+                
+                // Shake animation for invalid move
+                canvas.style.animation = 'shake 0.3s';
+                setTimeout(() => canvas.style.animation = '', 300);
+                return;
+            }
+            
+            isAnimating = true;
+            steps--;
+            document.getElementById('stepsDisplay').textContent = steps;
+            
+            selected = null;
+            
+            await processChain();
+            
+            isAnimating = false;
+            
+            // Check win/lose conditions
+            const allComplete = updateRecipeProgress();
+            
+            if (allComplete) {
+                gameOver = true;
+                showModal(true);
+            } else if (steps <= 0) {
+                gameOver = true;
+                showModal(false);
+            }
+        }
+        
+        function showModal(isWin) {
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modalTitle');
+            const message = document.getElementById('modalMessage');
+            const scoreEl = document.getElementById('modalScore');
+            
+            title.textContent = isWin ? '胜利!' : '失败';
+            title.className = isWin ? 'win' : 'lose';
+            message.textContent = isWin ? '恭喜完成所有配方！' : '步数已用完，配方未完成';
+            scoreEl.textContent = '得分: ' + score;
+            
+            modal.classList.add('show');
+        }
+        
+        function hideModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+        
+        function resetGame() {
+            hideModal();
+            steps = 40;
+            score = 0;
+            chainLevel = 0;
+            gameOver = false;
+            isAnimating = false;
+            selected = null;
+            collectedElements = {};
+            particles = [];
+            
+            RECIPES.forEach((r, i) => {
+                r.progress = 0;
+                r.complete = false;
+                document.getElementById(`progress${i+1}`).style.width = '0%';
+                document.getElementById(`recipe${i+1}`).classList.remove('complete');
+            });
+            document.getElementById('completedRecipes').innerHTML = '暂无';
+            
+            document.getElementById('stepsDisplay').textContent = steps;
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('chainDisplay').textContent = '1.0×';
+            
+            initGrid();
+            drawGrid();
+        }
+        
+        function handleClick(e) {
+            inputCoverage.pointer = true;
+            if (isAnimating || gameOver) return;
+            
+            const { x, y } = canvasCellFromEvent(e);
+            
+            if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
+            
+            if (!selected) {
+                selected = { x, y };
+            } else if (selected.x === x && selected.y === y) {
+                selected = null;
+            } else if (Math.abs(selected.x - x) + Math.abs(selected.y - y) === 1) {
+                trySwap(selected.x, selected.y, x, y);
+            } else {
+                selected = { x, y };
+            }
+            
+            cursorPos = { x, y };
+            drawGrid();
+        }
+
+        function handlePointerDown(e) {
+            inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+            pointerStartCell = canvasCellFromEvent(e);
+            if (pointerStartCell.x >= 0 && pointerStartCell.x < GRID_SIZE && pointerStartCell.y >= 0 && pointerStartCell.y < GRID_SIZE) {
+                selected = pointerStartCell;
+                cursorPos = pointerStartCell;
+                drawGrid();
+            }
+            e.preventDefault();
+        }
+
+        function handlePointerUp(e) {
+            inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+            if (isAnimating || gameOver || !pointerStartCell) return;
+            const endCell = canvasCellFromEvent(e);
+            const startCell = pointerStartCell;
+            pointerStartCell = null;
+            if (endCell.x < 0 || endCell.x >= GRID_SIZE || endCell.y < 0 || endCell.y >= GRID_SIZE) return;
+            if (Math.abs(startCell.x - endCell.x) + Math.abs(startCell.y - endCell.y) === 1) {
+                trySwap(startCell.x, startCell.y, endCell.x, endCell.y);
+            } else {
+                selected = endCell;
+                cursorPos = endCell;
+                drawGrid();
+            }
+            e.preventDefault();
+        }
+        
+        function handleKeydown(e) {
+            inputCoverage.keyboard = true;
+            if (isAnimating) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (selected) {
+                        if (selected.y > 0) trySwap(selected.x, selected.y, selected.x, selected.y - 1);
+                    } else {
+                        cursorPos.y = Math.max(0, cursorPos.y - 1);
+                        drawGrid();
+                    }
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (selected) {
+                        if (selected.y < GRID_SIZE - 1) trySwap(selected.x, selected.y, selected.x, selected.y + 1);
+                    } else {
+                        cursorPos.y = Math.min(GRID_SIZE - 1, cursorPos.y + 1);
+                        drawGrid();
+                    }
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (selected) {
+                        if (selected.x > 0) trySwap(selected.x, selected.y, selected.x - 1, selected.y);
+                    } else {
+                        cursorPos.x = Math.max(0, cursorPos.x - 1);
+                        drawGrid();
+                    }
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    if (selected) {
+                        if (selected.x < GRID_SIZE - 1) trySwap(selected.x, selected.y, selected.x + 1, selected.y);
+                    } else {
+                        cursorPos.x = Math.min(GRID_SIZE - 1, cursorPos.x + 1);
+                        drawGrid();
+                    }
+                    break;
+                case ' ':
+                case 'Enter':
+                    e.preventDefault();
+                    if (selected) {
+                        let dx = 0, dy = 0;
+                        if (cursorPos.x < selected.x) dx = -1;
+                        else if (cursorPos.x > selected.x) dx = 1;
+                        else if (cursorPos.y < selected.y) dy = -1;
+                        else if (cursorPos.y > selected.y) dy = 1;
+                        
+                        if (dx !== 0 || dy !== 0) {
+                            trySwap(selected.x, selected.y, selected.x + dx, selected.y + dy);
+                        }
+                    }
+                    break;
+                case 'r':
+                case 'R':
+                    resetGame();
+                    break;
+                case 'Escape':
+                    hideModal();
+                    break;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('startBtn').addEventListener('click', () => {
+            inputCoverage.pointer = true;
+            document.getElementById('startScreen').classList.add('hidden');
+            resetGame();
+        });
+        
+        document.getElementById('restartBtn').addEventListener('click', resetGame);
+        document.getElementById('modalRestartBtn').addEventListener('click', resetGame);
+        
+        canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('pointerdown', handlePointerDown);
+        canvas.addEventListener('pointerup', handlePointerUp);
+        canvas.addEventListener('touchstart', () => { inputCoverage.touch = true; }, { passive: false });
+        canvas.addEventListener('touchend', () => { inputCoverage.touch = true; }, { passive: false });
+        document.addEventListener('keydown', handleKeydown);
+        
+        // Animation loop
+        function gameLoop() {
+            if (!gameOver) {
+                drawGrid();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Initialize
+        initGrid();
+        gameLoop();
+        window.__OPENGAME_DEBUG__ = () => ({
+            gameState: gameOver ? 'ended' : 'playing',
+            score,
+            moves: 40 - steps,
+            level: RECIPES.filter(recipe => recipe.complete).length + 1,
+            stage: RECIPES.filter(recipe => recipe.complete).length + 1,
+            maxStage: 3,
+            totalStages: 3,
+            inputCoverage,
+            playfield: { top: 0, bottom: canvas.height, width: canvas.width, height: canvas.height },
+            activeTargets: grid.flatMap((row, y) => row.map((cell, x) => ({
+                x: x * CELL_SIZE + CELL_SIZE / 2,
+                y: y * CELL_SIZE + CELL_SIZE / 2,
+                size: CELL_SIZE,
+                reachable: true
+            }))).slice(0, 18)
+        });
+    </script>
+</body>
+</html>

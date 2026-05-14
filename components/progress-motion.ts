@@ -28,7 +28,7 @@ export function useAnimatedProgress({ basePercent, maxPercent, active, resetKey,
     if (!active || normalizedBase >= normalizedMax) return;
     const timer = setInterval(() => {
       setDisplayPercent((current) => {
-        if (current >= normalizedMax) return Math.max(normalizedBase, normalizedMax - 2);
+        if (current >= normalizedMax) return Math.max(current, normalizedBase);
         return Math.min(normalizedMax, current + 1);
       });
     }, tickMs);

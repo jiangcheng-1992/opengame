@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>超级路易吉冒险 - Super Luigi Adventure</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: linear-gradient(180deg, #1a0a2e 0%, #2d1b69 50%, #4a2c7a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Fredoka One', cursive, sans-serif;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+        
+        #gameContainer {
+            position: relative;
+            border-radius: 12px;
+            box-shadow: 
+                0 0 0 4px #2d1b69,
+                0 0 0 8px #4ecdc4,
+                0 0 40px rgba(78, 205, 196, 0.3),
+                inset 0 0 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            max-width: calc(100vw - 18px);
+            max-height: calc(100vh - 18px);
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #1a0a2e;
+            cursor: pointer;
+            width: min(calc(100vw - 18px), calc((100vh - 18px) * 1.777778));
+            height: min(calc(100vh - 18px), calc((100vw - 18px) / 1.777778));
+            max-width: calc(100vw - 18px);
+            max-height: calc(100vh - 18px);
+            touch-action: none;
+        }
+        
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="960" height="540"></canvas>
+        <div class="scanlines"></div>
+    </div>
+
+    <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Game States
+    const STATE = { TITLE: 0, PLAYING: 1, GAMEOVER: 2, WIN: 3 };
+    let gameState = STATE.TITLE;
+
+    // Input
+    const keys = {};
+    let clickStart = false;
+    const inputCoverage = { pointer: false, keyboard: false, touch: false, gesture: true };
+
+    // Colors
+    const COLORS = {
+        nightSky: '#1a0a2e',
+        purple: '#2d1b69',
+        teal: '#4ecdc4',
+        yellow: '#ffe66d',
+        ghostGreen: '#95e1d3',
+        ground: '#5d4e6d',
+        brick: '#8b7355',
+        brickDark: '#6d5a45',
+        ghost: '#9b59b6',
+        ghostDark: '#8e44ad'
+    };
+
+    // Hand-drawn effect helper
+    function wobble(x, y, w, h, offset = 2) {
+        return [
+            { x: x + Math.random()*offset, y: y + Math.random()*offset },
+            { x: x + w + Math.random()*offset, y: y + Math.random()*offset },
+            { x: x + w + Math.random()*offset, y: y + h + Math.random()*offset },
+            { x: x + Math.random()*offset, y: y + h + Math.random()*offset }
+        ];
+    }
+
+    function drawWobblyRect(x, y, w, h, color, lineColor = '#2a1a4a') {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        const pts = wobble(x, y, w, h, 1.5);
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+    }
+
+    function drawWobblyCircle(x, y, r, color, lineColor = '#2a1a4a') {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x + Math.random()*1.5, y + Math.random()*1.5, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+    }
+
+    // Game variables
+    let player, enemies, coins, blocks, particles;
+    let score = 0, lives = 3, coinCount = 0;
+    let gameTime = 0;
+
+    // Camera
+    let camera = { x: 0 };
+
+    // Level data
+    const LEVEL_WIDTH = 3200;
+    const GROUND_Y = H - 60;
+    const PIT_WIDTH = 120;
+
+    function initGame() {
+        score = 0;
+        lives = 3;
+        coinCount = 0;
+        gameTime = 0;
+        
+        camera = { x: 0 };
+        
+        player = {
+            x: 100,
+            y: GROUND_Y - 48,
+            w: 32,
+            h: 48,
+            vx: 0,
+            vy: 0,
+            onGround: false,
+            powered: false,
+            facingRight: true,
+            jumpPressed: false,
+            invincible: 0,
+            animFrame: 0
+        };
+        
+        particles = [];
+        
+        // Create platforms and pits
+        enemies = [
+            { x: 600, y: GROUND_Y - 40, w: 36, h: 36, vx: 60, startX: 520, endX: 700, alive: true, animFrame: 0 },
+            { x: 1000, y: GROUND_Y - 40, w: 36, h: 36, vx: -60, startX: 920, endX: 1100, alive: true, animFrame: 0 },
+            { x: 1500, y: GROUND_Y - 40, w: 36, h: 36, vx: 70, startX: 1420, endX: 1600, alive: true, animFrame: 0 },
+            { x: 2000, y: GROUND_Y - 40, w: 36, h: 36, vx: -50, startX: 1920, endX: 2100, alive: true, animFrame: 0 },
+            { x: 2500, y: GROUND_Y - 40, w: 36, h: 36, vx: 60, startX: 2420, endX: 2600, alive: true, animFrame: 0 }
+        ];
+        
+        coins = [];
+        // Scattered coins throughout level
+        const coinPositions = [
+            150, 200, 300, 350, 450, 500, 550, 750, 800, 850, 900, 950,
+            1100, 1150, 1250, 1350, 1450, 1550, 1650, 1750, 1850, 1950,
+            2050, 2150, 2250, 2350, 2450, 2550, 2650, 2750, 2850, 2950
+        ];
+        coinPositions.forEach(cx => {
+            coins.push({ x: cx, y: GROUND_Y - 30, collected: false, animFrame: Math.random()*Math.PI*2 });
+        });
+        
+        // Blocks
+        blocks = [
+            { x: 400, y: GROUND_Y - 100, type: 'question', hit: false, hasMushroom: true, itemGiven: false },
+            { x: 500, y: GROUND_Y - 100, type: 'brick', hit: false },
+            { x: 600, y: GROUND_Y - 100, type: 'brick', hit: false },
+            { x: 900, y: GROUND_Y - 130, type: 'question', hit: false, hasMushroom: false, coinBonus: true, itemGiven: false },
+            { x: 1200, y: GROUND_Y - 100, type: 'question', hit: false, hasMushroom: true, itemGiven: false },
+            { x: 1700, y: GROUND_Y - 130, type: 'question', hit: false, hasMushroom: false, coinBonus: true, itemGiven: false },
+            { x: 2100, y: GROUND_Y - 100, type: 'brick', hit: false },
+            { x: 2200, y: GROUND_Y - 100, type: 'brick', hit: false },
+            { x: 2300, y: GROUND_Y - 130, type: 'question', hit: false, hasMushroom: true, itemGiven: false },
+            { x: 2700, y: GROUND_Y - 100, type: 'question', hit: false, hasMushroom: false, coinBonus: true, itemGiven: false }
+        ];
+        
+        gameState = STATE.PLAYING;
+    }
+
+    // Princess position
+    const PRINCESS_X = LEVEL_WIDTH - 150;
+
+    function spawnParticles(x, y, color, count = 8) {
+        for(let i = 0; i < count; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 200,
+                vy: -Math.random() * 200 - 50,
+                life: 1,
+                color,
+                size: 3 + Math.random() * 4
+            });
+        }
+    }
+
+    function spawnCoinParticles(x, y) {
+        spawnParticles(x, y, COLORS.yellow, 12);
+    }
+
+    function spawnStompParticles(x, y) {
+        spawnParticles(x, y, COLORS.ghost, 10);
+        spawnParticles(x, y, '#fff', 6);
+    }
+
+    function updateParticles(dt) {
+        for(let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 400 * dt;
+            p.life -= dt * 2;
+            if(p.life <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function drawParticles() {
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x - camera.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        });
+    }
+
+    function isOnPlatform(x, y, w, h, vx, vy) {
+        // Ground check
+        if(y + h >= GROUND_Y && vy >= 0) {
+            return { onGround: true, groundY: GROUND_Y };
+        }
+        
+        // Block collision (from above only when falling)
+        for(const block of blocks) {
+            if(block.hit && block.type === 'brick') continue;
+            const bx = block.x, by = block.y, bw = 40, bh = 40;
+            if(x + w > bx && x < bx + bw && y + h >= by && y + h <= by + 20 && vy >= 0) {
+                return { onGround: true, groundY: by };
+            }
+        }
+        
+        return { onGround: false };
+    }
+
+    function hitBlock(block) {
+        if(block.type === 'brick') {
+            block.hit = true;
+            spawnParticles(block.x + 20, block.y, COLORS.brick, 6);
+        } else if(block.type === 'question' && !block.itemGiven) {
+            block.hit = true;
+            block.itemGiven = true;
+            if(block.hasMushroom) {
+                // Mushroom would spawn here
+                lives = Math.min(3, lives + 1);
+                spawnParticles(block.x + 20, block.y, '#e74c3c', 10);
+                spawnParticles(block.x + 20, block.y, '#fff', 8);
+            } else if(block.coinBonus) {
+                coinCount++;
+                score += 50;
+                spawnCoinParticles(block.x + 20, block.y - 20);
+            }
+        }
+    }
+
+    function checkBlockBump(px, py, pw, ph, vy) {
+        if(vy < 0) { // Jumping up
+            for(const block of blocks) {
+                if(block.hit && block.type === 'brick') continue;
+                const bx = block.x, by = block.y, bw = 40, bh = 40;
+                if(px + pw > bx && px < bx + bw && py <= by + bh && py >= by) {
+                    hitBlock(block);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function drawPlayer() {
+        if(player.invincible > 0 && Math.floor(player.invincible * 10) % 2 === 0) return;
+        
+        const px = player.x - camera.x;
+        const py = player.y;
+        const pw = player.w;
+        const ph = player.h;
+        
+        ctx.save();
+        if(!player.facingRight) {
+            ctx.translate(px + pw/2, 0);
+            ctx.scale(-1, 1);
+            ctx.translate(-(px + pw/2), 0);
+        }
+        
+        // Body
+        drawWobblyRect(px + 4, py + ph * 0.3, pw - 8, ph * 0.5, '#3498db', '#2a5a8a');
+        
+        // Overalls straps
+        ctx.fillStyle = '#2980b9';
+        ctx.fillRect(px + 8, py + ph * 0.35, 6, ph * 0.25);
+        ctx.fillRect(px + pw - 14, py + ph * 0.35, 6, ph * 0.25);
+        
+        // Head
+        const headSize = pw * 0.7;
+        const headX = px + pw/2 - headSize/2;
+        const headY = py + 2;
+        drawWobblyCircle(headX + headSize/2, headY + headSize/2, headSize/2, '#f5d0c5', '#d4a59a');
+        
+        // Hat (green Luigi style)
+        ctx.fillStyle = '#27ae60';
+        ctx.beginPath();
+        ctx.ellipse(headX + headSize/2, headY + 8, headSize/2 + 2, headSize/3, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.strokeStyle = '#1e8449';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Hat brim
+        ctx.fillStyle = '#27ae60';
+        ctx.fillRect(headX + headSize/2 - headSize/2 - 2, headY + 10, headSize + 4, 6);
+        
+        // Eyes
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.ellipse(headX + headSize * 0.35, headY + headSize * 0.45, 5, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(headX + headSize * 0.65, headY + headSize * 0.45, 5, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.arc(headX + headSize * 0.35 + 1, headY + headSize * 0.45, 2.5, 0, Math.PI * 2);
+        ctx.arc(headX + headSize * 0.65 + 1, headY + headSize * 0.45, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Mustache
+        ctx.fillStyle = '#5d4037';
+        ctx.beginPath();
+        ctx.ellipse(headX + headSize/2 - 4, headY + headSize * 0.7, 8, 4, -0.2, 0, Math.PI * 2);
+        ctx.ellipse(headX + headSize/2 + 4, headY + headSize * 0.7, 8, 4, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Legs (animated)
+        const legOffset = player.onGround ? Math.sin(player.animFrame * 8) * 3 : 0;
+        ctx.fillStyle = '#2980b9';
+        ctx.fillRect(px + 8, py + ph * 0.8 + legOffset, 8, ph * 0.2);
+        ctx.fillRect(px + pw - 16, py + ph * 0.8 - legOffset, 8, ph * 0.2);
+        
+        // Shoes
+        ctx.fillStyle = '#8b4513';
+        ctx.fillRect(px + 4, py + ph - 8 + legOffset, 14, 8);
+        ctx.fillRect(px + pw - 18, py + ph - 8 - legOffset, 14, 8);
+        
+        ctx.restore();
+    }
+
+    function drawEnemy(e) {
+        if(!e.alive) return;
+        
+        const ex = e.x - camera.x;
+        const ey = e.y;
+        const er = e.w / 2;
+        
+        // Ghost body
+        ctx.fillStyle = COLORS.ghost;
+        ctx.beginPath();
+        ctx.arc(ex + er, ey + er, er, Math.PI, 0);
+        ctx.lineTo(ex + e.w, ey + e.h);
+        
+        // Wavy bottom
+        const wave = Math.sin(e.animFrame * 3) * 3;
+        for(let i = 0; i <= 4; i++) {
+            const wx = ex + e.w - (i * e.w / 4);
+            const wy = ey + e.h + (i % 2 === 0 ? wave : -wave);
+            ctx.lineTo(wx, wy);
+        }
+        ctx.lineTo(ex, ey + e.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = COLORS.ghostDark;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        
+        // Eyes
+        const eyeY = ey + er * 0.6;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.ellipse(ex + er * 0.6, eyeY, 7, 9, 0, 0, Math.PI * 2);
+        ctx.ellipse(ex + er * 1.4, eyeY, 7, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Pupils
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.arc(ex + er * 0.6 + 1, eyeY, 4, 0, Math.PI * 2);
+        ctx.arc(ex + er * 1.4 + 1, eyeY, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Angry eyebrows
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(ex + er * 0.3, eyeY - 10);
+        ctx.lineTo(ex + er * 0.9, eyeY - 6);
+        ctx.moveTo(ex + er * 1.7, eyeY - 10);
+        ctx.lineTo(ex + er * 1.1, eyeY - 6);
+        ctx.stroke();
+    }
+
+    function drawCoin(c) {
+        if(c.collected) return;
+        
+        const cx = c.x - camera.x;
+        const cy = c.y + Math.sin(c.animFrame) * 3;
+        
+        // Coin glow
+        ctx.fillStyle = 'rgba(255, 230, 109, 0.3)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Coin
+        ctx.fillStyle = COLORS.yellow;
+        drawWobblyCircle(cx, cy, 12, COLORS.yellow, '#d4a017');
+        
+        // Shine
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(cx - 3, cy - 3, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // $ symbol
+        ctx.fillStyle = '#d4a017';
+        ctx.font = 'bold 12px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText('$', cx + 1, cy + 4);
+    }
+
+    function drawBlock(block) {
+        const bx = block.x - camera.x;
+        const by = block.y;
+        
+        if(block.type === 'brick') {
+            if(block.hit) return;
+            drawWobblyRect(bx, by, 40, 40, COLORS.brick, '#6d5a45');
+            // Brick pattern
+            ctx.strokeStyle = '#6d5a45';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(bx, by + 20);
+            ctx.lineTo(bx + 40, by + 20);
+            ctx.moveTo(bx + 20, by);
+            ctx.lineTo(bx + 20, by + 20);
+            ctx.moveTo(bx + 10, by + 20);
+            ctx.lineTo(bx + 10, by + 40);
+            ctx.moveTo(bx + 30, by + 20);
+            ctx.lineTo(bx + 30, by + 40);
+            ctx.stroke();
+        } else {
+            // Question block
+            const color = block.itemGiven ? '#8b7355' : '#f39c12';
+            drawWobblyRect(bx, by, 40, 40, color, block.itemGiven ? '#6d5a45' : '#d68910');
+            
+            if(!block.itemGiven) {
+                // Question mark
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Fredoka One';
+                ctx.textAlign = 'center';
+                ctx.fillText('?', bx + 20, by + 30);
+                
+                // Animated highlight
+                const shimmer = Math.sin(gameTime * 4) * 0.3 + 0.7;
+                ctx.fillStyle = `rgba(255, 255, 255, ${shimmer * 0.3})`;
+                ctx.fillRect(bx + 5, by + 5, 15, 15);
+            }
+        }
+    }
+
+    function drawHeart(x, y, filled) {
+        ctx.fillStyle = filled ? '#e74c3c' : 'rgba(231, 76, 60, 0.3)';
+        ctx.beginPath();
+        ctx.moveTo(x, y + 5);
+        ctx.bezierCurveTo(x, y, x - 10, y, x - 10, y + 5);
+        ctx.bezierCurveTo(x - 10, y + 12, x, y + 18, x, y + 22);
+        ctx.bezierCurveTo(x, y + 18, x + 10, y + 12, x + 10, y + 5);
+        ctx.bezierCurveTo(x + 10, y, x, y, x, y + 5);
+        ctx.fill();
+        if(filled) {
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    }
+
+    function drawHUD() {
+        // Hearts
+        for(let i = 0; i < 3; i++) {
+            drawHeart(20 + i * 35, 15, i < lives);
+        }
+        
+        // Score
+        ctx.fillStyle = '#fff';
+        ctx.font = '22px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(`分数: ${score}`, W / 2, 38);
+        
+        // Coins
+        ctx.textAlign = 'right';
+        ctx.fillStyle = COLORS.yellow;
+        ctx.fillText(`🪙 ${coinCount}`, W - 20, 38);
+        
+        // Progress bar
+        const progress = Math.min(1, player.x / (PRINCESS_X - 100));
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(W/2 - 100, 52, 200, 8);
+        ctx.fillStyle = COLORS.teal;
+        ctx.fillRect(W/2 - 100, 52, 200 * progress, 8);
+    }
+
+    function drawBackground() {
+        // Night sky gradient
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#1a0a2e');
+        grad.addColorStop(0.5, '#2d1b69');
+        grad.addColorStop(1, '#4a2c7a');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+        
+        // Moon
+        ctx.fillStyle = '#f5f5dc';
+        ctx.beginPath();
+        ctx.arc(W - 120 + (camera.x * 0.05) % 50, 80, 50, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#e8e8c8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Distant haunted houses (parallax)
+        const bgOffset = camera.x * 0.2;
+        ctx.fillStyle = '#1a0a2e';
+        for(let i = 0; i < 5; i++) {
+            const hx = (i * 400 - bgOffset % 400 + 200) % (W + 400) - 100;
+            const hy = H - 200 - Math.sin(i * 1.5) * 30;
+            ctx.beginPath();
+            ctx.moveTo(hx, hy + 100);
+            ctx.lineTo(hx + 30, hy);
+            ctx.lineTo(hx + 60, hy + 100);
+            ctx.lineTo(hx + 20, hy + 100);
+            ctx.lineTo(hx + 20, hy + 40);
+            ctx.lineTo(hx + 50, hy + 40);
+            ctx.lineTo(hx + 50, hy + 100);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Windows
+            ctx.fillStyle = 'rgba(255, 230, 109, 0.6)';
+            ctx.fillRect(hx + 25, hy + 50, 10, 15);
+            ctx.fillStyle = '#1a0a2e';
+        }
+        
+        // Mid-ground trees (parallax)
+        const treeOffset = camera.x * 0.4;
+        ctx.fillStyle = '#2d1b69';
+        for(let i = 0; i < 8; i++) {
+            const tx = (i * 250 - treeOffset % 500 + 500) % (W + 250) - 50;
+            const ty = H - 120 - Math.sin(i * 2) * 20;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty + 60);
+            ctx.lineTo(tx + 20, ty);
+            ctx.lineTo(tx + 40, ty + 60);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    function drawGround() {
+        // Main ground
+        drawWobblyRect(0, GROUND_Y, W + 100, H - GROUND_Y, COLORS.ground, '#4a3d5a');
+        
+        // Grass tufts
+        ctx.fillStyle = '#4ecdc4';
+        for(let gx = -camera.x % 40; gx < W + 40; gx += 40) {
+            ctx.beginPath();
+            ctx.moveTo(gx, GROUND_Y);
+            ctx.lineTo(gx + 5, GROUND_Y - 12);
+            ctx.lineTo(gx + 10, GROUND_Y);
+            ctx.lineTo(gx + 15, GROUND_Y - 8);
+            ctx.lineTo(gx + 20, GROUND_Y);
+            ctx.fill();
+        }
+        
+        // Pits (gaps in ground)
+        ctx.fillStyle = '#0a0515';
+        const pitPositions = [800, 1400, 1900, 2400];
+        for(const px of pitPositions) {
+            const pitX = px - camera.x;
+            if(pitX > -PIT_WIDTH && pitX < W) {
+                ctx.fillRect(pitX, GROUND_Y, PIT_WIDTH, H - GROUND_Y);
+            }
+        }
+    }
+
+    function drawPrincess() {
+        const px = PRINCESS_X - camera.x;
+        if(px < -50 || px > W + 50) return;
+        
+        const py = GROUND_Y - 64;
+        
+        // Dress
+        ctx.fillStyle = '#e91e63';
+        ctx.beginPath();
+        ctx.moveTo(px + 20, py + 30);
+        ctx.quadraticCurveTo(px - 10, py + 64, px + 20, py + 64);
+        ctx.quadraticCurveTo(px + 30, py + 64, px + 40, py + 64);
+        ctx.quadraticCurveTo(px + 70, py + 64, px + 50, py + 30);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#c2185b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Head
+        drawWobblyCircle(px + 35, py + 18, 16, '#f5d0c5', '#d4a59a');
+        
+        // Crown
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.moveTo(px + 20, py + 8);
+        ctx.lineTo(px + 25, py - 5);
+        ctx.lineTo(px + 35, py + 5);
+        ctx.lineTo(px + 45, py - 5);
+        ctx.lineTo(px + 50, py + 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ffa000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        
+        // Eyes
+        ctx.fillStyle = '#3498db';
+        ctx.beginPath();
+        ctx.ellipse(px + 28, py + 18, 4, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(px + 42, py + 18, 4, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Smile
+        ctx.strokeStyle = '#c0392b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px + 35, py + 22, 6, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+        
+        // Sparkles around princess
+        if(Math.random() > 0.7) {
+            spawnParticles(px + 35, py + 20, '#ffd700', 1);
+        }
+    }
+
+    function drawTitleScreen() {
+        // Dark overlay
+        ctx.fillStyle = 'rgba(26, 10, 46, 0.85)';
+        ctx.fillRect(0, 0, W, H);
+        
+        // Title
+        ctx.fillStyle = COLORS.teal;
+        ctx.font = 'bold 56px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText('超级路易吉冒险', W/2, 150);
+        
+        ctx.fillStyle = COLORS.yellow;
+        ctx.font = '28px Fredoka One';
+        ctx.fillText('Super Luigi Adventure', W/2, 200);
+        
+        // Subtitle
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Fredoka One';
+        ctx.fillText('🏰 救公主闯关冒险 🏰', W/2, 260);
+        
+        // Start button
+        const btnX = W/2 - 100;
+        const btnY = 320;
+        const btnW = 200;
+        const btnH = 60;
+        
+        const hover = mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH;
+        drawWobblyRect(btnX, btnY, btnW, btnH, hover ? COLORS.yellow : COLORS.teal, '#2a7a74');
+        
+        ctx.fillStyle = hover ? COLORS.purple : '#fff';
+        ctx.font = 'bold 32px Fredoka One';
+        ctx.fillText('开始游戏', W/2, btnY + 40);
+        
+        // Instructions
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '16px Fredoka One';
+        ctx.fillText('方向键/WASD 移动 | 空格/上/W 跳跃', W/2, 430);
+        ctx.fillText('踩敌人击杀 | 顶砖块获得道具', W/2, 455);
+        ctx.fillText('按 R 键重新开始', W/2, 480);
+        
+        // Ghost decoration
+        const ghostX = W - 150 + Math.sin(gameTime * 2) * 20;
+        const ghostY = 300 + Math.cos(gameTime * 1.5) * 10;
+        ctx.fillStyle = 'rgba(155, 89, 182, 0.6)';
+        ctx.beginPath();
+        ctx.arc(ghostX, ghostY, 40, Math.PI, 0);
+        ctx.lineTo(ghostX + 40, ghostY + 50);
+        for(let i = 0; i < 4; i++) {
+            const wx = ghostX + 40 - (i * 20);
+            const wy = ghostY + 50 + (i % 2 === 0 ? 10 : 0);
+            ctx.lineTo(wx, wy);
+        }
+        ctx.lineTo(ghostX - 40, ghostY + 50);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Ghost eyes
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.ellipse(ghostX - 12, ghostY - 5, 8, 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(ghostX + 12, ghostY - 5, 8, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawGameOver() {
+        ctx.fillStyle = 'rgba(26, 10, 46, 0.9)';
+        ctx.fillRect(0, 0, W, H);
+        
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 64px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText('游戏结束', W/2, 200);
+        
+        ctx.fillStyle = COLORS.yellow;
+        ctx.font = '32px Fredoka One';
+        ctx.fillText(`最终分数: ${score}`, W/2, 280);
+        ctx.fillText(`金币: ${coinCount}`, W/2, 330);
+        
+        // Restart button
+        const btnX = W/2 - 100;
+        const btnY = 380;
+        const btnW = 200;
+        const btnH = 60;
+        
+        const hover = mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH;
+        drawWobblyRect(btnX, btnY, btnW, btnH, hover ? COLORS.yellow : COLORS.teal, '#2a7a74');
+        
+        ctx.fillStyle = hover ? COLORS.purple : '#fff';
+        ctx.font = 'bold 28px Fredoka One';
+        ctx.fillText('再玩一次', W/2, btnY + 40);
+        
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '18px Fredoka One';
+        ctx.fillText('按 R 或 点击按钮重新开始', W/2, 480);
+    }
+
+    function drawWinScreen() {
+        ctx.fillStyle = 'rgba(26, 10, 46, 0.85)';
+        ctx.fillRect(0, 0, W, H);
+        
+        ctx.fillStyle = COLORS.yellow;
+        ctx.font = 'bold 64px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎉 恭喜通关! 🎉', W/2, 180);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = '32px Fredoka One';
+        ctx.fillText(`最终分数: ${score}`, W/2, 260);
+        ctx.fillText(`收集金币: ${coinCount}`, W/2, 310);
+        
+        // Rating
+        let rating = '⭐';
+        if(score >= 2000) rating = '⭐⭐⭐';
+        else if(score >= 1000) rating = '⭐⭐';
+        ctx.fillStyle = COLORS.yellow;
+        ctx.font = '48px Fredoka One';
+        ctx.fillText(rating, W/2, 380);
+        
+        // Play again button
+        const btnX = W/2 - 120;
+        const btnY = 420;
+        const btnW = 240;
+        const btnH = 60;
+        
+        const hover = mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH;
+        drawWobblyRect(btnX, btnY, btnW, btnH, hover ? COLORS.teal : COLORS.yellow, '#2a7a74');
+        
+        ctx.fillStyle = hover ? '#fff' : COLORS.purple;
+        ctx.font = 'bold 28px Fredoka One';
+        ctx.fillText('再玩一次', W/2, btnY + 40);
+        
+        // Celebration particles
+        if(Math.random() > 0.8) {
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
+            spawnParticles(Math.random() * W, Math.random() * H * 0.5, colors[Math.floor(Math.random() * colors.length)], 3);
+        }
+    }
+
+    // Mouse position tracking
+    let mouseX = 0, mouseY = 0;
+
+    canvas.addEventListener('mousemove', e => {
+        inputCoverage.pointer = true;
+        const rect = canvas.getBoundingClientRect();
+        mouseX = (e.clientX - rect.left) * (W / rect.width);
+        mouseY = (e.clientY - rect.top) * (H / rect.height);
+    });
+
+    canvas.addEventListener('click', e => {
+        inputCoverage.pointer = true;
+        if(gameState === STATE.TITLE) {
+            initGame();
+        } else if(gameState === STATE.GAMEOVER || gameState === STATE.WIN) {
+            initGame();
+        }
+    });
+
+    canvas.addEventListener('pointerdown', e => {
+        inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+        if(gameState === STATE.TITLE || gameState === STATE.GAMEOVER || gameState === STATE.WIN) {
+            initGame();
+        }
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (W / rect.width);
+        const y = (e.clientY - rect.top) * (H / rect.height);
+        if(gameState === STATE.PLAYING) {
+            if(x < W * 0.34) keys['ArrowLeft'] = true;
+            else if(x > W * 0.66) keys['ArrowRight'] = true;
+            if(y < H * 0.55) keys['Space'] = true;
+        }
+        e.preventDefault();
+    });
+
+    canvas.addEventListener('pointerup', e => {
+        inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+        keys['ArrowLeft'] = false;
+        keys['ArrowRight'] = false;
+        keys['Space'] = false;
+        e.preventDefault();
+    });
+
+    canvas.addEventListener('touchstart', () => { inputCoverage.touch = true; }, { passive: false });
+    canvas.addEventListener('touchend', () => { inputCoverage.touch = true; }, { passive: false });
+
+    document.addEventListener('keydown', e => {
+        inputCoverage.keyboard = true;
+        keys[e.code] = true;
+        if(e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            e.preventDefault();
+            if(gameState === STATE.TITLE) {
+                initGame();
+            }
+        }
+        if(e.code === 'KeyR') {
+            initGame();
+        }
+    });
+
+    document.addEventListener('keyup', e => {
+        keys[e.code] = false;
+    });
+
+    function update(dt) {
+        if(gameState !== STATE.PLAYING) return;
+        
+        gameTime += dt;
+        
+        // Player movement
+        const moveSpeed = 200;
+        player.vx = 0;
+        
+        if(keys['ArrowLeft'] || keys['KeyA']) {
+            player.vx = -moveSpeed;
+            player.facingRight = false;
+        }
+        if(keys['ArrowRight'] || keys['KeyD']) {
+            player.vx = moveSpeed;
+            player.facingRight = true;
+        }
+        
+        // Jump
+        if((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.onGround && !player.jumpPressed) {
+            player.vy = -450;
+            player.onGround = false;
+            player.jumpPressed = true;
+        }
+        if(!keys['Space'] && !keys['ArrowUp'] && !keys['KeyW']) {
+            player.jumpPressed = false;
+        }
+        
+        // Gravity
+        player.vy += 900 * dt;
+        player.vy = Math.min(player.vy, 600);
+        
+        // Apply velocity
+        player.x += player.vx * dt;
+        player.y += player.vy * dt;
+        
+        // Animation
+        if(player.onGround) {
+            player.animFrame += dt * Math.abs(player.vx) * 0.05;
+        }
+        
+        // Ground collision
+        const groundCheck = isOnPlatform(player.x, player.y, player.w, player.h, player.vx, player.vy);
+        if(groundCheck.onGround && player.vy >= 0) {
+            player.y = groundCheck.groundY - player.h;
+            player.vy = 0;
+            player.onGround = true;
+        } else {
+            player.onGround = false;
+        }
+        
+        // Pit detection
+        const pitPositions = [800, 1400, 1900, 2400];
+        for(const px of pitPositions) {
+            if(player.x + player.w > px && player.x < px + PIT_WIDTH && player.y > H) {
+                lives = 0;
+            }
+        }
+        
+        // Block bump
+        checkBlockBump(player.x, player.y, player.w, player.h, player.vy);
+   
+        // Boundary
+        player.x = Math.max(0, Math.min(player.x, LEVEL_WIDTH - player.w));
+        
+        // Enemy collision & update
+        enemies.forEach(e => {
+            if(!e.alive) return;
+            
+            e.animFrame += dt;
+            e.x += e.vx * dt;
+            
+            if(e.x <= e.startX || e.x >= e.endX) {
+                e.vx *= -1;
+            }
+            
+            // Player collision
+            const px = player.x, py = player.y, pw = player.w, ph = player.h;
+            const ex = e.x, ey = e.y, ew = e.w, eh = e.h;
+            
+            if(px + pw > ex + 5 && px < ex + ew - 5 && py + ph > ey + 5 && py < ey + eh - 5) {
+                // Check if stomping
+                if(player.vy > 0 && py + ph - 10 < ey + eh/2) {
+                    // Stomp!
+                    e.alive = false;
+                    player.vy = -250;
+                    score += 100;
+                    spawnStompParticles(e.x + ew/2, e.y + eh/2);
+                } else if(player.invincible <= 0) {
+                    // Hurt
+                    lives--;
+                    player.invincible = 1.5;
+                    player.vy = -200;
+                    player.vx = (player.x < e.x ? -1 : 1) * 150;
+                    spawnParticles(player.x + pw/2, player.y + ph/2, '#e74c3c', 6);
+                }
+            }
+        });
+        
+        // Coin collection
+        coins.forEach(c => {
+            if(c.collected) return;
+            c.animFrame += dt * 3;
+            
+            const dx = (player.x + player.w/2) - c.x;
+            const dy = (player.y + player.h/2) - c.y;
+            if(Math.sqrt(dx*dx + dy*dy) < 30) {
+                c.collected = true;
+                coinCount++;
+                score += 10;
+                spawnCoinParticles(c.x, c.y);
+            }
+        });
+        
+        // Princess check
+        if(player.x + player.w > PRINCESS_X && player.x < PRINCESS_X + 60) {
+            gameState = STATE.WIN;
+            score += 500;
+        }
+        
+        // Lives check
+        if(lives <= 0) {
+            gameState = STATE.GAMEOVER;
+        }
+        
+        // Invincibility timer
+        if(player.invincible > 0) {
+            player.invincible -= dt;
+        }
+        
+        // Camera follow
+        const targetCam = player.x - W/3;
+        camera.x += (targetCam - camera.x) * 5 * dt;
+        camera.x = Math.max(0, Math.min(camera.x, LEVEL_WIDTH - W));
+        
+        // Update particles
+        updateParticles(dt);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+        
+        if(gameState === STATE.TITLE) {
+            drawBackground();
+            drawTitleScreen();
+        } else if(gameState === STATE.PLAYING || gameState === STATE.GAMEOVER || gameState === STATE.WIN) {
+            drawBackground();
+            drawGround();
+            
+            // Draw blocks
+            blocks.forEach(drawBlock);
+            
+            // Draw coins
+            coins.forEach(drawCoin);
+            
+            // Draw princess
+            drawPrincess();
+            
+            // Draw enemies
+            enemies.forEach(drawEnemy);
+            
+            // Draw player
+            drawPlayer();
+            
+            // Draw particles
+            drawParticles();
+            
+            // Draw HUD
+            drawHUD();
+            
+            if(gameState === STATE.GAMEOVER) {
+                drawGameOver();
+            } else if(gameState === STATE.WIN) {
+                drawWinScreen();
+                updateParticles(0.016);
+            }
+        }
+    }
+
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+        const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+        lastTime = timestamp;
+        
+        gameTime += dt * 0;
+        
+        update(dt);
+        draw();
+        
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Start game
+    requestAnimationFrame(gameLoop);
+    window.__OPENGAME_DEBUG__ = () => ({
+        gameState: Object.keys(STATE).find(key => STATE[key] === gameState) || String(gameState),
+        score,
+        lives,
+        level: Math.max(1, Math.ceil((player ? player.x : 0) / (LEVEL_WIDTH / 4))),
+        stage: Math.max(1, Math.ceil((player ? player.x : 0) / (LEVEL_WIDTH / 4))),
+        maxLevel: 4,
+        totalLevels: 4,
+        maxStage: 4,
+        totalStages: 4,
+        coinCount,
+        inputCoverage,
+        playfield: { top: 0, bottom: H, width: W, height: H },
+        activeTargets: [
+            player && { x: player.x - camera.x, y: player.y, size: player.h, reachable: true },
+            ...enemies.filter(enemy => enemy.alive).slice(0, 6).map(enemy => ({
+                x: enemy.x - camera.x,
+                y: enemy.y,
+                size: enemy.h,
+                reachable: enemy.x - camera.x > -80 && enemy.x - camera.x < W + 80
+            }))
+        ].filter(Boolean)
+    });
+    </script>
+</body>
+</html>

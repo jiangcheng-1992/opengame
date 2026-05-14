@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四花色蜘蛛纸牌 - Spider Solitaire</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Press Start 2P', monospace;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+        
+        #gameContainer {
+            position: relative;
+            background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+            border: 4px solid #4B0082;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(75, 0, 130, 0.5), inset 0 0 60px rgba(0,0,0,0.3);
+            max-width: calc(100vw - 12px);
+            max-height: calc(100vh - 12px);
+        }
+        
+        #gameCanvas {
+            display: block;
+            image-rendering: pixelated;
+            cursor: pointer;
+            width: min(calc(100vw - 20px), calc((100vh - 20px) * 1.333333));
+            height: min(calc(100vh - 20px), calc((100vw - 20px) / 1.333333));
+            max-width: calc(100vw - 20px);
+            max-height: calc(100vh - 20px);
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="960" height="720"></canvas>
+    </div>
+    
+    <script>
+    // ==================== GAME CONSTANTS ====================
+    const CANVAS_WIDTH = 960;
+    const CANVAS_HEIGHT = 720;
+    const CARD_WIDTH = 68;
+    const CARD_HEIGHT = 96;
+    const CARD_GAP_X = 4;
+    const COLUMN_START_X = 40;
+    const COLUMN_START_Y = 120;
+    const FACE_DOWN_OVERLAP = 18;
+    const FACE_UP_OVERLAP = 26;
+    const STOCK_X = 40;
+    const STOCK_Y = 560;
+    const FOUNDATION_X = 200;
+    const FOUNDATION_Y = 560;
+    const FOUNDATION_SLOT_WIDTH = 72;
+
+    const COLORS = {
+        indigo: '#4B0082',
+        indigoLight: '#6B5B95',
+        moss: '#6B8E23',
+        mossDark: '#556B2F',
+        gold: '#DAA520',
+        goldBright: '#FFD700',
+        coral: '#E74C3C',
+        coralBright: '#FF6F61',
+        parchment: '#F5DEB3',
+        parchmentLight: '#FAEBD7',
+        cardBack: '#2E5A3C',
+        cardBackPattern: '#3D7A4D'
+    };
+
+    const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
+    const VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+    // ==================== GAME STATE ====================
+    let canvas, ctx;
+    let gameState = 'MENU';
+    let columns = [];
+    let stock = [];
+    let selectedCards = [];
+    let selectedColIndex = -1;
+    let moves = 0;
+    let score = 500;
+    let dealsLeft = 5;
+    let completeSequences = 0;
+    let particles = [];
+    let history = [];
+    let backgroundImage = null;
+    let hoverColumn = -1;
+    let pointerStart = null;
+    const inputCoverage = { pointer: false, keyboard: false, touch: false };
+
+    // ==================== INITIALIZATION ====================
+    function init() {
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        loadAssets();
+        setupEventListeners();
+        gameLoop();
+    }
+
+    function loadAssets() {
+        backgroundImage = new Image();
+        backgroundImage.crossOrigin = 'anonymous';
+        backgroundImage.src = 'https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp4ttljd0001l5044q8zltte/art/background.png';
+        backgroundImage.onerror = () => { backgroundImage = null; };
+    }
+
+    function setupEventListeners() {
+        canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('pointerdown', handlePointerDown);
+        canvas.addEventListener('pointerup', handlePointerUp);
+        canvas.addEventListener('touchstart', () => { inputCoverage.touch = true; }, { passive: false });
+        canvas.addEventListener('touchend', () => { inputCoverage.touch = true; }, { passive: false });
+        canvas.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('keydown', handleKeyDown);
+    }
+
+    // ==================== CARD CLASS ====================
+    class Card {
+        constructor(suit, value) {
+            this.suit = suit;
+            this.value = value;
+            this.faceUp = false;
+            this.x = 0;
+            this.y = 0;
+            this.animating = false;
+        }
+
+        get numericValue() {
+            return VALUES.indexOf(this.value);
+        }
+
+        get color() {
+            return (this.suit === 'hearts' || this.suit === 'diamonds') ? 'red' : 'black';
+        }
+    }
+
+    // ==================== GAME LOGIC ====================
+    function createDeck() {
+        const deck = [];
+        // Create 2 full decks (104 cards total for 4-suit Spider)
+        for (let d = 0; d < 2; d++) {
+            for (let s = 0; s < 4; s++) {
+                for (let v = 0; v < 13; v++) {
+                    deck.push(new Card(SUITS[s], VALUES[v]));
+                }
+            }
+        }
+        return deck;
+    }
+
+    function shuffleDeck(deck) {
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+    }
+
+    function dealInitialCards() {
+        columns = Array(10).fill(null).map(() => []);
+        const deck = shuffleDeck(createDeck());
+        
+        const dealPattern = [5, 5, 5, 5, 6, 6, 6, 6, 5, 5];
+        let cardIndex = 0;
+        
+        for (let col = 0; col < 10; col++) {
+            const numCards = dealPattern[col];
+            for (let row = 0; row < numCards; row++) {
+                const card = deck[cardIndex++];
+                card.faceUp = (row === numCards - 1);
+                card.x = COLUMN_START_X + col * (CARD_WIDTH + CARD_GAP_X);
+                card.y = COLUMN_START_Y + row * FACE_UP_OVERLAP;
+                columns[col].push(card);
+            }
+        }
+        
+        stock = deck.slice(54);
+        stock.forEach(card => {
+            card.faceUp = false;
+            card.x = STOCK_X;
+            card.y = STOCK_Y;
+        });
+        
+        dealsLeft = 5;
+        completeSequences = 0;
+        moves = 0;
+        score = 500;
+        selectedCards = [];
+        selectedColIndex = -1;
+        history = [];
+        particles = [];
+    }
+
+    function canMoveSequence(cards) {
+        if (cards.length === 0) return false;
+        if (!cards[0].faceUp) return false;
+        
+        for (let i = 0; i < cards.length - 1; i++) {
+            if (cards[i].numericValue !== cards[i + 1].numericValue + 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function canPlaceOn(card, targetColumn) {
+        if (targetColumn.length === 0) return true;
+        const topCard = targetColumn[targetColumn.length - 1];
+        return topCard.faceUp && card.numericValue === topCard.numericValue + 1;
+    }
+
+    function checkForCompleteSequence(colIndex) {
+        const column = columns[colIndex];
+        if (column.length < 13) return false;
+        
+        const top13 = column.slice(-13);
+        if (!top13.every(c => c.faceUp)) return false;
+        
+        let expectedValue = 12;
+        for (let i = 0; i < 13; i++) {
+            if (top13[i].numericValue !== expectedValue) return false;
+            expectedValue--;
+        }
+        
+        const suit = top13[0].suit;
+        if (!top13.every(c => c.suit === suit)) return false;
+        
+        return true;
+    }
+
+    function dealFromStock() {
+        if (dealsLeft <= 0 || stock.length < 10) return false;
+        
+        saveState();
+        
+        const cardsToDeal = stock.splice(-10);
+        cardsToDeal.forEach((card, i) => {
+            card.faceUp = true;
+            card.animating = true;
+            const targetCol = columns[i];
+            card.x = COLUMN_START_X + i * (CARD_WIDTH + CARD_GAP_X);
+            card.y = COLUMN_START_Y + targetCol.length * FACE_UP_OVERLAP;
+            targetCol.push(card);
+            
+            setTimeout(() => { card.animating = false; }, 300 + i * 50);
+        });
+        
+        dealsLeft--;
+        moves++;
+        updateScore(-2);
+        
+        setTimeout(() => checkGameState(), 600);
+        return true;
+    }
+
+    function saveState() {
+        const state = {
+            columns: columns.map(col => col.map(card => ({
+                suit: card.suit,
+                value: card.value,
+                faceUp: card.faceUp
+            }))),
+            stock: stock.map(card => ({
+                suit: card.suit,
+                value: card.value,
+                faceUp: card.faceUp
+            })),
+            moves: moves,
+            score: score,
+            dealsLeft: dealsLeft,
+            completeSequences: completeSequences
+        };
+        history.push(state);
+        if (history.length > 10) history.shift();
+    }
+
+    function undoMove() {
+        if (history.length === 0) return;
+        
+        const state = history.pop();
+        columns = state.columns.map(col => col.map(c => {
+            const card = new Card(c.suit, c.value);
+            card.faceUp = c.faceUp;
+            return card;
+        }));
+        
+        stock = state.stock.map(c => {
+            const card = new Card(c.suit, c.value);
+            card.faceUp = c.faceUp;
+            return card;
+        });
+        
+        moves = state.moves;
+        score = state.score;
+        dealsLeft = state.dealsLeft;
+        completeSequences = state.completeSequences;
+        selectedCards = [];
+        selectedColIndex = -1;
+    }
+
+    function updateScore(delta) {
+        score = Math.max(0, score + delta);
+    }
+
+    function restartGame() {
+        dealInitialCards();
+        gameState = 'PLAYING';
+    }
+
+    function clearSelection() {
+        selectedCards = [];
+        selectedColIndex = -1;
+    }
+
+    // ==================== INPUT HANDLING ====================
+    function handleClick(e) {
+        inputCoverage.pointer = true;
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        
+        if (gameState === 'MENU') {
+            restartGame();
+            return;
+        }
+        
+        if (gameState === 'VICTORY' || gameState === 'DEFEAT') {
+            restartGame();
+            return;
+        }
+        
+        if (gameState !== 'PLAYING') return;
+        
+        // Check stock click
+        if (x >= STOCK_X && x <= STOCK_X + CARD_WIDTH + 40 &&
+            y >= STOCK_Y && y <= STOCK_Y + CARD_HEIGHT + 20) {
+            dealFromStock();
+            return;
+        }
+        
+        // Check column clicks
+        for (let col = 0; col < 10; col++) {
+            const colX = COLUMN_START_X + col * (CARD_WIDTH + CARD_GAP_X);
+            const column = columns[col];
+            
+            if (column.length === 0) {
+                if (x >= colX && x <= colX + CARD_WIDTH &&
+                    y >= COLUMN_START_Y && y <= COLUMN_START_Y + CARD_HEIGHT) {
+                    if (selectedCards.length > 0 && selectedColIndex !== col) {
+                        tryMoveSequence(selectedColIndex, col);
+                    }
+                    return;
+                }
+            }
+            
+            let cardY = COLUMN_START_Y;
+            for (let i = 0; i < column.length; i++) {
+                const card = column[i];
+                const overlap = card.faceUp ? FACE_UP_OVERLAP : FACE_DOWN_OVERLAP;
+                
+                if (x >= colX && x <= colX + CARD_WIDTH &&
+                    y >= cardY && y <= cardY + CARD_HEIGHT) {
+                    
+                    if (selectedCards.length > 0 && selectedColIndex !== col) {
+                        if (canPlaceOn(selectedCards[0], column)) {
+                            tryMoveSequence(selectedColIndex, col);
+                        }
+                    } else if (card.faceUp) {
+                        const cardsFromHere = column.slice(i);
+                        if (canMoveSequence(cardsFromHere)) {
+                            selectCards(col, i);
+                        }
+                    }
+                    return;
+                }
+                cardY += overlap;
+            }
+        }
+        
+        clearSelection();
+    }
+
+    function handlePointerDown(e) {
+        inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+        const rect = canvas.getBoundingClientRect();
+        pointerStart = {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height),
+            pointerType: e.pointerType
+        };
+        e.preventDefault();
+    }
+
+    function handlePointerUp(e) {
+        inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+        const rect = canvas.getBoundingClientRect();
+        const end = {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+
+        if (gameState === 'MENU' || gameState === 'VICTORY' || gameState === 'DEFEAT') {
+            restartGame();
+            e.preventDefault();
+            return;
+        }
+
+        if (gameState === 'PLAYING' && pointerStart) {
+            const startCol = Math.floor((pointerStart.x - COLUMN_START_X) / (CARD_WIDTH + CARD_GAP_X));
+            const endCol = Math.floor((end.x - COLUMN_START_X) / (CARD_WIDTH + CARD_GAP_X));
+            if (startCol >= 0 && startCol < 10 && endCol >= 0 && endCol < 10 && startCol !== endCol) {
+                const column = columns[startCol];
+                const movableIndex = column.length - 1;
+                if (movableIndex >= 0 && column[movableIndex].faceUp) {
+                    selectCards(startCol, movableIndex);
+                    if (canPlaceOn(selectedCards[0], columns[endCol])) tryMoveSequence(startCol, endCol);
+                    else clearSelection();
+                }
+            } else if (end.y > STOCK_Y - 40) {
+                dealFromStock();
+            }
+        }
+        pointerStart = null;
+        e.preventDefault();
+    }
+
+    function selectCards(colIndex, cardIndex) {
+        const column = columns[colIndex];
+        selectedCards = column.splice(cardIndex);
+        selectedColIndex = colIndex;
+        
+        columns.forEach((col, i) => {
+            let cy = COLUMN_START_Y;
+            col.forEach(card => {
+                const overlap = card.faceUp ? FACE_UP_OVERLAP : FACE_DOWN_OVERLAP;
+                card.y = cy;
+                cy += overlap;
+            });
+        });
+    }
+
+    function tryMoveSequence(fromCol, toCol) {
+        if (selectedCards.length === 0) return;
+        if (!canPlaceOn(selectedCards[0], columns[toCol])) return;
+        
+        saveState();
+        
+        selectedCards.forEach(card => {
+            card.x = COLUMN_START_X + toCol * (CARD_WIDTH + CARD_GAP_X);
+            columns[toCol].push(card);
+        });
+        
+        const fromColumn = columns[fromCol];
+        if (fromColumn.length > 0 && !fromColumn[fromColumn.length - 1].faceUp) {
+            fromColumn[fromColumn.length - 1].faceUp = true;
+        }
+        
+        moves++;
+        updateScore(-1);
+        clearSelection();
+        
+        setTimeout(() => {
+            if (checkForCompleteSequence(toCol)) {
+                autoMoveToFoundation(toCol);
+            }
+            checkGameState();
+        }, 100);
+    }
+
+    function autoMoveToFoundation(colIndex) {
+        if (!checkForCompleteSequence(colIndex)) return false;
+        
+        const sequence = columns[colIndex].splice(-13);
+        
+        sequence.forEach((card, i) => {
+            setTimeout(() => {
+                for (let j = 0; j < 5; j++) {
+                    createParticle(
+                        COLUMN_START_X + colIndex * (CARD_WIDTH + CARD_GAP_X) + CARD_WIDTH/2,
+                        COLUMN_START_Y + card.y + CARD_HEIGHT/2,
+                        'sparkle'
+                    );
+                }
+            }, i * 30);
+        });
+        
+        completeSequences++;
+        updateScore(100);
+        
+        const col = columns[colIndex];
+        if (col.length > 0 && !col[col.length - 1].faceUp) {
+            col[col.length - 1].faceUp = true;
+        }
+        
+        if (completeSequences === 8) {
+            setTimeout(() => {
+                gameState = 'VICTORY';
+                createVictoryParticles();
+            }, 500);
+        }
+        
+        return true;
+    }
+
+    function checkGameState() {
+        if (completeSequences === 8) {
+            gameState = 'VICTORY';
+            createVictoryParticles();
+            return;
+        }
+        
+        if (dealsLeft > 0 && stock.length >= 10) return;
+        
+        for (let from = 0; from < 10; from++) {
+            const col = columns[from];
+            for (let i = 0; i < col.length; i++) {
+                const card = col[i];
+                if (!card.faceUp) continue;
+                
+                for (let to = 0; to < 10; to++) {
+                    if (from === to) continue;
+                    const targetCol = columns[to];
+                    if (canPlaceOn(card, targetCol)) return;
+                }
+            }
+        }
+        
+        gameState = 'DEFEAT';
+    }
+
+    function handleMouseMove(e) {
+        inputCoverage.pointer = true;
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        
+        hoverColumn = -1;
+        for (let col = 0; col < 10; col++) {
+            const colX = COLUMN_START_X + col * (CARD_WIDTH + CARD_GAP_X);
+            if (x >= colX && x <= colX + CARD_WIDTH &&
+                y >= COLUMN_START_Y && y <= COLUMN_START_Y + 300) {
+                hoverColumn = col;
+                break;
+            }
+        }
+    }
+
+    function handleKeyDown(e) {
+        inputCoverage.keyboard = true;
+        if (e.key === 'u' || e.key === 'U') {
+            undoMove();
+        } else if (e.key === 'r' || e.key === 'R') {
+            restartGame();
+        } else if (gameState === 'MENU' && (e.key === 'Enter' || e.key === ' ')) {
+            restartGame();
+            e.preventDefault();
+        } else if (gameState === 'PLAYING' && (e.key === 'd' || e.key === 'D' || e.key === ' ' || e.key === 'Enter')) {
+            dealFromStock();
+            e.preventDefault();
+        }
+    }
+
+    // ==================== PARTICLES ====================
+    function createParticle(x, y, type) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            color: COLORS.goldBright,
+            size: Math.random() * 4 + 2,
+            life: 1,
+            type: type
+        });
+    }
+
+    function createVictoryParticles() {
+        for (let i = 0; i < 100; i++) {
+            setTimeout(() => {
+                const p = {
+                    x: Math.random() * CANVAS_WIDTH,
+                    y: CANVAS_HEIGHT + 50,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: -Math.random() * 8 - 4,
+                    color: [COLORS.gold, COLORS.goldBright, COLORS.coral, COLORS.coralBright][Math.floor(Math.random() * 4)],
+                    size: Math.random() * 6 + 2,
+                    life: 1,
+                    type: 'confetti'
+                };
+                particles.push(p);
+            }, i * 20);
+        }
+    }
+
+    function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            
+            if (p.type === 'confetti') {
+                p.vy += 0.2;
+                p.life -= 0.01;
+            } else {
+                p.life -= 0.03;
+            }
+            
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            }
+        }
+    }
+
+    // ==================== RENDERING ====================
+    function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+
+    function drawSuitIcon(suit, x, y, size, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        
+        switch(suit) {
+            case 'hearts':
+                ctx.moveTo(x, y + size * 0.3);
+                ctx.bezierCurveTo(x - size * 0.5, y - size * 0.3, x - size * 0.5, y + size * 0.5, x, y + size * 0.8);
+                ctx.bezierCurveTo(x + size * 0.5, y + size * 0.5, x + size * 0.5, y - size * 0.3, x, y + size * 0.3);
+                break;
+            case 'diamonds':
+                ctx.moveTo(x, y - size * 0.5);
+                ctx.lineTo(x + size * 0.4, y);
+                ctx.lineTo(x, y + size * 0.5);
+                ctx.lineTo(x - size * 0.4, y);
+                break;
+            case 'clubs':
+                ctx.arc(x - size * 0.25, y - size * 0.2, size * 0.25, 0, Math.PI * 2);
+                ctx.arc(x + size * 0.25, y - size * 0.2, size * 0.25, 0, Math.PI * 2);
+                ctx.arc(x, y + size * 0.1, size * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(x, y + size * 0.1);
+                ctx.lineTo(x - size * 0.15, y + size * 0.6);
+                ctx.lineTo(x + size * 0.15, y + size * 0.6);
+                break;
+            case 'spades':
+                ctx.moveTo(x, y - size * 0.5);
+                ctx.bezierCurveTo(x - size * 0.5, y - size * 0.1, x - size * 0.3, y + size * 0.3, x, y + size * 0.2);
+                ctx.bezierCurveTo(x + size * 0.3, y + size * 0.3, x + size * 0.5, y - size * 0.1, x, y - size * 0.5);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(x, y + size * 0.2);
+                ctx.lineTo(x - size * 0.15, y + size * 0.6);
+                ctx.lineTo(x + size * 0.15, y + size * 0.6);
+                break;
+        }
+        ctx.fill();
+    }
+
+    function drawCard(card, x, y, isSelected = false) {
+        ctx.save();
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        roundRect(x + 2, y + 2, CARD_WIDTH, CARD_HEIGHT, 6);
+        ctx.fill();
+        
+        if (card.faceUp) {
+            ctx.fillStyle = COLORS.parchmentLight;
+            roundRect(x, y, CARD_WIDTH, CARD_HEIGHT, 6);
+            ctx.fill();
+            
+            const suitColor = card.color === 'red' ? COLORS.coral : COLORS.indigo;
+            ctx.strokeStyle = suitColor;
+            ctx.lineWidth = 2;
+            roundRect(x + 1, y + 1, CARD_WIDTH - 2, CARD_HEIGHT - 2, 5);
+            ctx.stroke();
+            
+            drawSuitIcon(card.suit, x + CARD_WIDTH/2, y + 28, 16, suitColor);
+            
+            ctx.fillStyle = suitColor;
+            ctx.font = 'bold 14px "Press Start 2P", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(card.value, x + CARD_WIDTH/2, y + 58);
+            
+            ctx.font = '8px "Press Start 2P", monospace';
+            ctx.fillText(card.value, x + 8, y + 14);
+            drawSuitIcon(card.suit, x + 8, y + 20, 6, suitColor);
+            ctx.fillText(card.value, x + CARD_WIDTH - 8, y + CARD_HEIGHT - 6);
+            drawSuitIcon(card.suit, x + CARD_WIDTH - 14, y + CARD_HEIGHT - 12, 6, suitColor);
+        } else {
+            ctx.fillStyle = COLORS.cardBack;
+            roundRect(x, y, CARD_WIDTH, CARD_HEIGHT, 6);
+            ctx.fill();
+            
+            ctx.fillStyle = COLORS.cardBackPattern;
+            for (let px = 0; px < 4; px++) {
+                for (let py = 0; py < 5; py++) {
+                    if ((px + py) % 2 === 0) {
+                        roundRect(x + 6 + px * 15, y + 6 + py * 16, 12, 12, 2);
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            ctx.strokeStyle = COLORS.moss;
+            ctx.lineWidth = 2;
+            roundRect(x + 1, y + 1, CARD_WIDTH - 2, CARD_HEIGHT - 2, 5);
+            ctx.stroke();
+        }
+        
+        if (isSelected) {
+            ctx.shadowColor = COLORS.goldBright;
+            ctx.shadowBlur = 15;
+            ctx.strokeStyle = COLORS.goldBright;
+            ctx.lineWidth = 3;
+            roundRect(x - 2, y - 2, CARD_WIDTH + 4, CARD_HEIGHT + 4, 8);
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    }
+
+    function drawBackground() {
+        if (backgroundImage && backgroundImage.complete) {
+            ctx.globalAlpha = 0.15;
+            ctx.drawImage(backgroundImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.globalAlpha = 1;
+        }
+        
+        const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+        gradient.addColorStop(0, 'rgba(26, 26, 46, 0.7)');
+        gradient.addColorStop(1, 'rgba(45, 45, 68, 0.9)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        
+        ctx.strokeStyle = 'rgba(75, 0, 130, 0.1)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < CANVAS_WIDTH; x += 32) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, CANVAS_HEIGHT);
+            ctx.stroke();
+        }
+        for (let y = 0; y < CANVAS_HEIGHT; y += 32) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(CANVAS_WIDTH, y);
+            ctx.stroke();
+        }
+    }
+
+    function drawColumns() {
+        for (let col = 0; col < 10; col++) {
+            const colX = COLUMN_START_X + col * (CARD_WIDTH + CARD_GAP_X);
+            const column = columns[col];
+            
+            let cardY = COLUMN_START_Y;
+            
+            const isValidTarget = (selectedCards.length > 0) && (selectedColIndex !== col) && canPlaceOn(selectedCards[0], column);
+            const isHovered = hoverColumn === col;
+            
+            if (isValidTarget && isHovered) {
+                ctx.fillStyle = 'rgba(107, 142, 35, 0.3)';
+                roundRect(colX - 4, COLUMN_START_Y - 4, CARD_WIDTH + 8, Math.max(CARD_HEIGHT + 8, column.length * FACE_UP_OVERLAP + 8), 8);
+                ctx.fill();
+            }
+            
+            for (let i = 0; i < column.length; i++) {
+                const card = column[i];
+                const overlap = card.faceUp ? FACE_UP_OVERLAP : FACE_DOWN_OVERLAP;
+                
+                card.x = colX;
+                card.y = cardY;
+                
+                const isSelected = (selectedColIndex === col && i >= column.length - selectedCards.length);
+                drawCard(card, card.x, cardY, isSelected);
+                
+                cardY += overlap;
+            }
+        }
+    }
+
+    function drawStock() {
+        ctx.fillStyle = COLORS.indigo;
+        roundRect(STOCK_X, STOCK_Y, CARD_WIDTH + 20, CARD_HEIGHT + 10, 8);
+        ctx.fill();
+        ctx.strokeStyle = COLORS.indigoLight;
+        ctx.lineWidth = 2;
+        roundRect(STOCK_X + 2, STOCK_Y + 2, CARD_WIDTH + 16, CARD_HEIGHT + 6, 6);
+        ctx.stroke();
+        
+        const stackCount = Math.min(5, stock.length);
+        for (let i = 0; i < stackCount; i++) {
+            ctx.fillStyle = COLORS.cardBack;
+            roundRect(STOCK_X + 4 + i * 2, STOCK_Y + 2 + i * 2, CARD_WIDTH, CARD_HEIGHT, 4);
+            ctx.fill();
+        }
+        
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${dealsLeft}`, STOCK_X + CARD_WIDTH/2 + 10, STOCK_Y + CARD_HEIGHT/2 + 4);
+        
+        if (dealsLeft > 0 && stock.length >= 10) {
+            ctx.fillStyle = COLORS.goldBright;
+            ctx.font = '14px "Press Start 2P", monospace';
+            ctx.fillText('▼', STOCK_X + CARD_WIDTH + 35, STOCK_Y + CARD_HEIGHT/2);
+        }
+    }
+
+    function drawFoundation() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        roundRect(FOUNDATION_X - 10, FOUNDATION_Y - 10, 8 * FOUNDATION_SLOT_WIDTH + 20, CARD_HEIGHT + 20, 8);
+        ctx.fill();
+        
+        for (let i = 0; i < 8; i++) {
+            const slotX = FOUNDATION_X + i * FOUNDATION_SLOT_WIDTH;
+            
+            ctx.strokeStyle = i < completeSequences ? COLORS.gold : COLORS.indigoLight;
+            ctx.lineWidth = 2;
+            roundRect(slotX, FOUNDATION_Y, CARD_WIDTH, CARD_HEIGHT, 4);
+            ctx.stroke();
+            
+            if (i < completeSequences) {
+                ctx.fillStyle = COLORS.gold;
+                ctx.font = 'bold 12px "Press Start 2P", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('✓', slotX + CARD_WIDTH/2, FOUNDATION_Y + CARD_HEIGHT/2 + 4);
+            }
+        }
+        
+        ctx.fillStyle = COLORS.parchment;
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${completeSequences}/8`, FOUNDATION_X + 4 * FOUNDATION_SLOT_WIDTH, FOUNDATION_Y - 15);
+    }
+
+    function drawHUD() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        roundRect(10, 10, CANVAS_WIDTH - 20, 50, 8);
+        ctx.fill();
+        
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = '12px "Press Start 2P", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`分数: ${score}`, 30, 40);
+        
+        ctx.fillStyle = COLORS.coralBright;
+        ctx.fillText(`步数: ${moves}`, 220, 40);
+        
+        ctx.fillStyle = COLORS.parchment;
+        ctx.font = '14px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('四花色蜘蛛纸牌', CANVAS_WIDTH/2, 42);
+        
+        ctx.fillStyle = COLORS.indigoLight;
+        ctx.font = '8px "Press Start 2P", monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('[U]撤销  [R]重新开始', CANVAS_WIDTH - 30, 40);
+    }
+
+    function drawParticles() {
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            
+            if (p.type === 'confetti') {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(Date.now() / 100);
+                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                ctx.restore();
+            } else {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    function drawMenuScreen() {
+        drawBackground();
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        roundRect(CANVAS_WIDTH/2 - 250, CANVAS_HEIGHT/2 - 180, 500, 360, 16);
+        ctx.fill();
+        ctx.strokeStyle = COLORS.indigo;
+        ctx.lineWidth = 4;
+        roundRect(CANVAS_WIDTH/2 - 245, CANVAS_HEIGHT/2 - 175, 490, 350, 14);
+        ctx.stroke();
+        
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = '24px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('蜘蛛纸牌', CANVAS_WIDTH/2, CANVAS_HEIGHT/2 - 100);
+        
+        ctx.fillStyle = COLORS.coral;
+        ctx.font = '14px "Press Start 2P", monospace';
+        ctx.fillText('四花色 · 困难模式', CANVAS_WIDTH/2, CANVAS_HEIGHT/2 - 60);
+        
+        ctx.fillStyle = COLORS.parchment;
+        ctx.font = '10px "Press Start 2P", monospace';
+        const rules = [
+            '· 点击选牌，点击目标位置移动',
+            '· K→Q→J→10...2→A 降序排列',
+            '· 同花色K→A完成移至底部',
+            '· 集齐8组同花色K→A获胜',
+            '· 底部发牌区发牌(需满足条件)',
+            '· 按 U 撤销 | R 重新开始'
+        ];
+        rules.forEach((rule, i) => {
+            ctx.fillText(rule, CANVAS_WIDTH/2, CANVAS_HEIGHT/2 - 10 + i * 22);
+        });
+        
+        const btnX = CANVAS_WIDTH/2 - 80;
+        const btnY = CANVAS_HEIGHT/2 + 130;
+        const pulse = Math.sin(Date.now() / 200) * 0.1 + 1;
+        
+        ctx.save();
+        ctx.translate(btnX + 80, btnY + 20);
+        ctx.scale(pulse, pulse);
+        ctx.translate(-80, -20);
+        
+        ctx.fillStyle = COLORS.moss;
+        roundRect(0, 0, 160, 40, 8);
+        ctx.fill();
+        ctx.strokeStyle = COLORS.gold;
+        ctx.lineWidth = 3;
+        roundRect(2, 2, 156, 36, 6);
+        ctx.stroke();
+        
+        ctx.fillStyle = COLORS.parchment;
+        ctx.font = '12px "Press Start 2P", monospace';
+        ctx.fillText('开始游戏', 80, 26);
+        ctx.restore();
+    }
+
+    function drawVictoryScreen() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        
+        drawParticles();
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        roundRect(CANVAS_WIDTH/2 - 200, CANVAS_HEIGHT/2 - 120, 400, 240, 16);
+        ctx.fill();
+        ctx.strokeStyle = COLORS.gold;
+        ctx.lineWidth = 4;
+        roundRect(CANVAS_WIDTH/2 - 195, CANVAS_HEIGHT/2 - 115, 390, 230, 14);
+        ctx.stroke();
+        
+        ctx.fillStyle = COLORS.goldBright;
+        ctx.font = '28px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('恭喜通关!', CANVAS_WIDTH/2, CANVAS_HEIGHT/2 - 60);
+        
+        ctx.fillStyle = COLORS.parchment;
+        ctx.font = '12px "Press Start 2P", monospace';
+        ctx.fillText(`最终分数: ${score}`, CANVAS_WIDTH/2, CANVAS_HEIGHT/2);
+        ctx.fillText(`总步数: ${moves}`, CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 30);
+        
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.fillText('点击任意位置重新开始', CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 80);
+    }
+
+    function drawDefeatScreen() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        roundRect(CANVAS_WIDTH/2 - 180, CANVAS_HEIGHT/2 - 100, 360, 200, 16);
+        ctx.fill();
+        ctx.strokeStyle = COLORS.coral;
+        ctx.lineWidth = 4;
+        roundRect(CANVAS_WIDTH/2 - 175, CANVAS_HEIGHT/2 - 95, 350, 190, 14);
+        ctx.stroke();
+        
+        ctx.fillStyle = COLORS.coral;
+        ctx.font = '20px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('无法移动', CANVAS_WIDTH/2, CANVAS_HEIGHT/2 - 40);
+        
+        ctx.fillStyle = COLORS.parchment;
+        ctx.font = '12px "Press Start 2P", monospace';
+        ctx.fillText(`分数: ${score}`, CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 10);
+        
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.fillText('点击任意位置重新开始', CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 70);
+    }
+
+    // ==================== GAME LOOP ====================
+    function gameLoop() {
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        
+        switch(gameState) {
+            case 'MENU':
+                drawMenuScreen();
+                break;
+            case 'PLAYING':
+                drawBackground();
+                drawColumns();
+                drawStock();
+                drawFoundation();
+                drawHUD();
+                drawParticles();
+                updateParticles();
+                break;
+            case 'VICTORY':
+                drawBackground();
+                drawColumns();
+                drawStock();
+                drawFoundation();
+                drawHUD();
+                drawVictoryScreen();
+                updateParticles();
+                break;
+            case 'DEFEAT':
+                drawBackground();
+                drawColumns();
+                drawStock();
+                drawFoundation();
+                drawHUD();
+                drawDefeatScreen();
+                break;
+        }
+        
+        requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = init;
+    window.__OPENGAME_DEBUG__ = () => ({
+        gameState,
+        score,
+        moves,
+        level: Math.max(1, completeSequences + 1),
+        stage: Math.max(1, completeSequences + 1),
+        maxStage: 8,
+        totalStages: 8,
+        wave: Math.max(1, 6 - dealsLeft),
+        maxWave: 5,
+        inputCoverage: { ...inputCoverage, gesture: true },
+        playfield: { top: 0, bottom: CANVAS_HEIGHT, width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+        activeTargets: [
+            ...columns.flat().filter(card => card.faceUp).slice(0, 20).map(card => ({
+                x: card.x + CARD_WIDTH / 2,
+                y: card.y + CARD_HEIGHT / 2,
+                size: CARD_WIDTH,
+                reachable: true
+            })),
+            { x: STOCK_X + CARD_WIDTH / 2, y: STOCK_Y + CARD_HEIGHT / 2, size: CARD_WIDTH, reachable: dealsLeft > 0 }
+        ]
+    });
+    </script>
+</body>
+</html>

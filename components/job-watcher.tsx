@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, CheckCircle2, LoaderCircle, ScrollText, XCircle } from "lucide-react";
-import { clampProgress, progressForJobStatus } from "@/lib/job-progress";
+import { clampProgress, progressForJobStatus, progressMaxForJobStatus } from "@/lib/job-progress";
 
 type Progress = {
   status: string;
@@ -105,6 +105,7 @@ export function JobWatcher({
   const isSettled = normalizedStatus === "done" || normalizedStatus === "failed";
   const logText = progress?.log || (normalizedStatus === "done" ? "游戏已发布。" : "等待 OpenGame 输出日志...");
   const serverPercent = clampProgress(progress?.progress ?? progressForJobStatus(normalizedStatus, isFinalizing));
+  const stageMaxPercent = clampProgress(progressMaxForJobStatus(normalizedStatus, isFinalizing));
   const [displayPercent, setDisplayPercent] = useState(serverPercent);
   const elapsedText = isSettled ? "" : `已运行 ${formatElapsed(now - startedAt)}`;
   const blocker = progress?.blocker ?? null;
@@ -113,6 +114,23 @@ export function JobWatcher({
   useEffect(() => {
     setDisplayPercent((current) => (isSettled ? serverPercent : Math.max(current, serverPercent)));
   }, [isSettled, serverPercent]);
+
+  useEffect(() => {
+    setDisplayPercent(serverPercent);
+  }, [jobId]);
+
+  useEffect(() => {
+    if (isSettled) return;
+    if (displayPercent >= stageMaxPercent) return;
+    const timer = setInterval(() => {
+      setDisplayPercent((current) => {
+        const floor = Math.max(current, serverPercent);
+        if (floor >= stageMaxPercent) return floor;
+        return Math.min(stageMaxPercent, floor + 1);
+      });
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [displayPercent, isSettled, serverPercent, stageMaxPercent]);
 
   useEffect(() => {
     setJobId(requestedJobId);

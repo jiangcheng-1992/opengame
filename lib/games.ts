@@ -9,6 +9,7 @@ import {
   toBuiltinCopyPlayUrl,
 } from "@/lib/builtin-games";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
+import { getGameShareCount, listGameShareCounts } from "@/lib/share-metrics";
 import { toClientGame } from "@/lib/status";
 
 const PINNED_HOME_GAME_ID = "builtin-starport-dash";
@@ -111,6 +112,7 @@ function toClientGameListItem(game: GameListRecord, viewerAnonId?: string) {
     ownedByMe: viewerAnonId ? game.ownerId === viewerAnonId : false,
     latestJob: normalizeLatestJob(game.jobs?.[0]),
     likedByMe: Boolean(game.reactions?.length),
+    shareCount: 0,
     isBuiltin: false,
   };
 }
@@ -134,6 +136,7 @@ function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
     latestJob: normalizeLatestJob(game.jobs?.[0]),
     messages: normalizeMessages(game.messages),
     likedByMe: Boolean(game.reactions?.length),
+    shareCount: 0,
     isBuiltin: false,
   };
 }
@@ -184,9 +187,14 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
     });
 
     const visibleGames = games.slice(0, 12).map((game) => toClientGameListItem(game, anonId ?? undefined));
+    const shareCounts = await listGameShareCounts(visibleGames.map((game) => game.id));
+    const visibleGamesWithShare = visibleGames.map((game) => ({
+      ...game,
+      shareCount: shareCounts[game.id] ?? 0,
+    }));
     const nextCursor = games.length > 12 ? visibleGames[visibleGames.length - 1]?.id ?? null : null;
     return {
-      games: sortPublicHomeGames([...builtinGames, ...visibleGames]),
+      games: sortPublicHomeGames([...builtinGames, ...visibleGamesWithShare]),
       nextCursor,
     };
   } catch (error) {
@@ -241,7 +249,11 @@ export async function getGameDetail(id: string) {
   if (!game) return null;
   if (game.visibility === "PRIVATE" && game.ownerId !== anonId) return null;
 
-  return toClientGameDetail({ ...game, messages: [...game.messages].reverse() }, anonId);
+  const detail = toClientGameDetail({ ...game, messages: [...game.messages].reverse() }, anonId);
+  return {
+    ...detail,
+    shareCount: await getGameShareCount(id),
+  };
 }
 
 export async function getCreateDraft(id: string) {

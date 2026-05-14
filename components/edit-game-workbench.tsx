@@ -369,6 +369,7 @@ export function EditGameWorkbench({ game }: { game: EditableGame }) {
               ]}
               steps={editTaskSteps}
               result={{ label: editTaskResult, tone: editTaskResultTone }}
+              hideProgressMeter={Boolean(activeJobId)}
             >
               {activeJobId ? (
                 <Suspense fallback={null}>

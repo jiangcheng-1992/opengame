@@ -3,6 +3,7 @@ node_modules
 .next
 .vercel
 .claude/
+.codex-worktrees/
 .env
 .env.vercel
 .env*.local

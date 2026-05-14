@@ -412,6 +412,7 @@ export function toBuiltinClientGame(game: BuiltinGame) {
     version: 1,
     playCount: game.playCount,
     likeCount: game.likeCount,
+    shareCount: 0,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ownedByMe: false,

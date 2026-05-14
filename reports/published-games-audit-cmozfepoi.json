@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-05-14T06:06:41.230Z",
+  "gameCount": 1,
+  "issueCount": 0,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9340/devtools/browser/857a5e7c-012c-4509-bea4-91923a39da75",
+    "[26800:25988:0514/140637.579:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+  ],
+  "results": [
+    {
+      "id": "cmozfepoi0003jt04g7i5zlpu",
+      "title": "2D 横版格斗（拳皇97风格）",
+      "version": 2,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozfepoi0003jt04g7i5zlpu/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozfepoi0003jt04g7i5zlpu/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 5,
+        "signals": [
+          "回合",
+          "回合",
+          "回合"
+        ]
+      },
+      "debug": {
+        "gameState": "battle",
+        "score": 0,
+        "level": 1,
+        "wave": 1,
+        "maxWave": 5,
+        "totalWaves": 5,
+        "round": 1,
+        "maxRound": 5,
+        "inputCoverage": {
+          "pointer": true,
+          "keyboard": true,
+          "touch": false
+        },
+        "playfield": {
+          "top": 0,
+          "bottom": 500,
+          "width": 800,
+          "height": 500
+        },
+        "activeTargets": [
+          {
+            "x": 194.3488204646816,
+            "y": 290,
+            "size": 100,
+            "reachable": true
+          },
+          {
+            "x": 520.1747979369727,
+            "y": 222.80000000000013,
+            "size": 100,
+            "reachable": true
+          }
+        ]
+      }
+    }
+  ]
+}

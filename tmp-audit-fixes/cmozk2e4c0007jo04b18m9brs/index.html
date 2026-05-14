@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>炼金连锁反应 - Alchemy Chain Reaction</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --fire: #FF6B35;
+      --water: #4ECDC4;
+      --wind: #95E1D3;
+      --earth: #8B7355;
+      --gold: #D4AF37;
+      --parchment: #F5E6C8;
+      --dark: #2C1810;
+      --glass: rgba(255,255,255,0.15);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(145deg, #1a0f0a 0%, #2d1f1a 50%, #1a1210 100%);
+      font-family: 'Noto Sans SC', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    .laboratory {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      padding: clamp(6px, 1.5vmin, 12px);
+      transform-origin: center center;
+    }
+
+    /* Ambient particles */
+    .particle {
+      position: fixed;
+      width: 4px;
+      height: 4px;
+      background: rgba(212, 175, 55, 0.3);
+      border-radius: 50%;
+      animation: float 8s infinite ease-in-out;
+      pointer-events: none;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+      50% { transform: translateY(-100px) scale(1.5); opacity: 0.6; }
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: clamp(6px, 1.5vmin, 12px);
+    }
+
+    .title {
+      font-family: 'Ma Shan Zheng', cursive;
+      font-size: clamp(1.45rem, 4vmin, 2.1rem);
+      color: var(--gold);
+      text-shadow: 0 0 20px rgba(212, 175, 55, 0.5), 0 2px 4px rgba(0,0,0,0.5);
+      letter-spacing: 4px;
+    }
+
+    .subtitle {
+      color: var(--parchment);
+      opacity: 0.7;
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+
+    /* Main layout */
+    .game-container {
+      display: flex;
+      gap: clamp(8px, 1.8vmin, 14px);
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Panels */
+    .panel {
+      background: linear-gradient(135deg, rgba(60, 40, 30, 0.9) 0%, rgba(40, 25, 20, 0.95) 100%);
+      border: 2px solid var(--gold);
+      border-radius: 15px;
+      padding: clamp(8px, 1.6vmin, 12px);
+      box-shadow: 0 0 30px rgba(212, 175, 55, 0.2), inset 0 0 20px rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .panel-title {
+      font-family: 'Ma Shan Zheng', cursive;
+      color: var(--gold);
+      font-size: 1.2rem;
+      text-align: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+      padding-bottom: 8px;
+    }
+
+    /* Stats panel */
+    .stats-panel {
+      min-width: 160px;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    .stat-label {
+      color: var(--parchment);
+      font-size: 0.9rem;
+    }
+
+    .stat-value {
+      color: var(--gold);
+      font-size: 1.3rem;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+    }
+
+    .stat-value.warning {
+      color: #ff4757;
+      animation: pulse 0.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Multiplier display */
+    .multiplier-display {
+      margin-top: 15px;
+      text-align: center;
+      padding: 15px;
+      background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, transparent 70%);
+      border-radius: 10px;
+    }
+
+    .multiplier-label {
+      color: var(--parchment);
+      font-size: 0.8rem;
+    }
+
+    .multiplier-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--fire);
+      text-shadow: 0 0 20px var(--fire);
+      margin-top: 5px;
+    }
+
+    /* Grid canvas */
+    .grid-wrapper {
+      position: relative;
+    }
+
+    .grid-panel {
+      padding: clamp(8px, 1.5vmin, 12px);
+    }
+
+    canvas {
+      display: block;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 0 30px rgba(212, 175, 55, 0.1);
+      touch-action: none;
+    }
+
+    /* Recipe panel */
+    .recipe-panel {
+      min-width: 180px;
+    }
+
+    .recipe-display {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .recipe-icons {
+      font-size: 2rem;
+      letter-spacing: 8px;
+      margin-bottom: 8px;
+    }
+
+    .recipe-name {
+      color: var(--parchment);
+      font-size: 0.85rem;
+    }
+
+    .synthesis-progress {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .synthesis-slot {
+      width: 50px;
+      height: 50px;
+      border: 2px dashed rgba(212, 175, 55, 0.5);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .synthesis-slot.filled {
+      border-style: solid;
+      border-color: var(--gold);
+      background: radial-gradient(circle, rgba(212, 175, 55, 0.3) 0%, transparent 70%);
+      animation: complete 0.5s ease;
+    }
+
+    @keyframes complete {
+      0% { transform: scale(0.5); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    /* Element reference */
+    .element-ref {
+      display: none;
+      margin-top: 12px;
+    }
+
+    .element-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    .element-icon {
+      font-size: 1.3rem;
+    }
+
+    .element-info {
+      flex: 1;
+    }
+
+    .element-name {
+      color: var(--parchment);
+      font-size: 0.9rem;
+    }
+
+    .element-pattern {
+      color: rgba(245, 230, 200, 0.5);
+      font-size: 0.7rem;
+    }
+
+    /* Buttons */
+    .btn {
+      background: linear-gradient(135deg, var(--gold) 0%, #b8962e 100%);
+      border: none;
+      padding: 12px 30px;
+      font-family: 'Ma Shan Zheng', cursive;
+      font-size: 1.3rem;
+      color: var(--dark);
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(212, 175, 55, 0.6);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Start screen overlay */
+    .start-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 10, 5, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s ease;
+    }
+
+    .start-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .start-title {
+      font-family: 'Ma Shan Zheng', cursive;
+      font-size: 3.5rem;
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(212, 175, 55, 0.6);
+      margin-bottom: 20px;
+      animation: glow 2s infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
+      to { text-shadow: 0 0 40px rgba(212, 175, 55, 0.8), 0 0 60px rgba(212, 175, 55, 0.4); }
+    }
+
+    .start-desc {
+      color: var(--parchment);
+      font-size: 1.1rem;
+      margin-bottom: 40px;
+      text-align: center;
+      line-height: 1.8;
+      max-width: 400px;
+    }
+
+    /* Game over overlay */
+    .gameover-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 10, 5, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .gameover-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .gameover-title {
+      font-family: 'Ma Shan Zheng', cursive;
+      font-size: 3rem;
+      margin-bottom: 20px;
+    }
+
+    .gameover-title.win {
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(212, 175, 55, 0.8);
+    }
+
+    .gameover-title.lose {
+      color: #ff4757;
+      text-shadow: 0 0 40px rgba(255, 71, 87, 0.6);
+    }
+
+    .gameover-score {
+      color: var(--parchment);
+      font-size: 1.5rem;
+      margin-bottom: 30px;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: fixed;
+      background: rgba(40, 25, 20, 0.95);
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      padding: 10px 15px;
+      color: var(--parchment);
+      font-size: 0.85rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 50;
+      max-width: 200px;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    /* Score popup */
+    .score-popup {
+      position: absolute;
+      font-weight: bold;
+      pointer-events: none;
+      animation: scoreFloat 1s ease-out forwards;
+    }
+
+    @keyframes scoreFloat {
+      0% { transform: translateY(0) scale(1); opacity: 1; }
+      100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+    }
+
+    /* Chain animation */
+    .chain-flash {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: flash 0.4s ease-out forwards;
+    }
+
+    @keyframes flash {
+      0% { transform: scale(0.3); opacity: 1; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title { font-size: 1.8rem; }
+      .game-container { flex-direction: column; align-items: center; }
+      .panel { width: 100%; max-width: 400px; }
+      canvas { width: 100% !important; height: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient particles -->
+  <div id="particles"></div>
+
+  <!-- Start overlay -->
+  <div class="start-overlay" id="startOverlay">
+    <div class="start-title">炼金连锁反应</div>
+    <div class="start-desc">
+      点击元素球触发连锁爆炸<br>
+      火焰、水流、风行、土震<br>
+      连锁越长，倍率越高<br>
+      目标：12次点击内完成3次配方合成
+    </div>
+    <button class="btn" id="startBtn">开始实验</button>
+  </div>
+
+  <!-- Game over overlay -->
+  <div class="gameover-overlay" id="gameoverOverlay">
+    <div class="gameover-title" id="gameoverTitle">胜利</div>
+    <div class="gameover-score" id="gameoverScore">得分: 0</div>
+    <button class="btn" id="restartBtn">重新开始</button>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip"></div>
+
+  <!-- Main game -->
+  <div class="laboratory">
+    <div class="header">
+      <div class="title">炼金连锁反应</div>
+      <div class="subtitle">Alchemy Chain Reaction</div>
+    </div>
+
+    <div class="game-container">
+      <!-- Left panel: Stats -->
+      <div class="panel stats-panel">
+        <div class="panel-title">实验数据</div>
+        <div class="stat-item">
+          <span class="stat-label">剩余点击</span>
+          <span class="stat-value" id="clicksLeft">12</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">当前得分</span>
+          <span class="stat-value" id="score">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">连锁记录</span>
+          <span class="stat-value" id="maxChain">0</span>
+        </div>
+        <div class="multiplier-display">
+          <div class="multiplier-label">连锁倍率</div>
+          <div class="multiplier-value" id="multiplier">×1</div>
+        </div>
+      </div>
+
+      <!-- Center: Grid -->
+      <div class="panel grid-panel">
+        <canvas id="gameCanvas" width="420" height="420"></canvas>
+      </div>
+
+      <!-- Right panel: Recipe + Elements -->
+      <div class="panel recipe-panel">
+        <div class="panel-title">目标配方</div>
+        <div class="recipe-display">
+          <div class="recipe-icons" id="recipeIcons">🔥💧🌪️</div>
+          <div class="recipe-name" id="recipeName">烈焰水流风</div>
+        </div>
+        <div class="synthesis-progress">
+          <div class="synthesis-slot" id="slot0"></div>
+          <div class="synthesis-slot" id="slot1"></div>
+          <div class="synthesis-slot" id="slot2"></div>
+        </div>
+
+        <div class="element-ref">
+          <div class="panel-title">元素说明</div>
+          <div class="element-row">
+            <span class="element-icon">🔥</span>
+            <div class="element-info">
+              <div class="element-name">火十字</div>
+              <div class="element-pattern">上下左右扩散</div>
+            </div>
+          </div>
+          <div class="element-row">
+            <span class="element-icon">💧</span>
+            <div class="element-info">
+              <div class="element-name">水斜线</div>
+              <div class="element-pattern">四角对角扩散</div>
+            </div>
+          </div>
+          <div class="element-row">
+            <span class="element-icon">🌪️</span>
+            <div class="element-info">
+              <div class="element-name">风横排</div>
+              <div class="element-pattern">整行横向扩散</div>
+            </div>
+          </div>
+          <div class="element-row">
+            <span class="element-icon">🪨</span>
+            <div class="element-info">
+              <div class="element-name">土九宫</div>
+              <div class="element-pattern">3×3范围扩散</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Game constants
+    const GRID_SIZE = 7;
+    const CELL_SIZE = 60;
+    const MAX_CLICKS = 12;
+    const SYNTHESIS_GOAL = 3;
+
+    const ELEMENTS = {
+      fire: { emoji: '🔥', name: '火焰', color: '#FF6B35', glow: 'rgba(255,107,53,0.6)' },
+      water: { emoji: '💧', name: '水流', color: '#4ECDC4', glow: 'rgba(78,205,196,0.6)' },
+      wind: { emoji: '🌪️', name: '风行', color: '#95E1D3', glow: 'rgba(149,225,211,0.6)' },
+      earth: { emoji: '🪨', name: '土震', color: '#8B7355', glow: 'rgba(139,115,85,0.6)' }
+    };
+
+    const RECIPES = [
+      { icons: '🔥💧🌪️', name: '烈焰水流风', elements: ['fire', 'water', 'wind'] },
+      { icons: '🔥🔥🪨', name: '双焰碎土', elements: ['fire', 'fire', 'earth'] },
+      { icons: '💧💧🌪️', name: '双水疾风', elements: ['water', 'water', 'wind'] },
+      { icons: '🪨🪨🔥', name: '双土烈焰', elements: ['earth', 'earth', 'fire'] },
+      { icons: '🌪️🌪️💧', name: '双风清水', elements: ['wind', 'wind', 'water'] },
+      { icons: '🔥💧💧', name: '一焰双水', elements: ['fire', 'water', 'water'] }
+    ];
+
+    // Game state
+    let grid = [];
+    let clicksLeft = MAX_CLICKS;
+    let score = 0;
+    let synthesisCount = 0;
+    let maxChain = 0;
+    let currentChain = 0;
+    let currentMultiplier = 1;
+    let currentRecipe = null;
+    let isProcessing = false;
+    let gameOver = false;
+    const inputCoverage = { pointer: false, keyboard: false, touch: false, gesture: true };
+
+    // DOM elements
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+    const startOverlay = document.getElementById('startOverlay');
+    const gameoverOverlay = document.getElementById('gameoverOverlay');
+
+    function fitLab() {
+      const lab = document.querySelector('.laboratory');
+      if (!lab) return;
+      lab.style.transform = 'scale(1)';
+      const rect = lab.getBoundingClientRect();
+      const scale = Math.min(
+        1,
+        (window.innerWidth - 12) / Math.max(rect.width, 1),
+        (window.innerHeight - 12) / Math.max(rect.height, 1)
+      );
+      lab.style.transform = `scale(${Math.max(0.55, scale)})`;
+    }
+
+    // Initialize particles
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 15; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 8 + 's';
+        container.appendChild(particle);
+      }
+    }
+
+    // Initialize grid
+    function initGrid() {
+      grid = [];
+      const elementTypes = Object.keys(ELEMENTS);
+      for (let i = 0; i < GRID_SIZE; i++) {
+        grid[i] = [];
+        for (let j = 0; j < GRID_SIZE; j++) {
+          grid[i][j] = {
+            type: elementTypes[Math.floor(Math.random() * elementTypes.length)],
+            exploded: false,
+            pulsePhase: Math.random() * Math.PI * 2
+          };
+        }
+      }
+    }
+
+    // Pick random recipe
+    function pickRecipe() {
+      currentRecipe = RECIPES[Math.floor(Math.random() * RECIPES.length)];
+      document.getElementById('recipeIcons').textContent = currentRecipe.icons;
+      document.getElementById('recipeName').textContent = currentRecipe.name;
+    }
+
+    // Draw grid
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Background pattern
+      ctx.fillStyle = '#1a1210';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (!grid.length || !grid[0]) return;
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.15)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= GRID_SIZE; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * CELL_SIZE, 0);
+        ctx.lineTo(i * CELL_SIZE, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * CELL_SIZE);
+        ctx.lineTo(canvas.width, i * CELL_SIZE);
+        ctx.stroke();
+      }
+
+      // Draw cells
+      for (let i = 0; i < GRID_SIZE; i++) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          const cell = grid[i][j];
+          const x = j * CELL_SIZE + CELL_SIZE / 2;
+          const y = i * CELL_SIZE + CELL_SIZE / 2;
+          const radius = CELL_SIZE / 2 - 6;
+
+          // Pulse animation
+          const pulse = Math.sin(Date.now() / 500 + cell.pulsePhase) * 0.1 + 1;
+          const r = radius * pulse;
+
+          if (cell.type && !cell.exploded) {
+            const elem = ELEMENTS[cell.type];
+
+            // Glow
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
+            gradient.addColorStop(0, elem.glow);
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+
+            // Ball
+            const ballGradient = ctx.createRadialGradient(x - r/3, y - r/3, 0, x, y, r);
+            ballGradient.addColorStop(0, lightenColor(elem.color, 40));
+            ballGradient.addColorStop(0.7, elem.color);
+            ballGradient.addColorStop(1, darkenColor(elem.color, 30));
+
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = ballGradient;
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Emoji
+            ctx.font = `${r}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(elem.emoji, x, y + 2);
+          } else if (cell.exploded) {
+            // Exploded cell - empty/dark
+            ctx.beginPath();
+            ctx.arc(x, y, r - 2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function lightenColor(color, percent) {
+      const num = parseInt(color.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = Math.min(255, (num >> 16) + amt);
+      const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+      const B = Math.min(255, (num & 0x0000FF) + amt);
+      return `rgb(${R},${G},${B})`;
+    }
+
+    function darkenColor(color, percent) {
+      const num = parseInt(color.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = Math.max(0, (num >> 16) - amt);
+      const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
+      const B = Math.max(0, (num & 0x0000FF) - amt);
+      return `rgb(${R},${G},${B})`;
+    }
+
+    // Get spread cells based on element type
+    function getSpreadCells(row, col, type) {
+      const cells = [];
+      switch (type) {
+        case 'fire': // Cross
+          cells.push([row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]);
+          break;
+        case 'water': // Diagonal
+          cells.push([row - 1, col - 1], [row - 1, col + 1], [row + 1, col - 1], [row + 1, col + 1]);
+          break;
+        case 'wind': // Horizontal row
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (c !== col) cells.push([row, c]);
+          }
+          break;
+        case 'earth': // 3x3 grid
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr !== 0 || dc !== 0) cells.push([row + dr, col + dc]);
+            }
+          }
+          break;
+      }
+      // Filter valid cells
+      return cells.filter(([r, c]) => r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE);
+    }
+
+    // Process chain reaction
+    async function processChain(row, col) {
+      if (!grid[row] || !grid[row][col]) return;
+      if (grid[row][col].exploded || !grid[row][col].type) return;
+
+      const type = grid[row][col].type;
+      grid[row][col].exploded = true;
+      currentChain++;
+      currentMultiplier = currentChain;
+
+      document.getElementById('multiplier').textContent = `×${currentMultiplier}`;
+
+      // Create explosion effect
+      createExplosionEffect(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2, ELEMENTS[type].color);
+
+      // Wait a bit
+      await new Promise(r => setTimeout(r, 50));
+
+      // Get spread cells
+      const spreadCells = getSpreadCells(row, col, type);
+
+      // Process each spread cell
+      for (const [r, c] of spreadCells) {
+        if (grid[r] && grid[r][c] && !grid[r][c].exploded && grid[r][c].type) {
+          await processChain(r, c);
+        }
+      }
+    }
+
+    // Create explosion effect
+    function createExplosionEffect(x, y, color) {
+      const wrapper = document.querySelector('.grid-wrapper');
+      if (!wrapper) return;
+
+      const flash = document.createElement('div');
+      flash.className = 'chain-flash';
+      flash.style.left = (x - 30 + 20) + 'px';
+      flash.style.top = (y - 30 + 20) + 'px';
+      flash.style.background = `radial-gradient(circle, ${color} 0%, transparent 70%)`;
+      wrapper.appendChild(flash);
+
+      setTimeout(() => flash.remove(), 400);
+    }
+
+    // Create score popup
+    function createScorePopup(x, y, points) {
+      const wrapper = document.querySelector('.grid-wrapper');
+      if (!wrapper) return;
+
+      const popup = document.createElement('div');
+      popup.className = 'score-popup';
+      popup.textContent = `+${points}`;
+      popup.style.left = (x + 20) + 'px';
+      popup.style.top = (y + 20) + 'px';
+      popup.style.color = '#D4AF37';
+      popup.style.fontSize = '1.5rem';
+      popup.style.textShadow = '0 0 10px rgba(212, 175, 55, 0.8)';
+      wrapper.appendChild(popup);
+
+      setTimeout(() => popup.remove(), 1000);
+    }
+
+    // Update synthesis slots
+    function updateSynthesis() {
+      for (let i = 0; i < SYNTHESIS_GOAL; i++) {
+        const slot = document.getElementById(`slot${i}`);
+        if (i < synthesisCount) {
+          slot.classList.add('filled');
+          slot.textContent = '✓';
+        } else {
+          slot.classList.remove('filled');
+          slot.textContent = '';
+        }
+      }
+    }
+
+    // Update UI
+    function updateUI() {
+      document.getElementById('clicksLeft').textContent = clicksLeft;
+      document.getElementById('score').textContent = score;
+      document.getElementById('maxChain').textContent = maxChain;
+
+      const clicksEl = document.getElementById('clicksLeft');
+      if (clicksLeft <= 3) {
+        clicksEl.classList.add('warning');
+      } else {
+        clicksEl.classList.remove('warning');
+      }
+    }
+
+    // Check win/lose
+    function checkGameEnd() {
+      if (synthesisCount >= SYNTHESIS_GOAL) {
+        endGame(true);
+      } else if (clicksLeft <= 0) {
+        endGame(false);
+      }
+    }
+
+    // End game
+    function endGame(won) {
+      gameOver = true;
+      const title = document.getElementById('gameoverTitle');
+      const scoreEl = document.getElementById('gameoverScore');
+
+      if (won) {
+        title.textContent = '炼金成功！';
+        title.className = 'gameover-title win';
+      } else {
+        title.textContent = '实验失败';
+        title.className = 'gameover-title lose';
+      }
+
+      scoreEl.textContent = `最终得分: ${score}`;
+      gameoverOverlay.classList.add('visible');
+    }
+
+    // Reset game
+    function resetGame() {
+      clicksLeft = MAX_CLICKS;
+      score = 0;
+      synthesisCount = 0;
+      maxChain = 0;
+      currentChain = 0;
+      currentMultiplier = 1;
+      isProcessing = false;
+      gameOver = false;
+
+      initGrid();
+      pickRecipe();
+      updateSynthesis();
+      updateUI();
+      document.getElementById('multiplier').textContent = '×1';
+
+      gameoverOverlay.classList.remove('visible');
+    }
+
+    // Handle click
+    async function handleClick(e) {
+      inputCoverage.pointer = true;
+      if (isProcessing || gameOver) return;
+      if (!grid.length || !grid[0]) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / Math.max(rect.width, 1));
+      const y = (e.clientY - rect.top) * (canvas.height / Math.max(rect.height, 1));
+
+      const col = Math.floor(x / CELL_SIZE);
+      const row = Math.floor(y / CELL_SIZE);
+
+      if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return;
+      if (!grid[row] || !grid[row][col]) return;
+      if (grid[row][col].exploded || !grid[row][col].type) return;
+
+      isProcessing = true;
+      clicksLeft--;
+      currentChain = 0;
+      currentMultiplier = 1;
+
+      await processChain(row, col);
+
+      // Calculate score
+      const basePoints = 10;
+      const chainPoints = basePoints * currentChain * currentMultiplier;
+      score += chainPoints;
+
+      if (currentChain > maxChain) {
+        maxChain = currentChain;
+      }
+
+      // Check if chain matches recipe elements
+      const explodedElements = [];
+      for (let i = 0; i < GRID_SIZE; i++) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          if (grid[i] && grid[i][j] && grid[i][j].exploded && grid[i][j].type) {
+            explodedElements.push(grid[i][j].type);
+          }
+        }
+      }
+
+      // Simple recipe check - if all recipe elements were triggered
+      if (currentRecipe) {
+        const recipeMatch = currentRecipe.elements.every(elem =>
+          explodedElements.filter(e => e === elem).length >= 1
+        );
+
+        if (recipeMatch && currentChain >= 3) {
+          synthesisCount++;
+          createScorePopup(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE, chainPoints + 100);
+        } else {
+          createScorePopup(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE, chainPoints);
+        }
+      }
+
+      updateSynthesis();
+      updateUI();
+
+      // Regenerate grid after short delay
+      await new Promise(r => setTimeout(r, 300));
+      regenerateGrid();
+      isProcessing = false;
+
+      checkGameEnd();
+    }
+
+    // Regenerate grid
+    function regenerateGrid() {
+      const elementTypes = Object.keys(ELEMENTS);
+      for (let i = 0; i < GRID_SIZE; i++) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          if (grid[i][j].exploded) {
+            grid[i][j] = {
+              type: elementTypes[Math.floor(Math.random() * elementTypes.length)],
+              exploded: false,
+              pulsePhase: Math.random() * Math.PI * 2
+            };
+          }
+        }
+      }
+    }
+
+    // Handle hover
+    function handleMouseMove(e) {
+      inputCoverage.pointer = true;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / Math.max(rect.width, 1));
+      const y = (e.clientY - rect.top) * (canvas.height / Math.max(rect.height, 1));
+
+      const col = Math.floor(x / CELL_SIZE);
+      const row = Math.floor(y / CELL_SIZE);
+
+      if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+        const cell = grid[row][col];
+        if (cell.type && !cell.exploded) {
+          const elem = ELEMENTS[cell.type];
+          tooltip.textContent = `${elem.name} - 点击触发${elem.name}扩散`;
+          tooltip.style.left = (e.clientX + 15) + 'px';
+          tooltip.style.top = (e.clientY + 15) + 'px';
+          tooltip.classList.add('visible');
+          canvas.style.cursor = 'pointer';
+        } else {
+          tooltip.classList.remove('visible');
+          canvas.style.cursor = 'default';
+        }
+      } else {
+        tooltip.classList.remove('visible');
+      }
+    }
+
+    // Animation loop
+    function gameLoop() {
+      if (!gameOver) {
+        draw();
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Event listeners
+    document.getElementById('startBtn').addEventListener('click', () => {
+      inputCoverage.pointer = true;
+      startOverlay.classList.add('hidden');
+      resetGame();
+      fitLab();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      resetGame();
+    });
+
+    canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('pointerdown', (e) => {
+      inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+    });
+    canvas.addEventListener('touchstart', () => { inputCoverage.touch = true; }, { passive: false });
+    canvas.addEventListener('touchend', () => { inputCoverage.touch = true; }, { passive: false });
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+      inputCoverage.keyboard = true;
+      if (gameOver) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          resetGame();
+        }
+      } else if (!startOverlay.classList.contains('hidden')) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          startOverlay.classList.add('hidden');
+          resetGame();
+        }
+      }
+    });
+
+    // Initialize
+    createParticles();
+    window.addEventListener('resize', fitLab);
+    window.addEventListener('orientationchange', () => setTimeout(fitLab, 120));
+    fitLab();
+    gameLoop();
+    window.__OPENGAME_DEBUG__ = () => ({
+      gameState: gameOver ? 'ended' : (startOverlay.classList.contains('hidden') ? 'playing' : 'menu'),
+      score,
+      moves: MAX_CLICKS - clicksLeft,
+      level: synthesisCount + 1,
+      stage: synthesisCount + 1,
+      maxStage: SYNTHESIS_GOAL,
+      totalStages: SYNTHESIS_GOAL,
+      maxLevel: SYNTHESIS_GOAL,
+      inputCoverage,
+      playfield: { top: 0, bottom: canvas.height, width: canvas.width, height: canvas.height },
+      activeTargets: grid.flatMap((row, r) => row.map((cell, c) => ({
+        x: c * CELL_SIZE + CELL_SIZE / 2,
+        y: r * CELL_SIZE + CELL_SIZE / 2,
+        size: CELL_SIZE,
+        reachable: Boolean(cell.type && !cell.exploded)
+      }))).slice(0, 18)
+    });
+  </script>
+</body>
+</html>

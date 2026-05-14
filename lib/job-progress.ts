@@ -20,6 +20,27 @@ export function progressForJobStatus(status?: string | null, isFinalizing = fals
   return key && key in JOB_PROGRESS ? JOB_PROGRESS[key] : 0;
 }
 
+export function progressMaxForJobStatus(status?: string | null, isFinalizing = false) {
+  if (isFinalizing) return 97;
+  switch (status?.toLowerCase()) {
+    case "queued":
+      return 28;
+    case "running":
+      return 68;
+    case "validating":
+      return 82;
+    case "repairing":
+      return 88;
+    case "finishing":
+      return 97;
+    case "done":
+    case "failed":
+      return 100;
+    default:
+      return 12;
+  }
+}
+
 export function progressFromPhaseAndLog(status?: string | null, log = "") {
   const normalizedStatus = status?.toLowerCase();
   const normalizedLog = log.toLowerCase();

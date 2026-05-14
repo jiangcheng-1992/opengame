@@ -1,0 +1,119 @@
+{
+  "generatedAt": "2026-05-14T06:30:03.382Z",
+  "gameCount": 1,
+  "issueCount": 0,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9346/devtools/browser/6cc69a2d-43af-4f6d-8572-5b9166ce7c38",
+    "[14264:26692:0514/143002.404:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+  ],
+  "results": [
+    {
+      "id": "cmp18dz2c0001l804m18ujr9w",
+      "title": "横版跳跃闯关游戏",
+      "version": 2,
+      "visibility": "PRIVATE",
+      "auditUrl": "file:///C:/Users/Admin/Documents/trae_projects/PC%E6%B8%B8%E6%88%8F%E5%88%9B%E4%BD%9C%E5%99%A8/tmp-audit-fixes/_private-audit/cmp18dz2c0001l804m18ujr9w/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp18dz2c0001l804m18ujr9w/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 4,
+        "signals": []
+      },
+      "debug": {
+        "gameState": "PLAYING",
+        "score": 0,
+        "lives": 3,
+        "level": 1,
+        "stage": 1,
+        "maxLevel": 4,
+        "totalLevels": 4,
+        "maxStage": 4,
+        "totalStages": 4,
+        "coinCount": 0,
+        "inputCoverage": {
+          "pointer": true,
+          "keyboard": true,
+          "touch": false,
+          "gesture": true
+        },
+        "playfield": {
+          "top": 0,
+          "bottom": 540,
+          "width": 960,
+          "height": 540
+        },
+        "activeTargets": [
+          {
+            "x": 99.97999999999992,
+            "y": 432,
+            "size": 48,
+            "reachable": true
+          },
+          {
+            "x": 541.0020000000036,
+            "y": 440,
+            "size": 36,
+            "reachable": true
+          },
+          {
+            "x": 918.9460000000004,
+            "y": 440,
+            "size": 36,
+            "reachable": true
+          },
+          {
+            "x": 1454.4929999999974,
+            "y": 440,
+            "size": 36,
+            "reachable": false
+          },
+          {
+            "x": 2064.165,
+            "y": 440,
+            "size": 36,
+            "reachable": false
+          },
+          {
+            "x": 2441.002,
+            "y": 440,
+            "size": 36,
+            "reachable": false
+          }
+        ]
+      }
+    }
+  ]
+}

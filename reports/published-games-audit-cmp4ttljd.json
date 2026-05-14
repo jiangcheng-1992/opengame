@@ -1,0 +1,208 @@
+{
+  "generatedAt": "2026-05-14T06:14:51.625Z",
+  "gameCount": 1,
+  "issueCount": 0,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9343/devtools/browser/c6ab574b-7dc2-4ecd-80bb-efdbbfb0dc93",
+    "[25084:3204:0514/141446.503:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+  ],
+  "results": [
+    {
+      "id": "cmp4ttljd0001l5044q8zltte",
+      "title": "四花色蜘蛛纸牌（困难模式）",
+      "version": 4,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp4ttljd0001l5044q8zltte/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp4ttljd0001l5044q8zltte/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 480,
+        "y": 320,
+        "text": null
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 8,
+        "signals": []
+      },
+      "debug": {
+        "gameState": "PLAYING",
+        "score": 496,
+        "moves": 2,
+        "level": 1,
+        "stage": 1,
+        "maxStage": 8,
+        "totalStages": 8,
+        "wave": 3,
+        "maxWave": 5,
+        "inputCoverage": {
+          "pointer": true,
+          "keyboard": true,
+          "touch": false,
+          "gesture": true
+        },
+        "playfield": {
+          "top": 0,
+          "bottom": 720,
+          "width": 960,
+          "height": 720
+        },
+        "activeTargets": [
+          {
+            "x": 74,
+            "y": 240,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 74,
+            "y": 266,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 74,
+            "y": 292,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 146,
+            "y": 240,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 146,
+            "y": 266,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 218,
+            "y": 240,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 218,
+            "y": 266,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 218,
+            "y": 292,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 290,
+            "y": 240,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 290,
+            "y": 266,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 290,
+            "y": 292,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 362,
+            "y": 258,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 362,
+            "y": 284,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 362,
+            "y": 310,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 434,
+            "y": 258,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 434,
+            "y": 284,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 434,
+            "y": 310,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 506,
+            "y": 258,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 506,
+            "y": 284,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 506,
+            "y": 310,
+            "size": 68,
+            "reachable": true
+          },
+          {
+            "x": 74,
+            "y": 608,
+            "size": 68,
+            "reachable": true
+          }
+        ]
+      }
+    }
+  ]
+}

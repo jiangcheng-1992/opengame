@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-05-14T06:04:15.314Z",
+  "gameCount": 1,
+  "issueCount": 0,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9339/devtools/browser/306f3b07-ab26-436d-bad8-551ec9bb9ae3",
+    "[1924:12832:0514/140409.150:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+  ],
+  "results": [
+    {
+      "id": "cmp225gxw0001k104z17t0ukl",
+      "title": "ASMR放松音效叠加应用",
+      "version": 3,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmp225gxw0001k104z17t0ukl/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp225gxw0001k104z17t0ukl/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 166,
+        "y": 604,
+        "text": "15 MIN"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 5,
+        "signals": []
+      },
+      "debug": {
+        "gameState": "ready",
+        "score": 0,
+        "level": 1,
+        "maxLevel": 5,
+        "totalLevels": 5,
+        "maxStage": 5,
+        "totalStages": 5,
+        "inputCoverage": {
+          "pointer": true,
+          "keyboard": true,
+          "touch": false
+        },
+        "activeTargets": [
+          {
+            "x": 195,
+            "y": 195,
+            "size": 100,
+            "reachable": true
+          },
+          {
+            "x": 195,
+            "y": 302,
+            "size": 100,
+            "reachable": true
+          },
+          {
+            "x": 195,
+            "y": 405,
+            "size": 91,
+            "reachable": true
+          },
+          {
+            "x": 195,
+            "y": 503,
+            "size": 102,
+            "reachable": true
+          },
+          {
+            "x": 195,
+            "y": 614,
+            "size": 100,
+            "reachable": true
+          }
+        ],
+        "playfield": {
+          "top": 0,
+          "bottom": 844,
+          "width": 390,
+          "height": 844
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,188 @@
+{
+  "generatedAt": "2026-05-14T07:12:30.562Z",
+  "gameCount": 1,
+  "issueCount": 0,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9353/devtools/browser/ba215ff0-d919-4ab0-a141-0644d877dfb0"
+  ],
+  "results": [
+    {
+      "id": "cmozk2e4c0007jo04b18m9brs",
+      "title": "炼金连锁反应 HTML5 游戏",
+      "version": 3,
+      "visibility": "PUBLIC",
+      "auditUrl": "https://opengame-production.up.railway.app/api/games/cmozk2e4c0007jo04b18m9brs/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmozk2e4c0007jo04b18m9brs/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 94,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 479,
+        "y": 441,
+        "text": "开始实验"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 3,
+        "signals": []
+      },
+      "debug": {
+        "gameState": "playing",
+        "score": 0,
+        "moves": 0,
+        "level": 1,
+        "stage": 1,
+        "maxStage": 3,
+        "totalStages": 3,
+        "maxLevel": 3,
+        "inputCoverage": {
+          "pointer": true,
+          "keyboard": true,
+          "touch": false,
+          "gesture": true
+        },
+        "playfield": {
+          "top": 0,
+          "bottom": 420,
+          "width": 420,
+          "height": 420
+        },
+        "activeTargets": [
+          {
+            "x": 30,
+            "y": 30,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 90,
+            "y": 30,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 150,
+            "y": 30,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 210,
+            "y": 30,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 270,
+            "y": 30,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 330,
+            "y": 30,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 390,
+            "y": 30,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 30,
+            "y": 90,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 90,
+            "y": 90,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 150,
+            "y": 90,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 210,
+            "y": 90,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 270,
+            "y": 90,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 330,
+            "y": 90,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 390,
+            "y": 90,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 30,
+            "y": 150,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 90,
+            "y": 150,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 150,
+            "y": 150,
+            "size": 60,
+            "reachable": true
+          },
+          {
+            "x": 210,
+            "y": 150,
+            "size": 60,
+            "reachable": true
+          }
+        ]
+      }
+    }
+  ]
+}

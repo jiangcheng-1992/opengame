@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASMR Sanctuary - Sound Layering Experience</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --amber: #F5A623;
+            --amber-glow: rgba(245, 166, 35, 0.6);
+            --cyan: #00D4FF;
+            --cyan-glow: rgba(0, 212, 255, 0.5);
+            --magenta: #FF2D95;
+            --magenta-glow: rgba(255, 45, 149, 0.5);
+            --midnight: #0D0D1A;
+            --surface: #1A1A2E;
+            --surface-light: #252542;
+            --white: #FFFFFF;
+            --text-dim: #8888AA;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--midnight);
+            color: var(--white);
+            min-height: 100vh;
+            position: relative;
+            overscroll-behavior: none;
+            touch-action: manipulation;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .background-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.3;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 10;
+            height: 100dvh;
+            min-height: 0;
+            padding: clamp(8px, 1.8vmin, 16px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 10px;
+            margin-bottom: 8px;
+            flex: 0 0 auto;
+        }
+
+        .logo {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(1.1rem, 2.4vmin, 1.55rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--amber) 0%, var(--cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px var(--amber-glow);
+            letter-spacing: 2px;
+        }
+
+        .logo-sub {
+            font-size: clamp(0.52rem, 1.2vmin, 0.68rem);
+            color: var(--text-dim);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Timer Display */
+        .timer-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .timer-display {
+            position: relative;
+            width: clamp(72px, 12vmin, 100px);
+            height: clamp(72px, 12vmin, 100px);
+        }
+
+        .timer-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .timer-ring-bg {
+            fill: none;
+            stroke: var(--surface);
+            stroke-width: 4;
+        }
+
+        .timer-ring-progress {
+            fill: none;
+            stroke: url(#timerGradient);
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-dasharray: 339.292;
+            stroke-dashoffset: 339.292;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .timer-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(1rem, 2vmin, 1.2rem);
+            font-weight: 700;
+            color: var(--amber);
+            text-shadow: 0 0 20px var(--amber-glow);
+        }
+
+        .timer-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .timer-warning .timer-text {
+            color: var(--magenta);
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Sound Cards Grid */
+        .sounds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+            gap: clamp(8px, 1.5vmin, 14px);
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 4px;
+            flex: 1;
+            min-height: 0;
+            align-content: start;
+            overflow: hidden;
+        }
+
+        .sound-card {
+            background: linear-gradient(145deg, var(--surface) 0%, rgba(26, 26, 46, 0.8) 100%);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: clamp(10px, 1.6vmin, 16px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .sound-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 20px;
+            padding: 2px;
+            background: linear-gradient(135deg, transparent, transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        .sound-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .sound-card:hover::before {
+            background: linear-gradient(135deg, var(--amber-glow), var(--cyan-glow));
+        }
+
+        .sound-card.active {
+            border-color: var(--amber);
+            box-shadow: 0 0 40px var(--amber-glow), inset 0 0 30px rgba(245, 166, 35, 0.1);
+        }
+
+        .sound-card.active::before {
+            background: linear-gradient(135deg, var(--amber), var(--cyan));
+            animation: borderGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes borderGlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .sound-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .sound-icon {
+            width: clamp(38px, 7vmin, 50px);
+            height: clamp(38px, 7vmin, 50px);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.3rem, 3vmin, 1.8rem);
+            background: linear-gradient(135deg, var(--surface-light), var(--surface));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .sound-card.active .sound-icon {
+            background: linear-gradient(135deg, var(--amber), #FF8C00);
+            box-shadow: 0 0 30px var(--amber-glow);
+            animation: iconFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .sound-info h3 {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(0.78rem, 1.7vmin, 1rem);
+            font-weight: 700;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+
+        .sound-info p {
+            font-size: clamp(0.64rem, 1.4vmin, 0.78rem);
+            color: var(--text-dim);
+        }
+
+        /* Volume Slider */
+        .volume-control {
+            margin: 8px 0;
+        }
+
+        .volume-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: clamp(0.62rem, 1.3vmin, 0.76rem);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .volume-value {
+            font-family: 'Orbitron', monospace;
+            color: var(--cyan);
+            font-weight: 600;
+        }
+
+        .volume-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--surface);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--cyan), var(--amber));
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--cyan-glow);
+            transition: all 0.2s ease;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 25px var(--cyan-glow);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--cyan), var(--amber));
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 15px var(--cyan-glow);
+        }
+
+        /* Wave Visualization */
+        .wave-container {
+            height: clamp(28px, 6vmin, 44px);
+            margin-top: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .wave-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Master Controls */
+        .master-controls {
+            background: linear-gradient(180deg, transparent, var(--surface));
+            padding: 8px 10px;
+            margin-top: 6px;
+            flex: 0 0 auto;
+        }
+
+        .controls-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .timer-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .timer-btn {
+            padding: 8px 14px;
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(0.62rem, 1.35vmin, 0.78rem);
+            font-weight: 600;
+            border: 2px solid var(--surface-light);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .timer-btn:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+            box-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        .timer-btn.selected {
+            background: linear-gradient(135deg, var(--cyan), var(--amber));
+            border-color: transparent;
+            color: var(--midnight);
+            box-shadow: 0 0 30px var(--cyan-glow);
+        }
+
+        .master-volume {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .master-volume label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .master-volume .volume-slider {
+            width: clamp(90px, 18vmin, 130px);
+        }
+
+        .stop-btn {
+            padding: 8px 16px;
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(0.62rem, 1.35vmin, 0.78rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--magenta), #FF6B6B);
+            border: none;
+            color: var(--white);
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px var(--magenta-glow);
+        }
+
+        .stop-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 35px var(--magenta-glow);
+        }
+
+        /* Audio Enable Overlay */
+        .audio-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 13, 26, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
+        }
+
+        .audio-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .audio-overlay-content {
+            text-align: center;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .audio-icon {
+            font-size: 5rem;
+            margin-bottom: 30px;
+            filter: drop-shadow(0 0 30px var(--amber-glow));
+        }
+
+        .audio-overlay h2 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--amber), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .audio-overlay p {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+        }
+
+        /* Candle Flame Effect */
+        .candle-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .candle-flame {
+            width: 30px;
+            height: 50px;
+            background: linear-gradient(to top, var(--amber), #FFE4B5, transparent);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: flicker 0.15s ease-in-out infinite alternate;
+            box-shadow: 0 0 30px var(--amber), 0 0 60px var(--amber-glow), 0 0 100px rgba(245, 166, 35, 0.3);
+            position: relative;
+        }
+
+        .candle-flame::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 10px;
+            height: 15px;
+            background: var(--amber);
+            border-radius: 50%;
+            filter: blur(3px);
+        }
+
+        @keyframes flicker {
+            0% {
+                transform: scaleY(1) scaleX(1) rotate(-1deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scaleY(1.1) scaleX(0.95) rotate(1deg);
+                opacity: 0.9;
+            }
+        }
+
+        /* Fade out animation */
+        .fading-out .sound-card {
+            opacity: 0.3;
+            transition: opacity 5s ease;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: row;
+                gap: 10px;
+            }
+
+            .logo {
+                font-size: 1.4rem;
+            }
+
+            .timer-display {
+                width: 100px;
+                height: 100px;
+            }
+
+            .timer-text {
+                font-size: 1.2rem;
+            }
+
+            .sounds-grid {
+                grid-template-columns: 1fr;
+                gap: 7px;
+                padding: 2px;
+            }
+
+            .sound-card {
+                display: grid;
+                grid-template-columns: minmax(130px, 1fr) minmax(110px, 0.95fr);
+                column-gap: 10px;
+                align-items: center;
+            }
+
+            .sound-header,
+            .volume-control,
+            .wave-container {
+                margin: 0;
+            }
+
+            .controls-wrapper {
+                flex-direction: row;
+            }
+
+            .timer-options {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <img class="background-image" src="https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp225gxw0001k104z17t0ukl/art/background.png" alt="Background" crossorigin="anonymous">
+
+    <!-- Audio Enable Overlay -->
+    <div class="audio-overlay" id="audioOverlay">
+        <div class="audio-overlay-content">
+            <div class="audio-icon">🎵</div>
+            <h2>ASMR SANCTUARY</h2>
+            <p>Tap anywhere to enable ambient sounds</p>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <header>
+            <div class="logo-wrap">
+                <div class="logo">ASMR SANCTUARY</div>
+                <div class="logo-sub">Sound Layering Experience</div>
+            </div>
+            <div class="timer-section" id="timerSection">
+                <div class="timer-display" id="timerDisplay">
+                    <svg class="timer-ring" viewBox="0 0 120 120">
+                        <defs>
+                            <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#00D4FF"/>
+                                <stop offset="100%" stop-color="#F5A623"/>
+                            </linearGradient>
+                        </defs>
+                        <circle class="timer-ring-bg" cx="60" cy="60" r="54"/>
+                        <circle class="timer-ring-progress" id="timerProgress" cx="60" cy="60" r="54"/>
+                    </svg>
+                    <div class="timer-text" id="timerText">00:00</div>
+                </div>
+                <div class="timer-label" id="timerLabel">No Timer Set</div>
+            </div>
+        </header>
+
+        <div class="sounds-grid" id="soundsGrid">
+            <!-- Rain Card -->
+            <div class="sound-card" data-sound="rain">
+                <div class="sound-header">
+                    <div class="sound-icon">🌧️</div>
+                    <div class="sound-info">
+                        <h3>RAIN</h3>
+                        <p>Gentle rainfall with distant thunder</p>
+                    </div>
+                </div>
+                <div class="volume-control">
+                    <div class="volume-label">
+                        <span>Volume</span>
+                        <span class="volume-value" id="rainVol">70%</span>
+                    </div>
+                    <input type="range" class="volume-slider" id="rainVolume" min="0" max="100" value="70">
+                </div>
+                <div class="wave-container">
+                    <canvas class="wave-canvas" id="rainWave"></canvas>
+                </div>
+            </div>
+
+            <!-- Campfire Card -->
+            <div class="sound-card" data-sound="campfire">
+                <div class="sound-header">
+                    <div class="sound-icon">🔥</div>
+                    <div class="sound-info">
+                        <h3>CAMPFIRE</h3>
+                        <p>Crackling flames and wood sparks</p>
+                    </div>
+                </div>
+                <div class="volume-control">
+                    <div class="volume-label">
+                        <span>Volume</span>
+                        <span class="volume-value" id="campfireVol">60%</span>
+                    </div>
+                    <input type="range" class="volume-slider" id="campfireVolume" min="0" max="100" value="60">
+                </div>
+                <div class="wave-container">
+                    <canvas class="wave-canvas" id="campfireWave"></canvas>
+                </div>
+            </div>
+
+            <!-- Bubbles Card -->
+            <div class="sound-card" data-sound="bubbles">
+                <div class="sound-header">
+                    <div class="sound-icon">🫧</div>
+                    <div class="sound-info">
+                        <h3>BUBBLES</h3>
+                        <p>Soft popping and gentle fizz</p>
+                    </div>
+                </div>
+                <div class="volume-control">
+                    <div class="volume-label">
+                        <span>Volume</span>
+                        <span class="volume-value" id="bubblesVol">50%</span>
+                    </div>
+                    <input type="range" class="volume-slider" id="bubblesVolume" min="0" max="100" value="50">
+                </div>
+                <div class="wave-container">
+                    <canvas class="wave-canvas" id="bubblesWave"></canvas>
+                </div>
+            </div>
+
+            <!-- Ear Cleaning Card -->
+            <div class="sound-card" data-sound="ear">
+                <div class="sound-header">
+                    <div class="sound-icon">👂</div>
+                    <div class="sound-info">
+                        <h3>EAR CLEANSE</h3>
+                        <p>Soft brush strokes and whispers</p>
+                    </div>
+                </div>
+                <div class="volume-control">
+                    <div class="volume-label">
+                        <span>Volume</span>
+                        <span class="volume-value" id="earVol">65%</span>
+                    </div>
+                    <input type="range" class="volume-slider" id="earVolume" min="0" max="100" value="65">
+                </div>
+                <div class="wave-container">
+                    <canvas class="wave-canvas" id="earWave"></canvas>
+                </div>
+            </div>
+
+            <!-- Whisper Card -->
+            <div class="sound-card" data-sound="whisper">
+                <div class="sound-header">
+                    <div class="sound-icon">🌬️</div>
+                    <div class="sound-info">
+                        <h3>WHISPERS</h3>
+                        <p>Distant voices and soft breaths</p>
+                    </div>
+                </div>
+                <div class="volume-control">
+                    <div class="volume-label">
+                        <span>Volume</span>
+                        <span class="volume-value" id="whisperVol">55%</span>
+                    </div>
+                    <input type="range" class="volume-slider" id="whisperVolume" min="0" max="100" value="55">
+                </div>
+                <div class="wave-container">
+                    <canvas class="wave-canvas" id="whisperWave"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="master-controls">
+            <div class="controls-wrapper">
+                <div class="timer-options">
+                    <button class="timer-btn" data-time="15">15 min</button>
+                    <button class="timer-btn" data-time="30">30 min</button>
+                    <button class="timer-btn" data-time="60">1 hour</button>
+                    <button class="timer-btn selected" data-time="0">∞ Infinite</button>
+                </div>
+                <div class="master-volume">
+                    <label>Master</label>
+                    <input type="range" class="volume-slider" id="masterVolume" min="0" max="100" value="80">
+                </div>
+                <button class="stop-btn" id="stopAll">⏹ Stop All</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="candle-container">
+        <div class="candle-flame"></div>
+    </div>
+
+    <script>
+        // ===== ADVANCED ASMR AUDIO ENGINE =====
+        class ASMREngine {
+            constructor() {
+                this.audioContext = null;
+                this.masterGain = null;
+                this.sounds = {};
+                this.soundGains = {};
+                this.activeSounds = new Set();
+                this.isInitialized = false;
+            }
+
+            async init() {
+                if (this.isInitialized) return;
+
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.connect(this.audioContext.destination);
+                this.masterGain.gain.value = 0.8;
+
+                ['rain', 'campfire', 'bubbles', 'ear', 'whisper'].forEach(name => {
+                    this.soundGains[name] = this.audioContext.createGain();
+                    this.soundGains[name].connect(this.masterGain);
+                    this.soundGains[name].gain.value = 0;
+                });
+
+                this.isInitialized = true;
+            }
+
+            // Create procedural noise buffer
+            createNoiseBuffer(duration = 2, type = 'pink') {
+                const sampleRate = this.audioContext.sampleRate;
+                const bufferSize = sampleRate * duration;
+                const buffer = this.audioContext.createBuffer(2, bufferSize, sampleRate);
+
+                for (let channel = 0; channel < 2; channel++) {
+                    const data = buffer.getChannelData(channel);
+
+                    if (type === 'pink') {
+                        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+                        for (let i = 0; i < bufferSize; i++) {
+                            const white = Math.random() * 2 - 1;
+                            b0 = 0.99886 * b0 + white * 0.0555179;
+                            b1 = 0.99332 * b1 + white * 0.0750759;
+                            b2 = 0.96900 * b2 + white * 0.1538520;
+                            b3 = 0.86650 * b3 + white * 0.3104856;
+                            b4 = 0.55000 * b4 + white * 0.5329522;
+                            b5 = -0.7616 * b5 - white * 0.0168980;
+                            data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                            b6 = white * 0.115926;
+                        }
+                    } else if (type === 'brown') {
+                        let lastOut = 0;
+                        for (let i = 0; i < bufferSize; i++) {
+                            const white = Math.random() * 2 - 1;
+                            data[i] = (lastOut + (0.02 * white)) / 1.02;
+                            lastOut = data[i];
+                            data[i] *= 3.5;
+                        }
+                    } else {
+                        for (let i = 0; i < bufferSize; i++) {
+                            data[i] = Math.random() * 2 - 1;
+                        }
+                    }
+                }
+                return buffer;
+            }
+
+            // Create wind/whoosh buffer for rain atmosphere
+            createWindBuffer() {
+                const sampleRate = this.audioContext.sampleRate;
+                const bufferSize = sampleRate * 4;
+                const buffer = this.audioContext.createBuffer(2, bufferSize, sampleRate);
+
+                for (let channel = 0; channel < 2; channel++) {
+                    const data = buffer.getChannelData(channel);
+                    let b0 = 0, b1 = 0, b2 = 0;
+
+                    for (let i = 0; i < bufferSize; i++) {
+                        const white = Math.random() * 2 - 1;
+                        b0 = 0.99765 * b0 + white * 0.0990460;
+                        b1 = 0.96300 * b1 + white * 0.2965164;
+                        b2 = 0.57000 * b2 + white * 1.0526913;
+                        data[i] = (b0 + b1 + b2) * 0.08 + white * 0.2;
+                    }
+                }
+                return buffer;
+            }
+
+            // RAIN - Multi-layered realistic rain with depth
+            startRain() {
+                if (this.sounds.rain) return;
+
+                const nodes = {};
+                const rainGain = this.soundGains.rain;
+
+                // Layer 1: Base rain (continuous filtered noise)
+                const baseRain = this.audioContext.createBufferSource();
+                baseRain.buffer = this.createNoiseBuffer(4, 'pink');
+                baseRain.loop = true;
+
+                const baseFilter = this.audioContext.createBiquadFilter();
+                baseFilter.type = 'lowpass';
+                baseFilter.frequency.value = 1200;
+                baseFilter.Q.value = 0.5;
+
+                const baseGain = this.audioContext.createGain();
+                baseGain.gain.value = 0.35;
+
+                baseRain.connect(baseFilter);
+                baseFilter.connect(baseGain);
+                baseGain.connect(rainGain);
+                baseRain.start();
+                nodes.baseRain = baseRain;
+
+                // Layer 2: Heavy rain drops (random bursts)
+                const heavyGain = this.audioContext.createGain();
+                heavyGain.gain.value = 0.25;
+
+                const createHeavyDrop = () => {
+                    if (!this.sounds.rain) return;
+
+                    const dropBuffer = this.audioContext.createBuffer(1,
+                        this.audioContext.sampleRate * 0.15,
+                        this.audioContext.sampleRate);
+                    const data = dropBuffer.getChannelData(0);
+
+                    for (let i = 0; i < data.length; i++) {
+                        const t = i / this.audioContext.sampleRate;
+                        const envelope = Math.exp(-t * 30) * (1 - Math.exp(-t * 500));
+                        data[i] = (Math.random() * 2 - 1) * envelope;
+                    }
+
+                    const drop = this.audioContext.createBufferSource();
+                    drop.buffer = dropBuffer;
+
+                    const dropFilter = this.audioContext.createBiquadFilter();
+                    dropFilter.type = 'bandpass';
+                    dropFilter.frequency.value = 2000 + Math.random() * 3000;
+                    dropFilter.Q.value = 2;
+
+                    const dropEnvGain = this.audioContext.createGain();
+                    dropEnvGain.gain.value = 0.3 + Math.random() * 0.5;
+
+                    drop.connect(dropFilter);
+                    dropFilter.connect(dropEnvGain);
+                    dropEnvGain.connect(heavyGain);
+                    drop.start();
+
+                    setTimeout(createHeavyDrop, 30 + Math.random() * 80);
+                };
+
+                heavyGain.connect(rainGain);
+                setTimeout(createHeavyDrop, 50);
+
+                // Layer 3: Wind atmosphere
+                const wind = this.audioContext.createBufferSource();
+                wind.buffer = this.createWindBuffer();
+                wind.loop = true;
+
+                const windFilter = this.audioContext.createBiquadFilter();
+                windFilter.type = 'lowpass';
+                windFilter.frequency.value = 400;
+
+                const windGain = this.audioContext.createGain();
+                windGain.gain.value = 0.15;
+
+                // Modulate wind
+                const windLfo = this.audioContext.createOscillator();
+                const windLfoGain = this.audioContext.createGain();
+                windLfo.frequency.value = 0.05 + Math.random() * 0.05;
+                windLfo.type = 'sine';
+                windLfoGain.gain.value = 0.08;
+                windLfo.connect(windLfoGain);
+                windLfoGain.connect(windGain.gain);
+
+                wind.connect(windFilter);
+                windFilter.connect(windGain);
+                windGain.connect(rainGain);
+                wind.start();
+                windLfo.start();
+
+                nodes.wind = wind;
+                nodes.windLfo = windLfo;
+
+                // Layer 4: Occasional thunder
+                const thunderInterval = setInterval(() => {
+                    if (!this.sounds.rain) {
+                        clearInterval(thunderInterval);
+                        return;
+                    }
+
+                    if (Math.random() > 0.4) return; // 60% chance of thunder
+
+                    const thunderTime = 2 + Math.random() * 5;
+                    const thunderOsc = this.audioContext.createOscillator();
+                    thunderOsc.type = 'sawtooth';
+                    thunderOsc.frequency.value = 30 + Math.random() * 30;
+
+                    const thunderFilter = this.audioContext.createBiquadFilter();
+                    thunderFilter.type = 'lowpass';
+                    thunderFilter.frequency.value = 80;
+
+                    const thunderEnv = this.audioContext.createGain();
+                    thunderEnv.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    thunderEnv.gain.linearRampToValueAtTime(0.4, this.audioContext.currentTime + 0.3);
+                    thunderEnv.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + thunderTime);
+
+                    thunderOsc.connect(thunderFilter);
+                    thunderFilter.connect(thunderEnv);
+                    thunderEnv.connect(rainGain);
+
+                    thunderOsc.start();
+                    thunderOsc.stop(this.audioContext.currentTime + thunderTime);
+                }, 20000 + Math.random() * 30000);
+
+                this.sounds.rain = nodes;
+            }
+
+            // CAMPFIRE - Layered fire with crackling and pops
+            startCampfire() {
+                if (this.sounds.campfire) return;
+
+                const nodes = {};
+                const fireGain = this.soundGains.campfire;
+
+                // Layer 1: Deep rumble/base
+                const rumbleOsc = this.audioContext.createOscillator();
+                rumbleOsc.type = 'sawtooth';
+                rumbleOsc.frequency.value = 55;
+
+                const rumbleFilter = this.audioContext.createBiquadFilter();
+                rumbleFilter.type = 'lowpass';
+                rumbleFilter.frequency.value = 100;
+
+                const rumbleGain = this.audioContext.createGain();
+                rumbleGain.gain.value = 0.15;
+
+                // Modulate rumble for organic feel
+                const rumbleLfo = this.audioContext.createOscillator();
+                const rumbleLfoGain = this.audioContext.createGain();
+                rumbleLfo.frequency.value = 0.3;
+                rumbleLfo.type = 'sine';
+                rumbleLfoGain.gain.value = 10;
+                rumbleLfo.connect(rumbleLfoGain);
+                rumbleLfoGain.connect(rumbleOsc.frequency);
+
+                rumbleOsc.connect(rumbleFilter);
+                rumbleFilter.connect(rumbleGain);
+                rumbleGain.connect(fireGain);
+                rumbleOsc.start();
+                rumbleLfo.start();
+
+                nodes.rumbleOsc = rumbleOsc;
+                nodes.rumbleLfo = rumbleLfo;
+
+                // Layer 2: Mid crackle (continuous filtered noise)
+                const crackleNoise = this.audioContext.createBufferSource();
+                crackleNoise.buffer = this.createNoiseBuffer(3, 'brown');
+                crackleNoise.loop = true;
+
+                const crackleFilter = this.audioContext.createBiquadFilter();
+                crackleFilter.type = 'bandpass';
+                crackleFilter.frequency.value = 2000;
+                crackleFilter.Q.value = 1;
+
+                const crackleGain = this.audioContext.createGain();
+                crackleGain.gain.value = 0.2;
+
+                crackleNoise.connect(crackleFilter);
+                crackleFilter.connect(crackleGain);
+                crackleGain.connect(fireGain);
+                crackleNoise.start();
+
+                nodes.crackleNoise = crackleNoise;
+
+                // Layer 3: Random wood pops
+                const createWoodPop = () => {
+                    if (!this.sounds.campfire) return;
+
+                    const popBuffer = this.audioContext.createBuffer(1,
+                        this.audioContext.sampleRate * 0.08,
+                        this.audioContext.sampleRate);
+                    const data = popBuffer.getChannelData(0);
+
+                    for (let i = 0; i < data.length; i++) {
+                        const t = i / this.audioContext.sampleRate;
+                        const envelope = Math.exp(-t * 40) * (1 - Math.exp(-t * 1000));
+                        data[i] = (Math.random() * 2 - 1) * envelope;
+                    }
+
+                    const pop = this.audioContext.createBufferSource();
+                    pop.buffer = popBuffer;
+
+                    const popFilter = this.audioContext.createBiquadFilter();
+                    popFilter.type = 'highpass';
+                    popFilter.frequency.value = 1500 + Math.random() * 2000;
+
+                    const popGain = this.audioContext.createGain();
+                    popGain.gain.value = 0.4 + Math.random() * 0.6;
+
+                    pop.connect(popFilter);
+                    popFilter.connect(popGain);
+                    popGain.connect(fireGain);
+                    pop.start();
+
+                    // Occasional bigger crack
+                    if (Math.random() > 0.85) {
+                        const crackBuffer = this.audioContext.createBuffer(1,
+                            this.audioContext.sampleRate * 0.15,
+                            this.audioContext.sampleRate);
+                        const crackData = crackBuffer.getChannelData(0);
+
+                        for (let i = 0; i < crackData.length; i++) {
+                            const t = i / this.audioContext.sampleRate;
+                            crackData[i] = (Math.random() * 2 - 1) * Math.exp(-t * 20);
+                        }
+
+                        const crack = this.audioContext.createBufferSource();
+                        crack.buffer = crackBuffer;
+
+                        const crackGain = this.audioContext.createGain();
+                        crackGain.gain.value = 0.7;
+
+                        crack.connect(crackGain);
+                        crackGain.connect(fireGain);
+                        crack.start();
+                    }
+
+                    setTimeout(createWoodPop, 100 + Math.random() * 400);
+                };
+
+                setTimeout(createWoodPop, 50);
+
+                // Layer 4: Hiss/sizzle (high frequency texture)
+                const hissNoise = this.audioContext.createBufferSource();
+                hissNoise.buffer = this.createNoiseBuffer(2, 'white');
+                hissNoise.loop = true;
+
+                const hissFilter = this.audioContext.createBiquadFilter();
+                hissFilter.type = 'highpass';
+                hissFilter.frequency.value = 4000;
+
+                const hissGain = this.audioContext.createGain();
+                hissGain.gain.value = 0.08;
+
+                hissNoise.connect(hissFilter);
+                hissFilter.connect(hissGain);
+                hissGain.connect(fireGain);
+                hissNoise.start();
+
+                nodes.hissNoise = hissNoise;
+
+                this.sounds.campfire = nodes;
+            }
+
+            // BUBBLES - Realistic water bubbling sounds
+            startBubbles() {
+                if (this.sounds.bubbles) return;
+
+                const nodes = {};
+                const bubbleGain = this.audioContext.createGain();
+                bubbleGain.gain.value = 0.35;
+                bubbleGain.connect(this.soundGains.bubbles);
+
+                // Background water murmur
+                const waterNoise = this.audioContext.createBufferSource();
+                waterNoise.buffer = this.createNoiseBuffer(3, 'pink');
+                waterNoise.loop = true;
+
+                const waterFilter = this.audioContext.createBiquadFilter();
+                waterFilter.type = 'lowpass';
+                waterFilter.frequency.value = 800;
+
+                const waterGain = this.audioContext.createGain();
+                waterGain.gain.value = 0.12;
+
+                waterNoise.connect(waterFilter);
+                waterFilter.connect(waterGain);
+                waterGain.connect(bubbleGain);
+                waterNoise.start();
+
+                nodes.waterNoise = waterNoise;
+                nodes.bubbleGain = bubbleGain;
+
+                // Create realistic bubble pops
+                const createBubble = () => {
+                    if (!this.sounds.bubbles) return;
+
+                    const ctx = this.audioContext;
+                    const now = ctx.currentTime;
+
+                    // Randomize bubble characteristics
+                    const baseFreq = 300 + Math.random() * 600;
+                    const duration = 0.05 + Math.random() * 0.1;
+                    const volume = 0.1 + Math.random() * 0.2;
+
+                    // Bubble oscillator with frequency drop (realistic bubble physics)
+                    const bubble = ctx.createOscillator();
+                    bubble.type = 'sine';
+                    bubble.frequency.setValueAtTime(baseFreq, now);
+                    bubble.frequency.exponentialRampToValueAtTime(baseFreq * 0.3, now + duration);
+
+                    // Bandpass filter for water-like resonance
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.value = baseFreq * 0.8;
+                    filter.Q.value = 3;
+
+                    // Quick attack, slower decay envelope
+                    const env = ctx.createGain();
+                    env.gain.setValueAtTime(0, now);
+                    env.gain.linearRampToValueAtTime(volume, now + 0.005);
+                    env.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                    bubble.connect(filter);
+                    filter.connect(env);
+                    env.connect(nodes.bubbleGain);
+
+                    bubble.start(now);
+                    bubble.stop(now + duration + 0.05);
+
+                    // Occasional larger bubble cluster
+                    if (Math.random() > 0.92) {
+                        for (let i = 0; i < 3 + Math.floor(Math.random() * 3); i++) {
+                            setTimeout(() => {
+                                if (!this.sounds.bubbles) return;
+
+                                const bFreq = 250 + Math.random() * 400;
+                                const bDur = 0.04 + Math.random() * 0.08;
+
+                                const bOsc = ctx.createOscillator();
+                                bOsc.type = 'sine';
+                                bOsc.frequency.setValueAtTime(bFreq, ctx.currentTime);
+                                bOsc.frequency.exponentialRampToValueAtTime(bFreq * 0.4, ctx.currentTime + bDur);
+
+                                const bFilter = ctx.createBiquadFilter();
+                                bFilter.type = 'bandpass';
+                                bFilter.frequency.value = bFreq;
+                                bFilter.Q.value = 2;
+
+                                const bEnv = ctx.createGain();
+                                bEnv.gain.setValueAtTime(0, ctx.currentTime);
+                                bEnv.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.003);
+                                bEnv.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + bDur);
+
+                                bOsc.connect(bFilter);
+                                bFilter.connect(bEnv);
+                                bEnv.connect(nodes.bubbleGain);
+
+                                bOsc.start();
+                                bOsc.stop(ctx.currentTime + bDur + 0.02);
+                            }, i * 30 + Math.random() * 20);
+                        }
+                    }
+
+                    setTimeout(createBubble, 80 + Math.random() * 300);
+                };
+
+                setTimeout(createBubble, 100);
+            }
+
+            // EAR CLEANSE - Soft brushing and scraping ASMR sounds
+            startEar() {
+                if (this.sounds.ear) return;
+
+                const nodes = {};
+                const earGain = this.soundGains.ear;
+
+                // Layer 1: Soft brushing texture
+                const brushNoise = this.audioContext.createBufferSource();
+                brushNoise.buffer = this.createNoiseBuffer(4, 'pink');
+                brushNoise.loop = true;
+
+                const brushHighpass = this.audioContext.createBiquadFilter();
+                brushHighpass.type = 'highpass';
+                brushHighpass.frequency.value = 1500;
+
+                const brushLowpass = this.audioContext.createBiquadFilter();
+                brushLowpass.type = 'lowpass';
+                brushLowpass.frequency.value = 8000;
+
+                const brushGain = this.audioContext.createGain();
+                brushGain.gain.value = 0.25;
+
+                // Create irregular brushing motion with multiple LFOs
+                const brushLfo1 = this.audioContext.createOscillator();
+                const brushLfo1Gain = this.audioContext.createGain();
+                brushLfo1.frequency.value = 0.8 + Math.random() * 0.4;
+                brushLfo1.type = 'sine';
+                brushLfo1Gain.gain.value = 0.15;
+
+                const brushLfo2 = this.audioContext.createOscillator();
+                const brushLfo2Gain = this.audioContext.createGain();
+                brushLfo2.frequency.value = 2.3 + Math.random() * 0.5;
+                brushLfo2.type = 'sine';
+                brushLfo2Gain.gain.value = 0.1;
+
+                brushLfo1.connect(brushLfo1Gain);
+                brushLfo1Gain.connect(brushGain.gain);
+                brushLfo2.connect(brushLfo2Gain);
+                brushLfo2Gain.connect(brushGain.gain);
+
+                brushNoise.connect(brushHighpass);
+                brushHighpass.connect(brushLowpass);
+                brushLowpass.connect(brushGain);
+                brushGain.connect(earGain);
+
+                brushNoise.start();
+                brushLfo1.start();
+                brushLfo2.start();
+
+                nodes.brushNoise = brushNoise;
+                nodes.brushLfo1 = brushLfo1;
+                nodes.brushLfo2 = brushLfo2;
+
+                // Layer 2: Occasional soft scratching
+                const createScratch = () => {
+                    if (!this.sounds.ear) return;
+
+                    const scratchBuffer = this.audioContext.createBuffer(1,
+                        this.audioContext.sampleRate * 0.2,
+                        this.audioContext.sampleRate);
+                    const data = scratchBuffer.getChannelData(0);
+
+                    for (let i = 0; i < data.length; i++) {
+                        const t = i / this.audioContext.sampleRate;
+                        // Irregular envelope for realistic scratch
+                        const env = Math.exp(-t * 8) * (
+                            1 + 0.5 * Math.sin(t * 50) * Math.sin(t * 120) +
+                            0.3 * Math.sin(t * 200)
+                        ) * (1 - Math.exp(-t * 100));
+                        data[i] = (Math.random() * 2 - 1) * env;
+                    }
+
+                    const scratch = this.audioContext.createBufferSource();
+                    scratch.buffer = scratchBuffer;
+
+                    const scratchFilter = this.audioContext.createBiquadFilter();
+                    scratchFilter.type = 'bandpass';
+                    scratchFilter.frequency.value = 3000 + Math.random() * 4000;
+                    scratchFilter.Q.value = 2;
+
+                    const scratchGain = this.audioContext.createGain();
+                    scratchGain.gain.value = 0.15 + Math.random() * 0.15;
+
+                    scratch.connect(scratchFilter);
+                    scratchFilter.connect(scratchGain);
+                    scratchGain.connect(earGain);
+                    scratch.start();
+
+                    setTimeout(createScratch, 800 + Math.random() * 2500);
+                };
+
+                setTimeout(createScratch, 500);
+
+                // Layer 3: Soft ear canal resonance (subtle)
+                const resonance = this.audioContext.createOscillator();
+                resonance.type = 'sine';
+                resonance.frequency.value = 180 + Math.random() * 50;
+
+                const resFilter = this.audioContext.createBiquadFilter();
+                resFilter.type = 'lowpass';
+                resFilter.frequency.value = 300;
+
+                const resGain = this.audioContext.createGain();
+                resGain.gain.value = 0.03;
+
+                // Very slow modulation for subtle movement
+                const resLfo = this.audioContext.createOscillator();
+                const resLfoGain = this.audioContext.createGain();
+                resLfo.frequency.value = 0.1;
+                resLfo.type = 'sine';
+                resLfoGain.gain.value = 0.02;
+
+                resLfo.connect(resLfoGain);
+                resLfoGain.connect(resGain.gain);
+
+                resonance.connect(resFilter);
+                resFilter.connect(resGain);
+                resGain.connect(earGain);
+
+                resonance.start();
+                resLfo.start();
+
+                nodes.resonance = resonance;
+                nodes.resLfo = resLfo;
+
+                this.sounds.ear = nodes;
+            }
+
+            // WHISPER - Multi-layered breathing and whisper sounds
+            startWhisper() {
+                if (this.sounds.whisper) return;
+
+                const nodes = {};
+                const whisperGain = this.soundGains.whisper;
+
+                // Layer 1: Airy breath base
+                const breathNoise = this.audioContext.createBufferSource();
+                breathNoise.buffer = this.createNoiseBuffer(5, 'pink');
+                breathNoise.loop = true;
+
+                const breathFilter = this.audioContext.createBiquadFilter();
+                breathFilter.type = 'bandpass';
+                breathFilter.frequency.value = 2000;
+                breathFilter.Q.value = 2;
+
+                const breathGain = this.audioContext.createGain();
+                breathGain.gain.value = 0.2;
+
+                // Slow breathing modulation
+                const breathLfo = this.audioContext.createOscillator();
+                const breathLfoGain = this.audioContext.createGain();
+                breathLfo.frequency.value = 0.12 + Math.random() * 0.03;
+                breathLfo.type = 'sine';
+                breathLfoGain.gain.value = 0.15;
+
+                breathLfo.connect(breathLfoGain);
+                breathLfoGain.connect(breathGain.gain);
+
+                breathNoise.connect(breathFilter);
+                breathFilter.connect(breathGain);
+                breathGain.connect(whisperGain);
+
+                breathNoise.start();
+                breathLfo.start();
+
+                nodes.breathNoise = breathNoise;
+                nodes.breathLfo = breathLfo;
+
+                // Layer 2: Higher frequency whisper texture
+                const whisperNoise = this.audioContext.createBufferSource();
+                whisperNoise.buffer = this.createNoiseBuffer(4, 'pink');
+                whisperNoise.loop = true;
+
+                const whisperFilter = this.audioContext.createBiquadFilter();
+                whisperFilter.type = 'bandpass';
+                whisperFilter.frequency.value = 4000;
+                whisperFilter.Q.value = 3;
+
+                const whisperLayerGain = this.audioContext.createGain();
+                whisperLayerGain.gain.value = 0.12;
+
+                const whisperLfo = this.audioContext.createOscillator();
+                const whisperLfoGain = this.audioContext.createGain();
+                whisperLfo.frequency.value = 0.08;
+                whisperLfo.type = 'sine';
+                whisperLfoGain.gain.value = 0.08;
+
+                whisperLfo.connect(whisperLfoGain);
+                whisperLfoGain.connect(whisperLayerGain.gain);
+
+                whisperNoise.connect(whisperFilter);
+                whisperFilter.connect(whisperLayerGain);
+                whisperLayerGain.connect(whisperGain);
+
+                whisperNoise.start();
+                whisperLfo.start();
+
+                nodes.whisperNoise = whisperNoise;
+                nodes.whisperLfo = whisperLfo;
+
+                // Layer 3: Occasional vowel-like mouth shapes
+                const createMouthShape = () => {
+                    if (!this.sounds.whisper) return;
+
+                    const ctx = this.audioContext;
+                    const now = ctx.currentTime;
+
+                    // Create filtered noise burst that sounds like shaped breath
+                    const shapeBuffer = ctx.createBuffer(1,
+                        ctx.sampleRate * 0.4,
+                        ctx.sampleRate);
+                    const data = shapeBuffer.getChannelData(0);
+
+                    for (let i = 0; i < data.length; i++) {
+                        const t = i / ctx.sampleRate;
+                        const duration = 0.4;
+                        // Shape envelope: slow attack, sustain, slow release
+                        let env;
+                        if (t < 0.1) {
+                            env = t / 0.1;
+                        } else if (t < 0.25) {
+                            env = 1;
+                        } else {
+                            env = 1 - (t - 0.25) / (duration - 0.25);
+                        }
+                        data[i] = (Math.random() * 2 - 1) * env * 0.8;
+                    }
+
+                    const shape = ctx.createBufferSource();
+                    shape.buffer = shapeBuffer;
+
+                    // Formant-like filtering for vowel sounds
+                    const formantFreq = 800 + Math.random() * 400;
+                    const formant = ctx.createBiquadFilter();
+                    formant.type = 'bandpass';
+                    formant.frequency.value = formantFreq;
+                    formant.Q.value = 5;
+
+                    const shapeGain = ctx.createGain();
+                    shapeGain.gain.value = 0.1 + Math.random() * 0.1;
+
+                    shape.connect(formant);
+                    formant.connect(shapeGain);
+                    shapeGain.connect(whisperGain);
+                    shape.start();
+
+                    // Secondary formant for richness
+                    const formant2 = ctx.createBiquadFilter();
+                    formant2.type = 'bandpass';
+                    formant2.frequency.value = formantFreq * 1.5 + Math.random() * 300;
+                    formant2.Q.value = 8;
+
+                    const shape2 = ctx.createBufferSource();
+                    shape2.buffer = shapeBuffer;
+
+                    const shape2Gain = ctx.createGain();
+                    shape2Gain.gain.value = 0.05;
+
+                    shape2.connect(formant2);
+                    formant2.connect(shape2Gain);
+                    shape2Gain.connect(whisperGain);
+                    shape2.start(now + 0.02);
+
+                    setTimeout(createMouthShape, 2000 + Math.random() * 5000);
+                };
+
+                setTimeout(createMouthShape, 1000);
+
+                // Layer 4: Subtle low rumble for chest/breath resonance
+                const lowBreath = this.audioContext.createOscillator();
+                lowBreath.type = 'sine';
+                lowBreath.frequency.value = 80;
+
+                const lowFilter = this.audioContext.createBiquadFilter();
+                lowFilter.type = 'lowpass';
+                lowFilter.frequency.value = 150;
+
+                const lowGain = this.audioContext.createGain();
+                lowGain.gain.value = 0.02;
+
+                const lowLfo = this.audioContext.createOscillator();
+                const lowLfoGain = this.audioContext.createGain();
+                lowLfo.frequency.value = 0.1;
+                lowLfo.type = 'sine';
+                lowLfoGain.gain.value = 0.015;
+
+                lowLfo.connect(lowLfoGain);
+                lowLfoGain.connect(lowGain.gain);
+
+                lowBreath.connect(lowFilter);
+                lowFilter.connect(lowGain);
+                lowGain.connect(whisperGain);
+
+                lowBreath.start();
+                lowLfo.start();
+
+                nodes.lowBreath = lowBreath;
+                nodes.lowLfo = lowLfo;
+
+                this.sounds.whisper = nodes;
+            }
+
+            setVolume(sound, value) {
+                if (this.soundGains[sound] && this.isInitialized) {
+                    this.soundGains[sound].gain.setTargetAtTime(value, this.audioContext.currentTime, 0.1);
+                }
+            }
+
+            setMasterVolume(value) {
+                if (this.masterGain && this.isInitialized) {
+                    this.masterGain.gain.setTargetAtTime(value, this.audioContext.currentTime, 0.1);
+                }
+            }
+
+            toggleSound(sound, volume) {
+                if (this.activeSounds.has(sound)) {
+                    this.stopSound(sound);
+                } else {
+                    this.startSound(sound, volume);
+                }
+            }
+
+            startSound(sound, volume) {
+                if (!this.isInitialized) return;
+
+                this.activeSounds.add(sound);
+                this.setVolume(sound, volume);
+
+                switch(sound) {
+                    case 'rain': this.startRain(); break;
+                    case 'campfire': this.startCampfire(); break;
+                    case 'bubbles': this.startBubbles(); break;
+                    case 'ear': this.startEar(); break;
+                    case 'whisper': this.startWhisper(); break;
+                }
+            }
+
+            stopSound(sound) {
+                this.activeSounds.delete(sound);
+
+                if (this.soundGains[sound]) {
+                    this.soundGains[sound].gain.setTargetAtTime(0, this.audioContext.currentTime, 0.1);
+                }
+
+                if (this.sounds[sound]) {
+                    const s = this.sounds[sound];
+
+                    // Stop all audio nodes
+                    const stopNode = (node) => {
+                        if (node && node.stop) {
+                            try { node.stop(); } catch(e) {}
+                        }
+                    };
+
+                    Object.values(s).forEach(node => {
+                        if (Array.isArray(node)) {
+                            node.forEach(stopNode);
+                        } else if (node && typeof node === 'object') {
+                            if (node.stop) {
+                                try { node.stop(); } catch(e) {}
+                            }
+                            if (node.disconnect) {
+                                try { node.disconnect(); } catch(e) {}
+                            }
+                        }
+                    });
+
+                    delete this.sounds[sound];
+                }
+            }
+
+            stopAll() {
+                this.activeSounds.forEach(sound => this.stopSound(sound));
+            }
+
+            isPlaying(sound) {
+                return this.activeSounds.has(sound);
+            }
+        }
+
+        // ===== TIMER SYSTEM =====
+        class Timer {
+            constructor() {
+                this.duration = 0; // 0 = infinite
+                this.remaining = 0;
+                this.isRunning = false;
+                this.interval = null;
+                this.onUpdate = null;
+                this.onComplete = null;
+            }
+
+            setDuration(minutes) {
+                this.duration = minutes * 60; // Convert to seconds
+                this.remaining = this.duration;
+                this.updateDisplay();
+            }
+
+            start() {
+                if (this.duration === 0) return; // Infinite timer
+                this.isRunning = true;
+                this.remaining = this.duration;
+                
+                this.interval = setInterval(() => {
+                    this.remaining--;
+                    this.updateDisplay();
+                    
+                    if (this.onUpdate) this.onUpdate(this.remaining, this.duration);
+                    
+                    if (this.remaining <= 0) {
+                        this.complete();
+                    }
+                }, 1000);
+            }
+
+            stop() {
+                this.isRunning = false;
+                if (this.interval) {
+                    clearInterval(this.interval);
+                    this.interval = null;
+                }
+            }
+
+            reset() {
+                this.stop();
+                this.remaining = this.duration;
+                this.updateDisplay();
+                if (this.onUpdate) this.onUpdate(this.remaining, this.duration);
+            }
+
+            complete() {
+                this.stop();
+                if (this.onComplete) this.onComplete();
+            }
+
+            updateDisplay() {
+                if (this.duration === 0) {
+                    if (this.onUpdate) this.onUpdate(-1, 0); // Signal infinite
+                } else {
+                    const mins = Math.floor(this.remaining / 60);
+                    const secs = this.remaining % 60;
+                    if (this.onUpdate) this.onUpdate(this.remaining, this.duration);
+                }
+            }
+
+            getProgress() {
+                if (this.duration === 0) return 0;
+                return (this.duration - this.remaining) / this.duration;
+            }
+        }
+
+        // ===== VISUAL EFFECTS =====
+        class ParticleSystem {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.particles = [];
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            createParticle() {
+                return {
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    size: Math.random() * 3 + 1,
+                    speedX: (Math.random() - 0.5) * 0.5,
+                    speedY: (Math.random() - 0.5) * 0.5 - 0.2,
+                    opacity: Math.random() * 0.5 + 0.2,
+                    hue: Math.random() > 0.5 ? 35 : 195, // Amber or Cyan
+                    life: 0,
+                    maxLife: 200 + Math.random() * 200
+                };
+            }
+
+            update() {
+                // Add new particles
+                if (this.particles.length < 50) {
+                    this.particles.push(this.createParticle());
+                }
+
+                // Update existing
+                this.particles = this.particles.filter(p => {
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+                    p.life++;
+                    p.opacity = 0.5 * (1 - p.life / p.maxLife);
+                    
+                    return p.life < p.maxLife && p.x > 0 && p.x < this.canvas.width;
+                });
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.particles.forEach(p => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    this.ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${p.opacity})`;
+                    this.ctx.fill();
+                    
+                    // Glow effect
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.shadowColor = `hsla(${p.hue}, 100%, 60%, ${p.opacity})`;
+                });
+                
+                this.ctx.shadowBlur = 0;
+            }
+
+            animate() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        // ===== WAVE VISUALIZER =====
+        class WaveVisualizer {
+            constructor(canvasId, color = '#00D4FF') {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.color = color;
+                this.isActive = false;
+                this.time = 0;
+                this.resize();
+                this.animate();
+            }
+
+            resize() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width * 2;
+                this.canvas.height = rect.height * 2;
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+            }
+
+            setActive(active) {
+                this.isActive = active;
+            }
+
+            drawWave(amplitude, frequency, yOffset) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, this.height / 2);
+                
+                for (let x = 0; x < this.width; x++) {
+                    const wave1 = Math.sin((x * frequency) + this.time) * amplitude * 0.3;
+                    const wave2 = Math.sin((x * frequency * 2.5) + this.time * 1.3) * amplitude * 0.15;
+                    const wave3 = Math.sin((x * frequency * 0.5) + this.time * 0.7) * amplitude * 0.2;
+                    
+                    const y = this.height / 2 + wave1 + wave2 + wave3 + yOffset;
+                    this.ctx.lineTo(x, y);
+                }
+                
+                this.ctx.strokeStyle = this.color;
+                this.ctx.lineWidth = 3;
+                this.ctx.stroke();
+                
+                // Fill below wave
+                this.ctx.lineTo(this.width, this.height);
+                this.ctx.lineTo(0, this.height);
+                this.ctx.closePath();
+                this.ctx.fillStyle = `${this.color}22`;
+                this.ctx.fill();
+            }
+
+            animate() {
+                this.time += 0.05;
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                
+                if (this.isActive) {
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.shadowColor = this.color;
+                    this.drawWave(20 + Math.sin(this.time * 2) * 10, 0.02, Math.sin(this.time) * 5);
+                    this.drawWave(12, 0.035, 0);
+                } else {
+                    // Idle wave
+                    this.drawWave(5, 0.01, 0);
+                }
+                
+                this.ctx.shadowBlur = 0;
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        // ===== MAIN APP =====
+        class ASMRSanctuary {
+            constructor() {
+                this.audioEngine = new ASMREngine();
+                this.timer = new Timer();
+                this.particles = new ParticleSystem(document.getElementById('bg-canvas'));
+                this.visualizers = {};
+                this.inputCoverage = { pointer: false, keyboard: false, touch: false };
+                this.volumes = {
+                    rain: 0.7,
+                    campfire: 0.6,
+                    bubbles: 0.5,
+                    ear: 0.65,
+                    whisper: 0.55
+                };
+                
+                this.init();
+            }
+
+            init() {
+                // Initialize visualizers
+                ['rain', 'campfire', 'bubbles', 'ear', 'whisper'].forEach((name, i) => {
+                    const colors = ['#00D4FF', '#F5A623', '#FF2D95', '#00FF88', '#FFD700'];
+                    this.visualizers[name] = new WaveVisualizer(`${name}Wave`, colors[i]);
+                });
+
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Start particle animation
+                this.particles.animate();
+
+                // Setup timer callbacks
+                this.timer.onUpdate = (remaining, duration) => this.updateTimerDisplay(remaining, duration);
+                this.timer.onComplete = () => this.handleTimerComplete();
+            }
+
+            setupEventListeners() {
+                // Audio overlay
+                const overlay = document.getElementById('audioOverlay');
+                overlay.addEventListener('click', async () => {
+                    this.inputCoverage.pointer = true;
+                    await this.audioEngine.init();
+                    overlay.classList.add('hidden');
+                });
+                overlay.addEventListener('touchstart', () => {
+                    this.inputCoverage.touch = true;
+                }, { passive: true });
+
+                // Sound cards
+                document.querySelectorAll('.sound-card').forEach(card => {
+                    const soundName = card.dataset.sound;
+                    card.addEventListener('pointerdown', (e) => {
+                        this.inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+                    });
+                    
+                    // Toggle on click
+                    card.addEventListener('click', (e) => {
+                        this.inputCoverage.pointer = true;
+                        if (e.target.classList.contains('volume-slider')) return;
+                        this.toggleSound(soundName);
+                    });
+
+                    // Volume slider
+                    const slider = card.querySelector('.volume-slider');
+                    slider.addEventListener('input', (e) => {
+                        e.stopPropagation();
+                        const value = e.target.value / 100;
+                        this.volumes[soundName] = value;
+                        document.getElementById(`${soundName}Vol`).textContent = `${e.target.value}%`;
+                        if (this.audioEngine.isPlaying(soundName)) {
+                            this.audioEngine.setVolume(soundName, value);
+                        }
+                    });
+                });
+
+                // Timer buttons
+                document.querySelectorAll('.timer-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.inputCoverage.pointer = true;
+                        document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        
+                        const minutes = parseInt(btn.dataset.time);
+                        this.timer.setDuration(minutes);
+                        
+                        const label = document.getElementById('timerLabel');
+                        label.textContent = minutes === 0 ? '∞ Infinite' : `${minutes} min`;
+                        
+                        if (minutes > 0) {
+                            this.timer.start();
+                        } else {
+                            this.timer.stop();
+                            this.updateTimerDisplay(-1, 0);
+                        }
+                    });
+                });
+
+                // Master volume
+                document.getElementById('masterVolume').addEventListener('input', (e) => {
+                    this.inputCoverage.pointer = true;
+                    this.audioEngine.setMasterVolume(e.target.value / 100);
+                });
+
+                // Stop all button
+                document.getElementById('stopAll').addEventListener('click', () => {
+                    this.inputCoverage.pointer = true;
+                    this.stopAllSounds();
+                });
+
+                document.addEventListener('keydown', async (e) => {
+                    this.inputCoverage.keyboard = true;
+                    if (['1', '2', '3', '4', '5'].includes(e.key)) {
+                        const sounds = ['rain', 'campfire', 'bubbles', 'ear', 'whisper'];
+                        await this.audioEngine.init();
+                        overlay.classList.add('hidden');
+                        this.toggleSound(sounds[Number(e.key) - 1]);
+                        e.preventDefault();
+                    } else if (e.key === ' ' || e.key === 'Escape') {
+                        this.stopAllSounds();
+                        e.preventDefault();
+                    } else if (e.key.toLowerCase() === 't') {
+                        document.querySelector('.timer-btn[data-time="15"]').click();
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            toggleSound(soundName) {
+                const card = document.querySelector(`[data-sound="${soundName}"]`);
+                const isPlaying = this.audioEngine.isPlaying(soundName);
+                
+                if (isPlaying) {
+                    this.audioEngine.stopSound(soundName);
+                    card.classList.remove('active');
+                    this.visualizers[soundName].setActive(false);
+                } else {
+                    this.audioEngine.startSound(soundName, this.volumes[soundName]);
+                    card.classList.add('active');
+                    this.visualizers[soundName].setActive(true);
+                }
+            }
+
+            stopAllSounds() {
+                this.audioEngine.stopAll();
+                document.querySelectorAll('.sound-card').forEach(card => {
+                    card.classList.remove('active');
+                });
+                Object.values(this.visualizers).forEach(v => v.setActive(false));
+            }
+
+            updateTimerDisplay(remaining, duration) {
+                const display = document.getElementById('timerDisplay');
+                const text = document.getElementById('timerText');
+                const progress = document.getElementById('timerProgress');
+                
+                if (duration === 0) {
+                    text.textContent = '∞';
+                    progress.style.strokeDashoffset = 339.292;
+                    display.classList.remove('timer-warning');
+                    return;
+                }
+                
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                text.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                // Update progress ring
+                const circumference = 339.292;
+                const offset = circumference * (1 - this.timer.getProgress());
+                progress.style.strokeDashoffset = offset;
+                
+                // Warning state
+                if (remaining <= 60 && remaining > 0) {
+                    display.classList.add('timer-warning');
+                } else {
+                    display.classList.remove('timer-warning');
+                }
+            }
+
+            handleTimerComplete() {
+                // Fade out effect
+                document.querySelector('.app-container').classList.add('fading-out');
+                
+                setTimeout(() => {
+                    this.stopAllSounds();
+                    document.querySelector('.app-container').classList.remove('fading-out');
+                    
+                    // Flash effect
+                    const display = document.getElementById('timerDisplay');
+                    display.style.boxShadow = '0 0 50px var(--magenta-glow)';
+                    setTimeout(() => {
+                        display.style.boxShadow = '';
+                    }, 500);
+                }, 5000); // 5 second fade
+            }
+        }
+
+        // Start the app
+        const app = new ASMRSanctuary();
+        window.__OPENGAME_DEBUG__ = () => ({
+            gameState: 'ready',
+            score: app.audioEngine.activeSounds.size,
+            level: app.audioEngine.activeSounds.size + 1,
+            maxLevel: 5,
+            totalLevels: 5,
+            maxStage: 5,
+            totalStages: 5,
+            inputCoverage: app.inputCoverage,
+            activeTargets: Array.from(document.querySelectorAll('.sound-card')).map((card) => {
+                const rect = card.getBoundingClientRect();
+                return {
+                    x: Math.round(rect.left + rect.width / 2),
+                    y: Math.round(rect.top + rect.height / 2),
+                    size: Math.round(Math.min(rect.width, rect.height)),
+                    reachable: rect.top >= -4 && rect.left >= -4 && rect.bottom <= window.innerHeight + 4 && rect.right <= window.innerWidth + 4
+                };
+            }),
+            playfield: { top: 0, bottom: window.innerHeight, width: window.innerWidth, height: window.innerHeight }
+        });
+    </script>
+</body>
+</html>

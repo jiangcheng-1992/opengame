@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOF 风格格斗</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+body {
+  background: #2a2a4a;
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; font-family: 'Press Start 2P', monospace;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+canvas {
+  border: 4px solid #ffcc00;
+  box-shadow: 0 0 40px rgba(255,200,0,0.5);
+  image-rendering: pixelated;
+  width: min(100vw - 12px, calc((100vh - 12px) * 1.6));
+  height: min(100vh - 12px, calc((100vw - 12px) / 1.6));
+  max-width: 100vw;
+  max-height: 100vh;
+  touch-action: none;
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = 800; canvas.height = 500;
+
+let gameState = 'title';
+let selectedChar = 0;
+let wave = 0;
+let enemiesDefeated = 0;
+let shakeTimer = 0;
+let shakeAmt = 0;
+
+const chars = [
+  { name: '龙', color: '#e63946', hair: '#2d2d2d', style: 'red' },
+  { name: '虎', color: '#1d3557', hair: '#f4a261', style: 'blue' },
+  { name: '樱', color: '#ffb5a7', hair: '#e63946', style: 'pink' },
+  { name: '雷', color: '#7209b7', hair: '#f72585', style: 'purple' },
+  { name: '火', color: '#f77f00', hair: '#d62828', style: 'orange' },
+  { name: '冰', color: '#48cae4', hair: '#023e8a', style: 'cyan' },
+];
+const bossChar = { name: '神', color: '#2d2d2d', hair: '#ffd700', style: 'boss' };
+
+const keys = {};
+const keyBuffer = [];
+const inputCoverage = { pointer: false, keyboard: false, touch: false };
+let pointerDownInfo = null;
+document.addEventListener('keydown', e => {
+  inputCoverage.keyboard = true;
+  if (!keys[e.key]) {
+    keys[e.key] = true;
+    keyBuffer.push({ key: e.key, time: Date.now() });
+    if (keyBuffer.length > 10) keyBuffer.shift();
+  }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+class Fighter {
+  constructor(x, isPlayer, charData) {
+    this.x = x; this.y = 340; this.w = 60; this.h = 100;
+    this.vx = 0; this.vy = 0;
+    this.isPlayer = isPlayer;
+    this.data = charData;
+    this.hp = 100; this.maxHp = 100;
+    this.state = 'idle';
+    this.frame = 0;
+    this.facing = isPlayer ? 1 : -1;
+    this.attackCooldown = 0;
+    this.hitCooldown = 0;
+    this.invincible = 0;
+    this.aiTimer = 0;
+    this.grounded = true;
+    this.attackType = 0;
+    this.attackFrame = 0;
+  }
+
+  getHitbox() {
+    const atk = this.attackFrame > 5 && this.attackFrame < 15;
+    return {
+      x: this.x - this.w/2 + (atk ? this.facing * 20 : 0),
+      y: this.y - this.h,
+      w: this.w + (atk ? 30 : 0),
+      h: this.h
+    };
+  }
+
+  getHurtbox() {
+    return { x: this.x - this.w/2, y: this.y - this.h, w: this.w, h: this.h };
+  }
+
+  update(enemy) {
+    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (this.hitCooldown > 0) this.hitCooldown--;
+    if (this.invincible > 0) this.invincible--;
+    this.frame++;
+
+    if (!this.grounded) {
+      this.vy += 0.8;
+      this.y += this.vy;
+      if (this.y >= 340) { this.y = 340; this.vy = 0; this.grounded = true; }
+    }
+
+    if (this.attackFrame > 0) {
+      this.attackFrame--;
+      if (this.attackFrame === 10) {
+        const atk = this.getHitbox();
+        const hurt = enemy.getHurtbox();
+        if (this.rectHit(atk, hurt) && enemy.invincible === 0 && enemy.hitCooldown === 0) {
+          const dmg = [8, 15, 25][this.attackType];
+          enemy.hp -= dmg;
+          enemy.hitCooldown = 20;
+          enemy.invincible = 15;
+          enemy.vx = this.facing * 5;
+          if (enemy.grounded) enemy.vy = -3;
+          shakeTimer = 8; shakeAmt = 5;
+          if (enemy.hp <= 0) enemy.hp = 0;
+        }
+      }
+    } else {
+      this.state = 'idle';
+    }
+
+    if (this.attackFrame === 0) {
+      this.x += this.vx;
+      this.vx *= 0.85;
+      this.x = Math.max(40, Math.min(760, this.x));
+    }
+  }
+
+  rectHit(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  attack(type) {
+    if (this.attackCooldown > 0 || this.attackFrame > 0) return;
+    this.attackType = type;
+    this.attackFrame = 25;
+    this.attackCooldown = 20 + type * 5;
+    this.state = 'attack';
+  }
+
+  move(dir) {
+    if (this.attackFrame > 0) return;
+    this.vx = dir * 4;
+    this.facing = dir;
+    this.state = 'walk';
+  }
+
+  jump() {
+    if (this.grounded && this.attackFrame === 0) {
+      this.vy = -14;
+      this.grounded = false;
+      this.state = 'jump';
+    }
+  }
+
+  crouch(val) { if (val && this.grounded) this.state = 'crouch'; else if (this.state === 'crouch') this.state = 'idle'; }
+
+  draw() {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    if (this.facing < 0) ctx.scale(-1, 1);
+    if (this.invincible > 0 && Math.floor(this.frame/3)%2) ctx.globalAlpha = 0.5;
+
+    const c = this.data.color;
+    const h = this.data.hair;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 25, 8, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-15, -30, 12, 30);
+    ctx.fillRect(3, -30, 12, 30);
+    if (this.state === 'crouch') {
+      ctx.fillRect(-18, -25, 40, 12);
+    }
+
+    const bodyY = this.state === 'crouch' ? -50 : -80;
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.roundRect(-20, bodyY, 40, 50, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    let armX = 15;
+    if (this.attackFrame > 10) {
+      armX += 25 * (1 - this.attackFrame/25);
+    }
+
+    ctx.fillStyle = c;
+    ctx.fillRect(armX - 10, bodyY + 10, 20, 12);
+    ctx.fillRect(-armX - 10, bodyY + 10, 20, 12);
+    ctx.strokeStyle = '#222';
+    ctx.strokeRect(armX - 10, bodyY + 10, 20, 12);
+    ctx.strokeRect(-armX - 10, bodyY + 10, 20, 12);
+
+    const headY = bodyY - 35;
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(0, headY, 22, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = h;
+    ctx.beginPath();
+    ctx.ellipse(0, headY - 15, 20, 15, 0, Math.PI, 0);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(5, headY - 3, 8, 6);
+    ctx.fillRect(-13, headY - 3, 8, 6);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(9, headY - 1, 4, 4);
+    ctx.fillRect(-9, headY - 1, 4, 4);
+
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, headY + 8, 6, 0.1*Math.PI, 0.9*Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+}
+
+let player = null;
+let enemy = null;
+let roundEndTimer = 0;
+let roundResult = '';
+
+function drawTitle() {
+  const bg = ctx.createLinearGradient(0, 0, 0, 500);
+  bg.addColorStop(0, '#87CEEB');
+  bg.addColorStop(0.5, '#ADD8E6');
+  bg.addColorStop(1, '#E0FFFF');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 800, 500);
+
+  ctx.fillStyle = '#FFE066';
+  ctx.beginPath();
+  ctx.arc(700, 80, 50, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#FFCC00';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 15; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, i*35);
+    ctx.lineTo(800, i*35);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#333';
+  ctx.font = '48px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('KOF', 400, 150);
+  ctx.fillStyle = '#e63946';
+  ctx.fillText('风格格斗', 400, 220);
+
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(280, 300, 240, 60);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(280, 300, 240, 60);
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px "Press Start 2P"';
+  ctx.fillText('开始游戏', 400, 340);
+
+  ctx.fillStyle = '#555';
+  ctx.font = '10px "Press Start 2P"';
+  ctx.fillText('方向键移动 | J轻 K中 L重 | 特殊:↓↘→+J/K/L', 400, 420);
+  ctx.fillText('W跳跃 S下蹲 A左 D右', 400, 450);
+}
+
+function drawSelect() {
+  const bg = ctx.createLinearGradient(0, 0, 0, 500);
+  bg.addColorStop(0, '#87CEEB');
+  bg.addColorStop(1, '#E0FFFF');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 800, 500);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '24px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('选择角色', 400, 50);
+
+  chars.forEach((c, i) => {
+    const x = 100 + (i % 3) * 250;
+    const y = 100 + Math.floor(i / 3) * 180;
+    const sel = i === selectedChar;
+
+    ctx.fillStyle = sel ? '#FFE066' : '#ccc';
+    ctx.fillRect(x - 60, y - 30, 120, 140);
+    ctx.strokeStyle = sel ? '#4CAF50' : '#999';
+    ctx.lineWidth = sel ? 4 : 2;
+    ctx.strokeRect(x - 60, y - 30, 120, 140);
+
+    ctx.save();
+    ctx.translate(x, y + 40);
+    ctx.scale(0.8, 0.8);
+    ctx.fillStyle = '#666';
+    ctx.fillRect(-10, -20, 8, 20);
+    ctx.fillRect(2, -20, 8, 20);
+    ctx.fillStyle = c.color;
+    ctx.beginPath();
+    ctx.roundRect(-15, -50, 30, 35, 5);
+    ctx.fill();
+    ctx.fillStyle = c.hair;
+    ctx.beginPath();
+    ctx.ellipse(0, -55, 12, 10, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(3, -47, 5, 4);
+    ctx.fillRect(-8, -47, 5, 4);
+    ctx.restore();
+
+    ctx.fillStyle = sel ? '#333' : '#666';
+    ctx.font = '12px "Press Start 2P"';
+    ctx.fillText(c.name, x, y + 90);
+  });
+
+  ctx.fillStyle = '#555';
+  ctx.font = '10px "Press Start 2P"';
+  ctx.fillText('点击选择角色 | 按Enter开始战斗', 400, 470);
+}
+
+function drawBackground() {
+  const sky = ctx.createLinearGradient(0, 0, 0, 380);
+  sky.addColorStop(0, '#87CEEB');
+  sky.addColorStop(0.5, '#B0E0E6');
+  sky.addColorStop(1, '#E0F7FA');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, 800, 380);
+
+  ctx.fillStyle = '#90EE90';
+  ctx.fillRect(0, 360, 800, 40);
+  ctx.fillStyle = '#228B22';
+  ctx.fillRect(0, 380, 800, 120);
+
+  ctx.fillStyle = '#FFE066';
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.fillRect(50, 390, 100, 60);
+  ctx.strokeRect(50, 390, 100, 60);
+  ctx.fillRect(650, 390, 100, 60);
+  ctx.strokeRect(650, 390, 100, 60);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '16px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText(`第 ${wave + 1} 回合`, 400, 40);
+}
+
+function drawHUD() {
+  ctx.fillStyle = '#333';
+  ctx.fillRect(20, 20, 250, 25);
+  ctx.fillStyle = '#4CAF50';
+  const pHp = player ? (player.hp / player.maxHp) * 246 : 0;
+  ctx.fillRect(22, 22, pHp, 21);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(20, 20, 250, 25);
+
+  ctx.fillStyle = '#333';
+  ctx.fillRect(530, 20, 250, 25);
+  ctx.fillStyle = '#f44336';
+  const eHp = enemy ? (enemy.hp / enemy.maxHp) * 246 : 0;
+  ctx.fillRect(532 + (246 - eHp), 22, eHp, 21);
+  ctx.strokeStyle = '#fff';
+  ctx.strokeRect(530, 20, 250, 25);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '10px "Press Start 2P"';
+  ctx.textAlign = 'left';
+  ctx.fillText('玩家', 25, 55);
+  ctx.textAlign = 'right';
+  ctx.fillText(enemy ? enemy.data.name : '', 775, 55);
+
+  ctx.fillStyle = '#e63946';
+  ctx.font = '12px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  const waveText = wave === 4 ? 'BOSS战!' : `对手 ${enemiesDefeated + 1}/4`;
+  ctx.fillText(waveText, 400, 55);
+}
+
+function drawRoundEnd() {
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.fillRect(0, 0, 800, 500);
+
+  ctx.fillStyle = roundResult === 'win' ? '#4CAF50' : '#f44336';
+  ctx.font = '36px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText(roundResult === 'win' ? '胜利!' : '失败...', 400, 200);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '14px "Press Start 2P"';
+  ctx.fillText(roundResult === 'win' ? '按Enter继续' : '按R重试', 400, 280);
+}
+
+function drawVictory() {
+  const bg = ctx.createLinearGradient(0, 0, 0, 500);
+  bg.addColorStop(0, '#FFE066');
+  bg.addColorStop(1, '#FFD700');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 800, 500);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '40px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('恭喜通关!', 400, 180);
+
+  ctx.fillStyle = '#e63946';
+  ctx.font = '20px "Press Start 2P"';
+  ctx.fillText('你击败了所有对手!', 400, 260);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '14px "Press Start 2P"';
+  ctx.fillText(`选择角色: ${chars[selectedChar].name}`, 400, 320);
+
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(320, 360, 160, 50);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(320, 360, 160, 50);
+  ctx.fillStyle = '#fff';
+  ctx.font = '14px "Press Start 2P"';
+  ctx.fillText('再玩一次', 400, 390);
+}
+
+function drawGameOver() {
+  const bg = ctx.createLinearGradient(0, 0, 0, 500);
+  bg.addColorStop(0, '#ddd');
+  bg.addColorStop(1, '#aaa');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 800, 500);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '40px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('游戏结束', 400, 180);
+
+  ctx.fillStyle = '#666';
+  ctx.font = '16px "Press Start 2P"';
+  ctx.fillText('体力耗尽...', 400, 250);
+  ctx.fillText(`击败了 ${enemiesDefeated} 个对手`, 400, 290);
+
+  ctx.fillStyle = '#e63946';
+  ctx.fillRect(320, 340, 160, 50);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(320, 340, 160, 50);
+  ctx.fillStyle = '#fff';
+  ctx.font = '14px "Press Start 2P"';
+  ctx.fillText('重试', 400, 370);
+}
+
+function updateAI(en) {
+  if (!en) return;
+  en.aiTimer++;
+
+  const dist = Math.abs(player.x - en.x);
+  const dir = player.x > en.x ? 1 : -1;
+
+  if (en.aiTimer > 30) {
+    en.aiTimer = 0;
+    const roll = Math.random();
+
+    if (dist > 120) {
+      if (roll < 0.5) en.move(dir);
+      else if (roll < 0.7) en.jump();
+    } else if (dist < 80) {
+      if (roll < 0.4) en.move(-dir);
+      else if (roll < 0.6) en.attack(Math.floor(Math.random() * 3));
+    } else {
+      if (roll < 0.3) en.attack(Math.floor(Math.random() * 3));
+      else if (roll < 0.5) en.move(dir * (Math.random() < 0.5 ? 1 : -1));
+    }
+
+    if (en.data.style === 'boss' && roll < 0.5) {
+      en.attack(2);
+    }
+  }
+
+  en.facing = dir;
+}
+
+function startRound() {
+  const isBoss = wave === 4;
+  const charData = isBoss ? bossChar : chars[Math.floor(Math.random() * chars.length)];
+
+  player = new Fighter(200, true, chars[selectedChar]);
+  enemy = new Fighter(600, false, charData);
+  enemy.data = charData;
+  if (isBoss) { enemy.hp = 150; enemy.maxHp = 150; }
+  gameState = 'battle';
+}
+
+function beginGame() {
+  wave = 0;
+  enemiesDefeated = 0;
+  selectedChar = Math.max(0, Math.min(selectedChar, chars.length - 1));
+  startRound();
+}
+
+function checkSpecialMove() {
+  const recent = keyBuffer.filter(k => Date.now() - k.time < 500);
+  if (recent.length < 3) return -1;
+
+  const dirs = recent.map(k => {
+    if (k.key === 'ArrowDown' || k.key === 's') return 'down';
+    if (k.key === 'ArrowRight' || k.key === 'd') return 'right';
+    if (k.key === 'ArrowLeft' || k.key === 'a') return 'left';
+    return null;
+  });
+
+  const seq = dirs.join(',');
+  if (seq.includes('down') && seq.includes('right')) {
+    if (recent[recent.length-1].key === 'j') return 0;
+    if (recent[recent.length-1].key === 'k') return 1;
+    if (recent[recent.length-1].key === 'l') return 2;
+  }
+  return -1;
+}
+
+function handleInput() {
+  if (!player) return;
+
+  const sp = checkSpecialMove();
+  if (sp >= 0) { player.attack(sp); return; }
+
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.move(-1);
+  else if (keys['ArrowRight'] || keys['d'] || keys['D']) player.move(1);
+  else player.vx *= 0.85;
+
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) player.jump();
+
+  player.crouch(keys['ArrowDown'] || keys['s'] || keys['S']);
+
+  if (keys['j'] || keys['J']) player.attack(0);
+  else if (keys['k'] || keys['K']) player.attack(1);
+  else if (keys['l'] || keys['L']) player.attack(2);
+}
+
+canvas.addEventListener('click', e => {
+  inputCoverage.pointer = true;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (800 / rect.width);
+  const y = (e.clientY - rect.top) * (500 / rect.height);
+
+  if (gameState === 'title') {
+    beginGame();
+  } else if (gameState === 'select') {
+    chars.forEach((c, i) => {
+      const cx = 100 + (i % 3) * 250;
+      const cy = 100 + Math.floor(i / 3) * 180;
+      if (Math.abs(x - cx) < 60 && Math.abs(y - cy) < 55) {
+        selectedChar = i;
+      }
+    });
+    if (y > 400) {
+      beginGame();
+    }
+  } else if (gameState === 'victory' || gameState === 'gameover') {
+    if (x > 320 && x < 480 && y > 340 && y < 410) {
+      gameState = 'title';
+    }
+  }
+});
+
+canvas.addEventListener('pointerdown', e => {
+  inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (800 / rect.width);
+  const y = (e.clientY - rect.top) * (500 / rect.height);
+  pointerDownInfo = { x, y, time: Date.now(), type: e.pointerType };
+  if (gameState === 'title') beginGame();
+  if (gameState === 'battle' && player) {
+    if (x < 260) keys['ArrowLeft'] = true;
+    else if (x > 540) keys['ArrowRight'] = true;
+    if (y < 230) keys['ArrowUp'] = true;
+  }
+  e.preventDefault();
+});
+
+canvas.addEventListener('pointerup', e => {
+  inputCoverage[e.pointerType === 'touch' ? 'touch' : 'pointer'] = true;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (800 / rect.width);
+  const y = (e.clientY - rect.top) * (500 / rect.height);
+  keys['ArrowLeft'] = false;
+  keys['ArrowRight'] = false;
+  keys['ArrowUp'] = false;
+  if (gameState === 'battle' && player) {
+    const moved = pointerDownInfo && Math.abs(x - pointerDownInfo.x) > 35;
+    if (moved) {
+      player.move(x > pointerDownInfo.x ? 1 : -1);
+    } else {
+      player.attack(y < 260 ? 1 : 0);
+    }
+  }
+  pointerDownInfo = null;
+  e.preventDefault();
+});
+
+document.addEventListener('keydown', e => {
+  inputCoverage.keyboard = true;
+  if (gameState === 'title' && (e.key === 'Enter' || e.key === ' ')) {
+    beginGame();
+    e.preventDefault();
+    return;
+  }
+  if (gameState === 'select') {
+    if (e.key === 'ArrowLeft' || e.key === 'a') selectedChar = Math.max(0, selectedChar - 1);
+    if (e.key === 'ArrowRight' || e.key === 'd') selectedChar = Math.min(5, selectedChar + 1);
+    if (e.key === 'ArrowUp' || e.key === 'w') selectedChar = Math.max(0, selectedChar - 3);
+    if (e.key === 'ArrowDown' || e.key === 's') selectedChar = Math.min(5, selectedChar + 3);
+    if (e.key === 'Enter' || e.key === ' ') {
+      beginGame();
+    }
+  } else if (gameState === 'roundEnd') {
+    if (e.key === 'Enter' && roundResult === 'win') {
+      wave++;
+      startRound();
+    }
+    if ((e.key === 'r' || e.key === 'R') && roundResult === 'lose') {
+      gameState = 'title';
+    }
+  }
+});
+
+function update() {
+  if (gameState === 'battle') {
+    handleInput();
+    updateAI(enemy);
+    player.update(enemy);
+    enemy.update(player);
+
+    if (shakeTimer > 0) shakeTimer--;
+
+    if (player.hp <= 0 || enemy.hp <= 0) {
+      gameState = 'roundEnd';
+      roundResult = player.hp > 0 ? 'win' : 'lose';
+      if (roundResult === 'win') enemiesDefeated++;
+      roundEndTimer = 60;
+    }
+  }
+}
+
+function draw() {
+  ctx.save();
+
+  if (shakeTimer > 0) {
+    ctx.translate(
+      Math.random() * shakeAmt - shakeAmt/2,
+      Math.random() * shakeAmt - shakeAmt/2
+    );
+  }
+
+  if (gameState === 'title') drawTitle();
+  else if (gameState === 'select') drawSelect();
+  else if (gameState === 'battle' || gameState === 'roundEnd') {
+    drawBackground();
+    if (player && enemy) {
+      player.draw();
+      enemy.draw();
+    }
+    drawHUD();
+    if (gameState === 'roundEnd') drawRoundEnd();
+  } else if (gameState === 'victory') drawVictory();
+  else if (gameState === 'gameover') drawGameOver();
+
+  ctx.restore();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+window.__OPENGAME_DEBUG__ = () => ({
+  gameState,
+  score: enemiesDefeated,
+  level: wave + 1,
+  wave: wave + 1,
+  maxWave: 5,
+  totalWaves: 5,
+  round: enemiesDefeated + 1,
+  maxRound: 5,
+  inputCoverage,
+  playfield: { top: 0, bottom: canvas.height, width: canvas.width, height: canvas.height },
+  activeTargets: [
+    player && { x: player.x, y: player.y - player.h / 2, size: player.h, reachable: true },
+    enemy && { x: enemy.x, y: enemy.y - enemy.h / 2, size: enemy.h, reachable: true }
+  ].filter(Boolean)
+});
+</script>
+</body>
+</html>
