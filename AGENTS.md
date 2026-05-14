@@ -33,7 +33,9 @@
 - “我的作品”点击：`DRAFT` 或无可玩版本的 `GENERATING` 进 `/create?game=:id`；`READY` / `FAILED` 进 `/games/:id/edit`。
 - 作者可在 `/games/:id/edit` 调整作品公开/私密；这只更新 `Game.visibility`，不触发重新生成，公开广场仍只展示 `PUBLIC READY`。
 - 已可玩作品继续修改时 `Game.status` 保持 `READY`，只用最新 `Job.status` 表达新版本进度；旧版本必须继续可玩，失败不能降级。
-- `READY` 必须表示已通过自动试玩验证：页面可加载、无 fatal JS error、开始/点击/键盘输入能让状态变化；失败最多自动修复 2 轮。
+- `READY` 必须表示已通过自动试玩验证：页面可加载、无 fatal JS error、开始/点击/鼠标拖拽/键盘/移动端触摸手势能让状态变化；失败最多自动修复 2 轮。
+- 每个新生成游戏必须同时设计桌面与手机操作：鼠标点击/拖拽、键盘方向/WASD/空格、手机 tap/swipe/drag 至少有等价可用路径；不允许只支持单一输入方式导致另一端无法游玩。
+- 每个新生成游戏必须有多关卡、多波次、递进难度或连续目标，默认至少 3 个阶段；不能只玩一关/一波/一个谜题就结束。
 - 详情页 iframe 必须走同源 `/api/games/:id/files/...` 代理，不能直接塞 Blob HTML URL，避免 Blob CSP 导致白屏。
 - 封面图和元数据是增强项，失败不能阻塞可玩版本发布。
 - 内置精选只做 onboarding，必须标记“内置精选”，不能冒充 OpenGame 真生成作品。

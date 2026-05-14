@@ -277,8 +277,65 @@ async function press(client, key, code) {
   await client.send("Input.dispatchKeyEvent", { type: "keyUp", key, code });
 }
 
+async function touchSwipe(client, points) {
+  if (!points.length) return;
+  const [first, ...rest] = points;
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: first.x, y: first.y, radiusX: 8, radiusY: 8, id: 1 }],
+  });
+  for (const point of rest) {
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: point.x, y: point.y, radiusX: 8, radiusY: 8, id: 1 }],
+    });
+    await sleep(55);
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
 function summarizeErrors(errors) {
   return errors.map((error) => String(error).slice(0, 240)).slice(0, 8);
+}
+
+function snapshotChanged(a, b, shotA, shotB) {
+  if (!a || !b) return false;
+  return a.text !== b.text || a.htmlLength !== b.htmlLength || JSON.stringify(a.canvases) !== JSON.stringify(b.canvases) || shotA !== shotB;
+}
+
+function numberFrom(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function assessProgression(before, after, mobileAfter, gameplayDebug) {
+  const debug = gameplayDebug || {};
+  const maxProgression = Math.max(
+    numberFrom(debug.maxLevel),
+    numberFrom(debug.maxWave),
+    numberFrom(debug.maxRound),
+    numberFrom(debug.maxStage),
+    numberFrom(debug.totalLevels),
+    numberFrom(debug.totalWaves),
+    numberFrom(debug.totalRounds),
+    numberFrom(debug.totalStages),
+  );
+  const source = [
+    before?.fullText,
+    after?.fullText,
+    mobileAfter?.fullText,
+    JSON.stringify(debug),
+  ].filter(Boolean).join(" ");
+  const progressionSignals =
+    source.match(/\b(level|wave|round|stage|mission|room|chapter|puzzle)\b|关卡|第\s*\d+\s*关|波次|第\s*\d+\s*波|回合|阶段|目标进度|难度/gi) || [];
+  const explicitMultiStep =
+    /(\b[3-9]\s*(levels?|waves?|rounds?|stages?|missions?|rooms?|puzzles?)\b)|([三四五六七八九十]\s*(关|波|回合|阶段))|(\b\d+\s*\/\s*[3-9]\b)/i.test(source);
+
+  return {
+    ok: maxProgression >= 3 || explicitMultiStep || progressionSignals.length >= 2,
+    maxProgression,
+    signals: progressionSignals.slice(0, 8),
+  };
 }
 
 function assessVisualQuality(before, after) {
@@ -386,6 +443,9 @@ async function runValidation() {
 
     await click(client, target.x, target.y);
     await sleep(500);
+    const started = await evaluate(client, snapshotScript);
+    const startedShot = await screenshotHash(client);
+
     for (const stroke of [
       [{ x: 180, y: 520 }, { x: 420, y: 340 }, { x: 720, y: 180 }],
       [{ x: 780, y: 520 }, { x: 500, y: 330 }, { x: 240, y: 180 }],
@@ -395,6 +455,9 @@ async function runValidation() {
       await drag(client, stroke);
       await sleep(140);
     }
+    const pointerAfter = await evaluate(client, snapshotScript);
+    const pointerAfterShot = await screenshotHash(client);
+
     for (const item of [
       [" ", "Space"],
       ["ArrowLeft", "ArrowLeft"],
@@ -407,21 +470,49 @@ async function runValidation() {
       await press(client, item[0], item[1]);
       await sleep(80);
     }
-    await sleep(2500);
+    await sleep(900);
+    const keyboardAfter = await evaluate(client, snapshotScript);
+    const keyboardAfterShot = await screenshotHash(client);
+
+    await client.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 2,
+      mobile: true,
+    });
+    await sleep(500);
+    const mobileBefore = await evaluate(client, snapshotScript);
+    const mobileBeforeShot = await screenshotHash(client);
+    await touchSwipe(client, [{ x: 80, y: 690 }, { x: 185, y: 500 }, { x: 310, y: 270 }]);
+    await sleep(160);
+    await touchSwipe(client, [{ x: 330, y: 690 }, { x: 210, y: 500 }, { x: 80, y: 270 }]);
+    await sleep(160);
+    await touchSwipe(client, [{ x: 195, y: 720 }, { x: 195, y: 520 }, { x: 195, y: 260 }]);
+    await sleep(1800);
+    const mobileAfter = await evaluate(client, snapshotScript);
+    const mobileAfterShot = await screenshotHash(client);
 
     const after = await evaluate(client, snapshotScript);
     const gameplayDebug = await evaluate(client, gameplayDebugScript);
     const afterShot = await screenshotHash(client);
 
-    const textChanged = before.text !== after.text || before.htmlLength !== after.htmlLength;
-    const canvasChanged = JSON.stringify(before.canvases) !== JSON.stringify(after.canvases);
-    const screenshotChanged = beforeShot !== afterShot;
-    const changed = textChanged || canvasChanged || screenshotChanged;
+    const pointerChanged = snapshotChanged(started, pointerAfter, startedShot, pointerAfterShot);
+    const keyboardChanged = snapshotChanged(pointerAfter, keyboardAfter, pointerAfterShot, keyboardAfterShot);
+    const touchChanged = snapshotChanged(mobileBefore, mobileAfter, mobileBeforeShot, mobileAfterShot);
+    const debugInputCoverage = gameplayDebug?.inputCoverage || {};
+    const inputCoverage = {
+      pointer: Boolean(pointerChanged || debugInputCoverage.pointer || debugInputCoverage.mouse),
+      keyboard: Boolean(keyboardChanged || debugInputCoverage.keyboard),
+      touch: Boolean(touchChanged || debugInputCoverage.touch || debugInputCoverage.gesture),
+    };
+    const inputCoverageOk = inputCoverage.pointer && inputCoverage.keyboard && inputCoverage.touch;
+    const changed = snapshotChanged(before, after, beforeShot, afterShot) || pointerChanged || keyboardChanged || touchChanged;
     const hasVisualSurface = before.canvasCount > 0 || after.canvasCount > 0 || before.text.length > 0 || after.text.length > 0 || before.bodyChildCount > 0 || after.bodyChildCount > 0;
     const hasGameSignals = /score|level|life|health|time|hp|得分|等级|生命|时间|血量|分数/i.test(before.text + " " + after.text) || before.canvasCount > 0 || after.canvasCount > 0;
     const fatalErrors = runtimeErrors.concat(networkErrors.filter((error) => error.includes("/index.html")));
     const startGate = Boolean(before.startGate || (target.text && /start|play|begin|go|restart|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(target.text)));
     const visualQuality = assessVisualQuality(before, after);
+    const progression = assessProgression(before, after, mobileAfter, gameplayDebug);
     const blockingVisualReasons = visualQuality.reasons.filter((reason) =>
       /pixelated|pixel-art|8-bit|low-resolution scaled canvas|default browser UI|off-screen|clipped|overflows horizontally|vertical scrolling/i.test(reason),
     );
@@ -437,6 +528,12 @@ async function runValidation() {
     const targetReachabilityReasons = targetReachabilityOk
       ? []
       : ["Active gameplay targets are present but none reached the upper/middle playfield during automated play; targets may be too low or unreachable."];
+    const inputCoverageReasons = inputCoverageOk
+      ? []
+      : ["Input coverage is incomplete; every game must visibly support mouse/pointer, keyboard, and mobile touch gestures."];
+    const progressionReasons = progression.ok
+      ? []
+      : ["Game progression is too shallow; expected at least 3 levels, waves, rounds, stages, puzzles, or difficulty tiers."];
 
     const checks = {
       loaded: true,
@@ -447,6 +544,8 @@ async function runValidation() {
       visualQualityOk: visualQuality.ok,
       blockingVisualIssueCount: blockingVisualReasons.length,
       targetReachabilityOk,
+      inputCoverageOk,
+      progressionOk: progression.ok,
       runtimeErrorCount: runtimeErrors.length,
       networkErrorCount: networkErrors.length,
       consoleErrorCount: consoleErrors.length,
@@ -457,6 +556,8 @@ async function runValidation() {
     if (ok && !startGate && !changed && !hasGameSignals) ok = false;
     if (ok && blockingVisualReasons.length > 0) ok = false;
     if (ok && targetReachabilityReasons.length > 0) ok = false;
+    if (ok && inputCoverageReasons.length > 0) ok = false;
+    if (ok && progressionReasons.length > 0) ok = false;
 
     const report = {
       ok,
@@ -465,8 +566,13 @@ async function runValidation() {
       clicked: target,
       before: { text: before.text.slice(0, 240), controls: before.controls, canvasCount: before.canvasCount, screenshotHash: beforeShot, visual: before.visual },
       after: { text: after.text.slice(0, 240), controls: after.controls, canvasCount: after.canvasCount, screenshotHash: afterShot, visual: after.visual },
+      inputCoverage,
+      progression,
       gameplayDebug,
-      visualQuality: { ...visualQuality, blockingReasons: blockingVisualReasons.concat(targetReachabilityReasons) },
+      visualQuality: {
+        ...visualQuality,
+        blockingReasons: blockingVisualReasons.concat(targetReachabilityReasons, inputCoverageReasons, progressionReasons),
+      },
       runtimeErrors: summarizeErrors(runtimeErrors),
       consoleErrors: summarizeErrors(consoleErrors),
       networkErrors: summarizeErrors(networkErrors),
