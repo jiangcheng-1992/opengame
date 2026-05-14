@@ -1374,6 +1374,24 @@ h3 {
   display: block;
 }
 
+.responsive-game-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.responsive-game-iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  box-shadow: none;
+  transform-origin: center;
+}
+
 .empty-frame {
   display: grid;
   place-items: center;

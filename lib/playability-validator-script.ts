@@ -225,10 +225,14 @@ const snapshotScript = "(() => {" +
   "const buttons=Array.from(document.querySelectorAll('button,[role=button],input[type=button],input[type=submit],a')).filter(visible);" +
   "const defaultControls=buttons.filter((el)=>{const s=getComputedStyle(el);return !hasGradient(s)&&!hasShadow(s)&&!hasRadius(s)&&parseFloat(s.borderTopWidth||'0')<=2&&/^(button|input)$/i.test(el.tagName);}).length;" +
   "const canvases=Array.from(document.querySelectorAll('canvas')).map((canvas)=>{let data='';try{data=canvas.toDataURL('image/png').slice(0,2048);}catch{}const r=canvas.getBoundingClientRect();return {w:canvas.width,h:canvas.height,cssW:Math.round(r.width),cssH:Math.round(r.height),lowResScaled:(canvas.width<480||canvas.height<320)&&(r.width>canvas.width*1.4||r.height>canvas.height*1.4),data};});" +
+  "const criticalEls=Array.from(document.querySelectorAll('canvas,button,[role=button],a,input[type=button],input[type=submit],[data-hud],.hud,.game-hud,.scoreboard,.status-bar,.hud-panel,.overlay,.modal,.dialog,.result,.game-over,.win,.lose,.end-screen,[data-overlay],[data-result]')).filter(visible);" +
+  "const overflowX=Math.max(0,Math.max(document.documentElement.scrollWidth,body?body.scrollWidth:0)-window.innerWidth);" +
+  "const overflowY=Math.max(0,Math.max(document.documentElement.scrollHeight,body?body.scrollHeight:0)-window.innerHeight);" +
+  "const offscreenCritical=criticalEls.some((el)=>{const r=el.getBoundingClientRect();return r.right>window.innerWidth+24||r.bottom>window.innerHeight+24||r.left<-24||r.top<-24;});" +
   "const joined=(text+' '+controls.join(' '));" +
   "const hero=heroCandidates.sort((a,b)=>b.area-a.area)[0]||null;" +
   "const hudText=(hudCandidates.map(x=>x.text).join(' ')+' '+text);" +
-  "return {title:document.title||'',text,fullText:fullText.slice(0,4000),htmlLength:body?body.innerHTML.length:0,bodyChildCount:body?body.children.length:0,controlCount:controls.length,controls,canvasCount:canvases.length,canvases,startGate:/\\b(start|play|begin|go|restart)\\b|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(joined),hero,heroCount:heroCandidates.length,hud:{count:hudCandidates.length,text:hudText.slice(0,400),modules:hudCandidates.slice(0,4)},overlay:{count:overlayCandidates.length,text:overlayCandidates.join(' ').slice(0,400)},visual:{gradients,shadows,radii,colors,pixelatedElements,pixelTerms,defaultControls,lowResScaledCanvas:canvases.some(c=>c.lowResScaled),visibleElementCount:visibleEls.length}};" +
+  "return {title:document.title||'',text,fullText:fullText.slice(0,4000),htmlLength:body?body.innerHTML.length:0,bodyChildCount:body?body.children.length:0,controlCount:controls.length,controls,canvasCount:canvases.length,canvases,startGate:/\\b(start|play|begin|go|restart)\\b|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(joined),hero,heroCount:heroCandidates.length,hud:{count:hudCandidates.length,text:hudText.slice(0,400),modules:hudCandidates.slice(0,4)},overlay:{count:overlayCandidates.length,text:overlayCandidates.join(' ').slice(0,400)},viewport:{width:window.innerWidth,height:window.innerHeight,overflowX,overflowY,offscreenCritical},visual:{gradients,shadows,radii,colors,pixelatedElements,pixelTerms,defaultControls,lowResScaledCanvas:canvases.some(c=>c.lowResScaled),visibleElementCount:visibleEls.length}};" +
 "})()";
 
 const targetScript = "(() => {" +
@@ -240,10 +244,32 @@ const targetScript = "(() => {" +
   "return {x:Math.floor(window.innerWidth/2),y:Math.floor(window.innerHeight/2),text:null};" +
 "})()";
 
+const gameplayDebugScript = "(() => {" +
+  "try{" +
+    "const hook=window.__OPENGAME_DEBUG__;" +
+    "if(typeof hook==='function')return hook();" +
+    "if(hook&&typeof hook==='object')return hook;" +
+    "return null;" +
+  "}catch(error){return {error:String(error&&error.message||error)};}" +
+"})()";
+
 async function click(client, x, y) {
   await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
   await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
   await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+}
+
+async function drag(client, points) {
+  if (!points.length) return;
+  const [first, ...rest] = points;
+  await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: first.x, y: first.y });
+  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: first.x, y: first.y, button: "left", clickCount: 1 });
+  for (const point of rest) {
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "left", buttons: 1 });
+    await sleep(45);
+  }
+  const last = rest[rest.length - 1] || first;
+  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: last.x, y: last.y, button: "left", clickCount: 1 });
 }
 
 async function press(client, key, code) {
@@ -260,6 +286,7 @@ function assessVisualQuality(before, after) {
   const hero = before.hero || after.hero || null;
   const hud = after.hud || before.hud || { count: 0, text: "", modules: [] };
   const overlay = after.overlay || before.overlay || { count: 0, text: "" };
+  const viewport = after.viewport || before.viewport || { overflowX: 0, overflowY: 0, offscreenCritical: false, height: 0 };
   const reasons = [];
   const polishSignals = Number(visual.gradients || 0) + Number(visual.shadows || 0) + Number(visual.radii || 0);
   const hasEnoughPolish = polishSignals >= 4 || (Number(visual.radii || 0) >= 2 && Number(visual.colors || 0) >= 5);
@@ -273,6 +300,9 @@ function assessVisualQuality(before, after) {
   if (Number(visual.pixelatedElements || 0) > 0) reasons.push("Uses pixelated/crisp-edges image rendering.");
   if (Array.isArray(visual.pixelTerms) && visual.pixelTerms.length > 0) reasons.push("Contains pixel-art/8-bit/blocky visual language: " + visual.pixelTerms.join(", "));
   if (visual.lowResScaledCanvas) reasons.push("Uses a low-resolution scaled canvas that looks pixelated.");
+  if (Number(viewport.overflowX || 0) > 24) reasons.push("Layout overflows horizontally; some game content extends beyond the visible viewport.");
+  if (Number(viewport.overflowY || 0) > Math.max(120, Number(viewport.height || 0) * 0.12)) reasons.push("Layout requires excessive vertical scrolling; keep the whole playable scene inside the viewport.");
+  if (viewport.offscreenCritical) reasons.push("Important gameplay UI appears partially off-screen or clipped.");
   if (!hasEnoughPolish) reasons.push("UI lacks enough polish signals such as gradients, rounded panels, shadows/glow, or color depth.");
   if (!hasDesignedControls) reasons.push("Visible controls look like default browser UI.");
   if (!hasHero) reasons.push("Missing a designed first screen or hero section with title/hook/CTA framing.");
@@ -300,6 +330,11 @@ async function runValidation() {
   ], { stdio: ["ignore", "ignore", "pipe"] });
 
   const chromeErrors = [];
+  const chromeLaunchError = new Promise((_, rejectLaunch) => {
+    chrome.once("error", (error) => {
+      rejectLaunch(new Error("Chromium failed to start: " + (error && error.message ? error.message : String(error))));
+    });
+  });
   chrome.stderr.on("data", (chunk) => {
     const text = String(chunk).trim();
     if (text) chromeErrors.push(text.slice(0, 400));
@@ -307,7 +342,7 @@ async function runValidation() {
 
   let client;
   try {
-    const wsUrl = await waitForPageWebSocket();
+    const wsUrl = await Promise.race([waitForPageWebSocket(), chromeLaunchError]);
     client = await connect(wsUrl);
     const runtimeErrors = [];
     const consoleErrors = [];
@@ -351,6 +386,15 @@ async function runValidation() {
 
     await click(client, target.x, target.y);
     await sleep(500);
+    for (const stroke of [
+      [{ x: 180, y: 520 }, { x: 420, y: 340 }, { x: 720, y: 180 }],
+      [{ x: 780, y: 520 }, { x: 500, y: 330 }, { x: 240, y: 180 }],
+      [{ x: 160, y: 390 }, { x: 480, y: 280 }, { x: 800, y: 390 }],
+      [{ x: 480, y: 560 }, { x: 480, y: 360 }, { x: 480, y: 140 }],
+    ]) {
+      await drag(client, stroke);
+      await sleep(140);
+    }
     for (const item of [
       [" ", "Space"],
       ["ArrowLeft", "ArrowLeft"],
@@ -363,9 +407,10 @@ async function runValidation() {
       await press(client, item[0], item[1]);
       await sleep(80);
     }
-    await sleep(1000);
+    await sleep(2500);
 
     const after = await evaluate(client, snapshotScript);
+    const gameplayDebug = await evaluate(client, gameplayDebugScript);
     const afterShot = await screenshotHash(client);
 
     const textChanged = before.text !== after.text || before.htmlLength !== after.htmlLength;
@@ -377,7 +422,21 @@ async function runValidation() {
     const fatalErrors = runtimeErrors.concat(networkErrors.filter((error) => error.includes("/index.html")));
     const startGate = Boolean(before.startGate || (target.text && /start|play|begin|go|restart|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(target.text)));
     const visualQuality = assessVisualQuality(before, after);
-    const blockingVisualReasons = visualQuality.reasons.filter((reason) => /pixelated|pixel-art|8-bit|low-resolution scaled canvas|default browser UI/i.test(reason));
+    const blockingVisualReasons = visualQuality.reasons.filter((reason) =>
+      /pixelated|pixel-art|8-bit|low-resolution scaled canvas|default browser UI|off-screen|clipped|overflows horizontally|vertical scrolling/i.test(reason),
+    );
+    const activeTargets = Array.isArray(gameplayDebug?.activeTargets) ? gameplayDebug.activeTargets : [];
+    const targetHistory = Array.isArray(gameplayDebug?.targetHistory) ? gameplayDebug.targetHistory : [];
+    const historicalReachabilityOk =
+      targetHistory.length === 0 ||
+      targetHistory.some((target) => target && (target.reachedUpperMiddle === true || target.reachable === true));
+    const targetReachabilityOk =
+      (activeTargets.length === 0 && targetHistory.length === 0) ||
+      activeTargets.some((target) => target && (target.reachable === true || Number(target.y) < Number(gameplayDebug?.playfield?.bottom || 640) * 0.68)) ||
+      historicalReachabilityOk;
+    const targetReachabilityReasons = targetReachabilityOk
+      ? []
+      : ["Active gameplay targets are present but none reached the upper/middle playfield during automated play; targets may be too low or unreachable."];
 
     const checks = {
       loaded: true,
@@ -387,6 +446,7 @@ async function runValidation() {
       hasGameSignals,
       visualQualityOk: visualQuality.ok,
       blockingVisualIssueCount: blockingVisualReasons.length,
+      targetReachabilityOk,
       runtimeErrorCount: runtimeErrors.length,
       networkErrorCount: networkErrors.length,
       consoleErrorCount: consoleErrors.length,
@@ -396,6 +456,7 @@ async function runValidation() {
     if (ok && startGate && !changed) ok = false;
     if (ok && !startGate && !changed && !hasGameSignals) ok = false;
     if (ok && blockingVisualReasons.length > 0) ok = false;
+    if (ok && targetReachabilityReasons.length > 0) ok = false;
 
     const report = {
       ok,
@@ -404,7 +465,8 @@ async function runValidation() {
       clicked: target,
       before: { text: before.text.slice(0, 240), controls: before.controls, canvasCount: before.canvasCount, screenshotHash: beforeShot, visual: before.visual },
       after: { text: after.text.slice(0, 240), controls: after.controls, canvasCount: after.canvasCount, screenshotHash: afterShot, visual: after.visual },
-      visualQuality: { ...visualQuality, blockingReasons: blockingVisualReasons },
+      gameplayDebug,
+      visualQuality: { ...visualQuality, blockingReasons: blockingVisualReasons.concat(targetReachabilityReasons) },
       runtimeErrors: summarizeErrors(runtimeErrors),
       consoleErrors: summarizeErrors(consoleErrors),
       networkErrors: summarizeErrors(networkErrors),

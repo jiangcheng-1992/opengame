@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Heart, Play } from "lucide-react";
 import { MakeSimilarButton } from "@/components/make-similar-button";
 import { PlayTracker } from "@/components/play-tracker";
+import { ResponsiveGameFrame } from "@/components/responsive-game-frame";
 import { ShareGameButton } from "@/components/share-game-button";
 import { getGameDetail } from "@/lib/games";
 
@@ -76,12 +77,10 @@ export default async function GameDetailPage({
         {playableUrl ? (
           <>
             <PlayTracker gameId={game.id} enabled={!isBuiltin} />
-            <iframe
+            <ResponsiveGameFrame
               title={game.title}
               src={playableUrl}
-              sandbox="allow-scripts allow-same-origin allow-pointer-lock"
-              allow="autoplay; fullscreen; gamepad"
-              className="game-frame"
+              shellClassName="game-frame play-game-frame-wrap responsive-game-shell"
             />
           </>
         ) : (
