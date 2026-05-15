@@ -4883,6 +4883,10 @@ h3 {
   box-shadow: 0 24px 56px rgba(15, 23, 42, 0.14);
 }
 
+.reel-stage.is-playing {
+  background: #06080f;
+}
+
 .reel-cover,
 .reel-fallback-cover {
   position: absolute;
@@ -5335,6 +5339,11 @@ h3 {
 }
 
 @media (max-width: 760px) {
+  .page.mobile-feed-page {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+  }
+
   .app-main {
     padding-top: 76px;
     padding-bottom: 98px;
@@ -5486,6 +5495,11 @@ h3 {
     border-radius: 22px;
   }
 
+  .reel-stage.is-playing {
+    aspect-ratio: 16 / 10;
+    min-height: min(46dvh, 420px);
+  }
+
   .reel-card {
     scroll-margin-top: 84px;
   }
@@ -5501,6 +5515,10 @@ h3 {
     gap: 6px;
     padding: 8px 10px;
     border-radius: 16px;
+  }
+
+  .reel-stage.is-playing .reel-play-hints {
+    max-width: calc(100% - 20px);
   }
 
   .reel-play-hints-list span {
@@ -5594,6 +5612,10 @@ h3 {
     height: 100%;
     min-height: min(74dvh, 760px);
     border-radius: 22px;
+  }
+
+  .reel-stage.is-playing .reel-frame-shell {
+    min-height: min(46dvh, 420px);
   }
 
 

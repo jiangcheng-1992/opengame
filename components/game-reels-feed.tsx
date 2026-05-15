@@ -364,58 +364,60 @@ export function GameReelsFeed({ games }: GameReelsFeedProps) {
         const controlHints = controlHintsFor(game);
 
         return (
-          <article key={game.id} className="reel-card" ref={bindCardRef(game.id)}>
-            <div className="reel-stage">
+          <article key={game.id} className={`reel-card ${isPlaying ? "is-playing" : ""}`} ref={bindCardRef(game.id)}>
+            <div className={`reel-stage ${isPlaying ? "is-playing" : ""}`}>
               {isPlaying && game.coverUrl ? (
                 <>
                   <Image src={game.coverUrl} alt="" fill sizes="100vw" className="reel-playback-backdrop" aria-hidden />
                   <div className="reel-playback-backdrop-tint" aria-hidden />
                 </>
               ) : null}
-              <div className="reel-side-actions" aria-label="当前作品操作">
-                <button className="reel-side-action is-static" type="button" aria-label={`播放次数 ${formatCount(state.playCount)}`}>
-                  <span className="reel-side-icon">
-                    <Play size={18} aria-hidden fill="currentColor" />
-                  </span>
-                  <strong>{formatCount(state.playCount)}</strong>
-                </button>
-                <button
-                  className={`reel-side-action ${state.likedByMe ? "liked" : ""} ${state.likeBurst ? "burst" : ""}`}
-                  type="button"
-                  onClick={() => void toggleLike(game)}
-                  aria-pressed={state.likedByMe}
-                  aria-label={state.likedByMe ? "取消点赞" : "点赞"}
-                  disabled={state.liking}
-                >
-                  <span className="reel-side-icon">
-                    <Heart size={18} aria-hidden fill={state.likedByMe ? "currentColor" : "none"} />
-                  </span>
-                  {state.likeBurst ? (
-                    <span className="reel-like-hearts" aria-hidden key={`${game.id}-like-${state.likeBurst}`}>
-                      <span>❤</span>
-                      <span>❤</span>
-                      <span>❤</span>
-                      <span>❤</span>
-                      <span>❤</span>
+              {!isPlaying ? (
+                <div className="reel-side-actions" aria-label="当前作品操作">
+                  <button className="reel-side-action is-static" type="button" aria-label={`播放次数 ${formatCount(state.playCount)}`}>
+                    <span className="reel-side-icon">
+                      <Play size={18} aria-hidden fill="currentColor" />
                     </span>
-                  ) : null}
-                  <strong>{formatCount(state.likeCount)}</strong>
-                </button>
-                <button
-                  className={`reel-side-action ${state.shareState === "copied" ? "copied" : ""}`}
-                  type="button"
-                  onClick={() => void shareGame(game)}
-                  aria-label="分享当前游戏"
-                >
-                  <span className="reel-side-icon">
-                    {state.shareState === "copied" ? <Check size={18} aria-hidden /> : <Share2 size={18} aria-hidden />}
-                  </span>
-                  <strong key={`${game.id}-share-${state.sharePulse}`} className={state.sharePulse ? "share-pop" : ""}>
-                    {formatCount(state.shareCount)}
-                  </strong>
-                </button>
-              </div>
-              {state.shareState === "copied" ? (
+                    <strong>{formatCount(state.playCount)}</strong>
+                  </button>
+                  <button
+                    className={`reel-side-action ${state.likedByMe ? "liked" : ""} ${state.likeBurst ? "burst" : ""}`}
+                    type="button"
+                    onClick={() => void toggleLike(game)}
+                    aria-pressed={state.likedByMe}
+                    aria-label={state.likedByMe ? "取消点赞" : "点赞"}
+                    disabled={state.liking}
+                  >
+                    <span className="reel-side-icon">
+                      <Heart size={18} aria-hidden fill={state.likedByMe ? "currentColor" : "none"} />
+                    </span>
+                    {state.likeBurst ? (
+                      <span className="reel-like-hearts" aria-hidden key={`${game.id}-like-${state.likeBurst}`}>
+                        <span>❤</span>
+                        <span>❤</span>
+                        <span>❤</span>
+                        <span>❤</span>
+                        <span>❤</span>
+                      </span>
+                    ) : null}
+                    <strong>{formatCount(state.likeCount)}</strong>
+                  </button>
+                  <button
+                    className={`reel-side-action ${state.shareState === "copied" ? "copied" : ""}`}
+                    type="button"
+                    onClick={() => void shareGame(game)}
+                    aria-label="分享当前游戏"
+                  >
+                    <span className="reel-side-icon">
+                      {state.shareState === "copied" ? <Check size={18} aria-hidden /> : <Share2 size={18} aria-hidden />}
+                    </span>
+                    <strong key={`${game.id}-share-${state.sharePulse}`} className={state.sharePulse ? "share-pop" : ""}>
+                      {formatCount(state.shareCount)}
+                    </strong>
+                  </button>
+                </div>
+              ) : null}
+              {!isPlaying && state.shareState === "copied" ? (
                 <div className="reel-share-toast" role="status" aria-live="polite">
                   复制链接成功
                 </div>
