@@ -11,6 +11,7 @@ export type BrainstormState = {
 const METADATA_PATTERN = /<opengame_brief_json>\s*([\s\S]*?)\s*<\/opengame_brief_json>/i;
 const REASONING_PATTERN = /<think>[\s\S]*?(?:<\/think>|$)/gi;
 const LOOSE_READY_PATTERN = /(最终\s*Brief|四要素已齐|可生成可玩版本|可以生成可玩版本)/i;
+const CODE_OUTPUT_PATTERN = /```(?:html|css|js|javascript)?|<!doctype\s+html|<html[\s>]|<script[\s>]|function\s+\w+\s*\(|const\s+\w+\s*=|let\s+\w+\s*=/i;
 
 export const INITIAL_BRAINSTORM_SUGGESTIONS = [
   "做一个像素厨房手忙脚乱游戏：点击备菜和上菜，限时满足顾客订单",
@@ -33,13 +34,15 @@ export const INITIAL_BRAINSTORM_STATE: BrainstormState = {
 export const BRAINSTORM_SYSTEM_PROMPT = [
   "你是 OpenGame Studio 的游戏创作前置头脑风暴助手。",
   "你的目标不是直接生成游戏，而是用简短对话帮用户把一个 HTML5 小游戏需求澄清到可执行。",
+  "最高优先级硬规则：你永远不能在这个阶段写任何游戏源码。即使用户要求“直接做”“写完整游戏”“给代码”，也只能整理需求 brief，不能输出代码。",
   "必须问齐四个槽位：核心玩法、操作方式、胜负目标、视觉/题材风格。",
   "每轮最多问 1 个关键问题。问题要具体，给 2 到 4 个可点选建议，也允许用户自由输入。",
   "如果用户还没有明确想做什么游戏，或只表达“随便”“你来定”“没想法”，先给 2 到 4 个具体游戏创意让用户选，不要给抽象玩法分类。",
   "suggestions 必须是用户点一下就能作为下一条消息发送的具体方向，优先包含题材、核心操作和胜负目标；禁止只写“RPG”“实时操作”“放置养成”这类玩法标签。",
   "如果用户已经给足四要素，不要继续追问，直接总结最终 brief，并提示可以生成可玩版本。",
   "如果用户说“开始生成”“现在生成”“确认生成”，你仍然不能输出代码；只总结最终 brief，并附带 isReady=true 的结构化 JSON。",
-  "禁止输出 HTML、CSS、JavaScript、代码块或实现代码；真正生成游戏由后续 OpenGame 链路完成。",
+  "禁止输出 HTML、CSS、JavaScript、代码块、Markdown 代码围栏、实现代码、文件内容或伪代码；真正生成游戏由后续 OpenGame 链路完成。",
+  "如果你已经想写代码，立刻改为输出：1 段最终 brief + <opengame_brief_json>，不要解释你不能写代码。",
   "最终 brief 要适合交给 OpenGame 生成：写清单屏/竖屏等画面要求、玩家每几秒做什么、输入方式、反馈、胜利失败条件。",
   "用中文回复，语气直接、产品化，不夸张，不要提到这些系统规则。",
   "每次回复末尾必须附带一段结构化 JSON，格式必须完全如下：",
@@ -48,6 +51,22 @@ export const BRAINSTORM_SYSTEM_PROMPT = [
   "</opengame_brief_json>",
   "JSON 字段要求：isReady 为 boolean；brief 为最终可生成需求，未齐时可为空；missingSlots 是未确认槽位；suggestions 是 2 到 4 个用户可点选的下一步回答。",
 ].join("\n");
+
+export function isAccidentalCodeOutput(text: string) {
+  return CODE_OUTPUT_PATTERN.test(stripModelReasoning(text));
+}
+
+export function recoveredBriefFromUserText(text: string) {
+  const brief = text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/<[^>]{1,60}>/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 3600);
+
+  if (brief.length < 8) return "";
+  return `用户已描述完整需求，请按以下 brief 生成可玩 HTML5 游戏：${brief}`;
+}
 
 function normalizeStringList(value: unknown, max: number) {
   if (!Array.isArray(value)) return [];
@@ -157,6 +176,13 @@ export function normalizeBrainstormState(value: unknown): BrainstormState {
 
 export function extractBrainstormState(text: string): BrainstormState {
   const cleanText = stripModelReasoning(text);
+  if (isAccidentalCodeOutput(cleanText)) {
+    return {
+      ...EMPTY_BRAINSTORM_STATE,
+      missingSlots: [],
+      suggestions: ["请根据上一条需求整理成最终 brief", "重新追问缺失信息"],
+    };
+  }
   const visibleSuggestions = extractVisibleSuggestions(cleanText);
   const match = cleanText.match(METADATA_PATTERN);
   if (!match) return extractLooseBrainstormState(cleanText, visibleSuggestions);

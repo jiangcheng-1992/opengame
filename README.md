@@ -41,6 +41,8 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `OPENGAME_GIT_URL`：可选；GitHub Actions 和 Sandbox 冷启动都会按它安装 OpenGame
 - `VERCEL_OIDC_TOKEN` 或 `VERCEL_TOKEN` + `VERCEL_TEAM_ID` + `VERCEL_PROJECT_ID`；本地优先使用 `VERCEL_OIDC_TOKEN`，它会过期，出现 Sandbox 403 / OIDC refresh 错误时重新执行 `vercel env pull`
 - `DISABLE_LOCAL_GITHUB_WORKER`：可选；本地设为 `1` 时不自动启动本地 worker，仅保留排队 Job 供手动排查
+- `NEXT_PUBLIC_PANGLE_APP_ID` / `NEXT_PUBLIC_PANGLE_FEED_SLOT_ID` / `NEXT_PUBLIC_PANGLE_SDK_URL`：可选；配置完整后 `/feed` 会在游戏卡片间插入穿山甲信息流广告卡片。未配置完整时不加载 SDK、不展示广告。
+- `NEXT_PUBLIC_PANGLE_FEED_INTERVAL` / `NEXT_PUBLIC_PANGLE_FEED_START_INDEX`：可选；默认第 3 张游戏后开始插入，之后每 4 张游戏插入 1 张广告。
 
 真实密钥只放本地 `.env` 或 Vercel Environment Variables，不提交到仓库。
 
@@ -56,6 +58,15 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - 匿名身份由服务端按需写入 `anon_id` cookie；公开试玩页不经过全局 middleware，避免 Vercel middleware 故障影响静态游戏。
 - 没有数据库或生成凭据时，公开站点仍会展示并播放内置精选游戏；真实创建新游戏需要 Vercel 侧 `DATABASE_URL`、`BLOB_READ_WRITE_TOKEN`、`MINIMAX_API_KEY` 齐全。配置 `GITHUB_DISPATCH_TOKEN` 后生成会更快启动；缺失时 GitHub 定时 worker 最多延迟约 5 分钟领取任务。
 - 生产环境变量变更后必须重新部署；只执行 `vercel env add` / `vercel env rm` 不会改变已经在线的 Serverless Function 环境。
+
+## Android 套壳 APK
+
+- Android WebView 套壳工程在 `android-shell/`，默认打开 `https://opengame.zz-fancy.cloud`。
+- 本地打包命令：`npm run android:apk`。首次运行会把便携 JDK、Gradle 和 Android SDK 下载到系统临时目录的 `OpenGameAndroidBuild/`，不会修改系统环境。
+- 本地生成正式签名密钥：`npm run android:keystore`。脚本会把 keystore 放到系统临时目录，并把 `OPENGAME_ANDROID_KEYSTORE_PATH`、`OPENGAME_ANDROID_KEYSTORE_PASSWORD`、`OPENGAME_ANDROID_KEY_ALIAS`、`OPENGAME_ANDROID_KEY_PASSWORD` 写入当前 Windows 用户环境变量；密码不会打印，也不要提交到 Git。
+- 自定义套壳入口：`$env:OPENGAME_APP_URL="https://opengame.zz-fancy.cloud"; npm run android:apk`。
+- 打包成功后 release APK 会复制到 `public/downloads/opengame.apk`；网页右上角“安装”按钮会优先下载这个正式签名 APK。调试包可用 `npm run android:apk:debug` 单独构建。
+- GitHub Actions 也提供手动 workflow：`Android APK`，产物会作为 `opengame-apk` artifact 上传。远端正式签名需要配置仓库 Secrets：`OPENGAME_ANDROID_KEYSTORE_BASE64`、`OPENGAME_ANDROID_KEYSTORE_PASSWORD`、`OPENGAME_ANDROID_KEY_ALIAS`、`OPENGAME_ANDROID_KEY_PASSWORD`。
 
 ## 功能闭环
 

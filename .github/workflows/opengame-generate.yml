@@ -38,5 +38,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Restore OpenGame runtime cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/opengame-workspace/opengame
+            /tmp/opengame-workspace/browser-runtime
+          key: opengame-runtime-${{ runner.os }}-${{ hashFiles('.github/workflows/opengame-generate.yml') }}
+          restore-keys: |
+            opengame-runtime-${{ runner.os }}-
+
       - name: Run OpenGame worker
         run: npx tsx scripts/run-github-opengame-job.ts "${{ inputs.job_id }}"

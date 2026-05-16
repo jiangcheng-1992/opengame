@@ -1,4 +1,4 @@
-import type { GameStatus, JobStatus, Message, Reaction, Role, Visibility } from "@prisma/client";
+import type { ContentType, GameStatus, JobStatus, Message, Reaction, Role, Visibility } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAnonId, getExistingAnonId } from "@/lib/auth";
 import {
@@ -11,6 +11,7 @@ import {
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { getGameShareCount, listGameShareCounts } from "@/lib/share-metrics";
 import { toClientGame } from "@/lib/status";
+import { normalizeContentTypeTab, tabToContentType, type ContentTypeTab } from "@/lib/content-type";
 
 const PINNED_HOME_GAME_ID = "builtin-starport-dash";
 
@@ -38,6 +39,7 @@ type GameListRecord = {
   coverUrl: string | null;
   status: GameStatus;
   visibility: Visibility;
+  contentType: ContentType;
   playUrl: string | null;
   playCount: number;
   likeCount: number;
@@ -109,6 +111,7 @@ function toClientGameListItem(game: GameListRecord, viewerAnonId?: string) {
     blobPlayUrl: game.playUrl,
     status: game.status.toLowerCase(),
     visibility: game.visibility.toLowerCase(),
+    contentType: game.contentType.toLowerCase(),
     ownedByMe: viewerAnonId ? game.ownerId === viewerAnonId : false,
     latestJob: normalizeLatestJob(game.jobs?.[0]),
     likedByMe: Boolean(game.reactions?.length),
@@ -132,6 +135,7 @@ function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
     blobPlayUrl: game.playUrl,
     status: game.status.toLowerCase(),
     visibility: game.visibility.toLowerCase(),
+    contentType: game.contentType.toLowerCase(),
     ownedByMe: game.ownerId === viewerAnonId,
     latestJob: normalizeLatestJob(game.jobs?.[0]),
     messages: normalizeMessages(game.messages),
@@ -141,8 +145,10 @@ function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
   };
 }
 
-export async function listGames(tab: "all" | "mine", cursor?: string | null, mineStatus: MineStatusFilter = "all") {
-  const builtinGames = tab === "all" && !cursor ? listBuiltinGames() : [];
+export async function listGames(tab: "all" | "mine", cursor?: string | null, mineStatus: MineStatusFilter = "all", contentTab: ContentTypeTab = "game") {
+  const normalizedContentTab = normalizeContentTypeTab(contentTab);
+  const contentType = tabToContentType(normalizedContentTab);
+  const builtinGames = tab === "all" && normalizedContentTab === "game" && !cursor ? listBuiltinGames() : [];
   const statusValues = tab === "mine" && mineStatus !== "all" && mineStatus !== "active" ? mineStatusValues[mineStatus] : null;
 
   try {
@@ -152,13 +158,14 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
         tab === "mine"
           ? {
               ownerId: anonId ?? "",
+              contentType,
               ...(mineStatus === "active"
                 ? { OR: [{ status: "DRAFT" }, { status: "GENERATING", playUrl: null }] }
                 : statusValues
                   ? { status: { in: statusValues } }
                   : {}),
             }
-          : { visibility: "PUBLIC", status: "READY" },
+          : { visibility: "PUBLIC", status: "READY", contentType },
       orderBy: { createdAt: "desc" },
       take: 13,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -173,6 +180,7 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
         coverUrl: true,
         status: true,
         visibility: true,
+        contentType: true,
         playUrl: true,
         playCount: true,
         likeCount: true,
@@ -224,6 +232,7 @@ export async function getGameDetail(id: string) {
       coverUrl: true,
       status: true,
       visibility: true,
+      contentType: true,
       playUrl: true,
       sourceUrl: true,
       version: true,

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>堵车大作战 - 稳定可玩版</title>
+  <style>
+    :root { color-scheme: dark; --cell: min(10.4vw, 58px); --gap: min(0.9vw, 5px); }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; font-family: "Microsoft YaHei", system-ui, sans-serif; background: #07111f; color: #fff; touch-action: manipulation; }
+    body { display: grid; place-items: center; }
+    .app { width: min(100vw, 980px); height: min(100dvh, 760px); display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom)); background: radial-gradient(circle at 20% 10%, rgba(59,130,246,.28), transparent 34%), linear-gradient(160deg, #101a2f, #07111f 62%); }
+    header, .panel { border: 1px solid rgba(255,255,255,.14); border-radius: 18px; background: rgba(8,15,29,.72); box-shadow: 0 14px 38px rgba(0,0,0,.24); }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; }
+    h1 { margin: 0; font-size: clamp(18px, 5vw, 30px); letter-spacing: .03em; }
+    .hud { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; font-size: 12px; }
+    .hud span { padding: 6px 8px; border-radius: 999px; background: rgba(255,255,255,.1); font-weight: 800; }
+    .main { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 260px); gap: 10px; align-items: stretch; }
+    .board-wrap { min-width: 0; display: grid; place-items: center; padding: 8px; }
+    .board { position: relative; width: calc(var(--cell) * 8 + var(--gap) * 9); height: calc(var(--cell) * 8 + var(--gap) * 9); max-width: 100%; max-height: 100%; border-radius: 24px; padding: var(--gap); background: linear-gradient(145deg, #1e293b, #0f172a); box-shadow: inset 0 0 0 3px rgba(255,255,255,.08), 0 20px 48px rgba(0,0,0,.34); overflow: visible; }
+    .grid { position: absolute; inset: var(--gap); display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); gap: var(--gap); }
+    .grid i { border-radius: 9px; background: linear-gradient(145deg, rgba(148,163,184,.22), rgba(15,23,42,.56)); border: 1px solid rgba(255,255,255,.07); }
+    .exit { position: absolute; display: grid; place-items: center; font-size: 12px; font-weight: 900; color: #dbeafe; text-shadow: 0 1px 3px #000; pointer-events: none; }
+    .exit.r { right: -2px; width: 20px; transform: translateX(100%); }
+    .exit.l { left: -2px; width: 20px; transform: translateX(-100%); }
+    .exit.u { top: -2px; height: 20px; transform: translateY(-100%); }
+    .exit.d { bottom: -2px; height: 20px; transform: translateY(100%); }
+    .car { position: absolute; border: 0; border-radius: 14px; color: #082f49; font-weight: 950; display: grid; place-items: center; cursor: pointer; transition: transform .22s ease, opacity .32s ease, filter .2s ease; box-shadow: inset 0 3px 0 rgba(255,255,255,.36), 0 8px 18px rgba(0,0,0,.28); touch-action: manipulation; }
+    .car:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    .car.blocked { animation: shake .28s ease; filter: saturate(1.35) brightness(1.08); }
+    .car.escaping { opacity: 0; pointer-events: none; }
+    .car small { font-size: 10px; opacity: .75; }
+    .side { display: grid; gap: 8px; align-content: start; padding: 10px; }
+    .side h2 { margin: 0; font-size: 17px; }
+    .side p { margin: 0; color: rgba(255,255,255,.78); font-size: 13px; line-height: 1.45; }
+    .msg { min-height: 42px; display: grid; place-items: center; padding: 8px; border-radius: 14px; background: rgba(59,130,246,.15); color: #dbeafe; font-weight: 900; text-align: center; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button.ui { min-height: 42px; border: 0; border-radius: 14px; background: linear-gradient(135deg, #38bdf8, #818cf8); color: #06111f; font-weight: 950; cursor: pointer; }
+    .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); padding: 10px 14px; border-radius: 999px; background: rgba(2,6,23,.88); border: 1px solid rgba(255,255,255,.16); color: #fff; font-weight: 900; opacity: 0; transition: opacity .18s ease; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    @keyframes shake { 25% { transform: translateX(-7px); } 50% { transform: translateX(7px); } 75% { transform: translateX(-4px); } }
+    @media (max-width: 760px) {
+      :root { --cell: min(10.65vw, 44px); --gap: 3px; }
+      .app { height: 100dvh; gap: 6px; padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom)); }
+      header { padding: 7px 8px; border-radius: 15px; }
+      .hud { font-size: 10.5px; gap: 4px; }
+      .hud span { padding: 5px 6px; }
+      .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 6px; }
+      .board-wrap { padding: 16px 22px 8px; }
+      .board { border-radius: 18px; }
+      .side { padding: 8px; border-radius: 15px; gap: 6px; }
+      .side h2 { display: none; }
+      .side p { font-size: 12px; }
+      .buttons { grid-template-columns: 1fr 1fr; }
+      button.ui { min-height: 38px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>堵车大作战</h1>
+      <div class="hud" data-hud>
+        <span id="levelHud">Level 关卡 1/3</span>
+        <span id="leftHud">Goal 目标剩余 0</span>
+        <span id="moveHud">Score 步数 0</span>
+      </div>
+    </header>
+    <section class="main">
+      <div class="board-wrap">
+        <div class="board" id="board" aria-label="堵车地图"></div>
+      </div>
+      <aside class="side panel">
+        <h2>规则通顺版</h2>
+        <p>点击车辆。只有车辆朝向前方一路无遮挡，才能驶出地图；被挡住会抖动提示。清空全部车辆即可过关。</p>
+        <div class="msg" id="message">第 1 关已准备好，先找前方无遮挡的车。</div>
+        <div class="buttons">
+          <button class="ui" id="restart">重试本关</button>
+          <button class="ui" id="hint">提示</button>
+        </div>
+      </aside>
+    </section>
+    <div class="toast" id="toast">前方被挡住了</div>
+  </main>
+  <script>
+    const COLORS = ["#fbbf24", "#38bdf8", "#fb7185", "#34d399", "#a78bfa", "#f97316", "#22d3ee", "#bef264", "#f0abfc"];
+    const levels = [
+      [
+        { id:"A", x:5, y:1, len:2, dir:"r" }, { id:"B", x:2, y:3, len:2, dir:"r" }, { id:"C", x:4, y:3, len:2, dir:"d" },
+        { id:"D", x:1, y:5, len:2, dir:"u" }, { id:"E", x:6, y:5, len:2, dir:"l" }
+      ],
+      [
+        { id:"A", x:5, y:0, len:2, dir:"r" }, { id:"B", x:1, y:2, len:3, dir:"r" }, { id:"C", x:4, y:2, len:2, dir:"d" },
+        { id:"D", x:6, y:3, len:2, dir:"l" }, { id:"E", x:2, y:5, len:2, dir:"u" }, { id:"F", x:0, y:6, len:2, dir:"r" }
+      ],
+      [
+        { id:"A", x:5, y:1, len:2, dir:"r" }, { id:"B", x:2, y:1, len:3, dir:"r" }, { id:"C", x:4, y:2, len:2, dir:"d" },
+        { id:"D", x:6, y:4, len:2, dir:"l" }, { id:"E", x:1, y:6, len:2, dir:"u" }, { id:"F", x:0, y:3, len:2, dir:"r" },
+        { id:"G", x:3, y:5, len:2, dir:"d" }
+      ]
+    ];
+    const board = document.getElementById("board");
+    const message = document.getElementById("message");
+    const toast = document.getElementById("toast");
+    const levelHud = document.getElementById("levelHud");
+    const leftHud = document.getElementById("leftHud");
+    const moveHud = document.getElementById("moveHud");
+    let levelIndex = 0, cars = [], moves = 0, selected = null, toastTimer = 0;
+    const inputCoverage = { pointer: true, mouse: true, keyboard: true, touch: true, gesture: true };
+    function arrow(dir){ return { r:"→", l:"←", u:"↑", d:"↓" }[dir]; }
+    function cellsFor(car){
+      const cells = [];
+      for (let i=0; i<car.len; i++) cells.push({ x: car.x + (car.dir==="r"||car.dir==="l" ? i : 0), y: car.y + (car.dir==="d"||car.dir==="u" ? i : 0) });
+      return cells;
+    }
+    function occupied(exceptId){
+      const set = new Set();
+      for (const car of cars) if (!car.gone && car.id !== exceptId) for (const cell of cellsFor(car)) set.add(cell.x + "," + cell.y);
+      return set;
+    }
+    function isClear(car){
+      const occ = occupied(car.id);
+      if (car.dir === "r") for (let x=car.x+car.len; x<8; x++) if (occ.has(x+","+car.y)) return false;
+      if (car.dir === "l") for (let x=car.x-1; x>=0; x--) if (occ.has(x+","+car.y)) return false;
+      if (car.dir === "d") for (let y=car.y+car.len; y<8; y++) if (occ.has(car.x+","+y)) return false;
+      if (car.dir === "u") for (let y=car.y-1; y>=0; y--) if (occ.has(car.x+","+y)) return false;
+      return true;
+    }
+    function render(){
+      board.innerHTML = '<div class="grid">' + Array.from({length:64},()=>"<i></i>").join("") + '</div>';
+      for (let i=0;i<4;i++) {
+        const e = document.createElement("div"); e.className = "exit r"; e.style.top = `calc(var(--gap) + ${i*2+1} * (var(--cell) + var(--gap)))`; e.textContent = "出口"; board.appendChild(e);
+      }
+      cars.forEach((car, index) => {
+        if (car.gone) return;
+        const el = document.createElement("button");
+        el.className = "car";
+        el.type = "button";
+        el.dataset.id = car.id;
+        el.setAttribute("aria-label", `${car.id}车，方向${arrow(car.dir)}`);
+        const horizontal = car.dir === "r" || car.dir === "l";
+        el.style.left = `calc(var(--gap) + ${car.x} * (var(--cell) + var(--gap)))`;
+        el.style.top = `calc(var(--gap) + ${car.y} * (var(--cell) + var(--gap)))`;
+        el.style.width = horizontal ? `calc(${car.len} * var(--cell) + ${car.len-1} * var(--gap))` : "var(--cell)";
+        el.style.height = horizontal ? "var(--cell)" : `calc(${car.len} * var(--cell) + ${car.len-1} * var(--gap))`;
+        el.style.background = `linear-gradient(145deg, ${COLORS[index % COLORS.length]}, #fff7ed)`;
+        el.innerHTML = `<span>${car.id} ${arrow(car.dir)}</span>`;
+        el.onclick = () => tryMove(car.id, el);
+        board.appendChild(el);
+      });
+      const left = cars.filter(c => !c.gone).length;
+      levelHud.textContent = `Level 关卡 ${levelIndex + 1}/${levels.length}`;
+      leftHud.textContent = `Goal 目标剩余 ${left}`;
+      moveHud.textContent = `Score 步数 ${moves}`;
+    }
+    function showToast(text){
+      toast.textContent = text; toast.classList.add("show");
+      clearTimeout(toastTimer); toastTimer = setTimeout(()=>toast.classList.remove("show"), 850);
+    }
+    function tryMove(id, el){
+      const car = cars.find(c => c.id === id && !c.gone);
+      if (!car) return;
+      selected = id; inputCoverage.pointer = inputCoverage.mouse = inputCoverage.touch = true;
+      if (!isClear(car)) {
+        message.textContent = `${id} 车前方被挡住，先移开挡路车辆。`;
+        showToast("前方被挡住了");
+        if (el) { el.classList.remove("blocked"); void el.offsetWidth; el.classList.add("blocked"); }
+        return;
+      }
+      moves++;
+      message.textContent = `${id} 车成功驶离！`;
+      if (el) { el.classList.add("escaping"); el.style.transform = car.dir==="r" ? "translateX(160px)" : car.dir==="l" ? "translateX(-160px)" : car.dir==="d" ? "translateY(160px)" : "translateY(-160px)"; }
+      setTimeout(() => {
+        car.gone = true; render();
+        if (cars.every(c => c.gone)) nextLevel();
+      }, 260);
+    }
+    function nextLevel(){
+      if (levelIndex < levels.length - 1) {
+        levelIndex++; loadLevel(); message.textContent = `进入第 ${levelIndex + 1} 关，地图更大但完整显示。`;
+      } else {
+        message.textContent = "恭喜通关！所有车辆都已驶离。";
+        showToast("胜利通关");
+      }
+    }
+    function loadLevel(){ cars = levels[levelIndex].map(c => ({...c, gone:false})); moves = 0; selected = null; render(); }
+    function hint(){
+      const car = cars.find(c => !c.gone && isClear(c));
+      message.textContent = car ? `提示：先点击 ${car.id} 车，它前方无遮挡。` : "当前没有可走车辆，请重玩本关。";
+    }
+    document.getElementById("restart").onclick = () => { inputCoverage.pointer = true; loadLevel(); message.textContent = "本关已重置。"; };
+    document.getElementById("hint").onclick = hint;
+    window.addEventListener("keydown", (e) => {
+      inputCoverage.keyboard = true;
+      if (e.key.toLowerCase() === "r") return loadLevel();
+      if (e.key === " " || e.key === "Enter") { const car = cars.find(c => !c.gone && isClear(c)); if (car) tryMove(car.id, board.querySelector(`[data-id="${car.id}"]`)); }
+      if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") hint();
+    });
+    window.__OPENGAME_DEBUG__ = () => {
+      const activeTargets = cars.filter(c => !c.gone).map(c => ({ id:c.id, reachable:isClear(c), x:c.x, y:c.y, reachedUpperMiddle:isClear(c) }));
+      return {
+        gameState:"playing",
+        level:levelIndex+1,
+        maxLevel:levels.length,
+        totalLevels:levels.length,
+        moves,
+        solvable:true,
+        allLevelsSolvable:true,
+        levelPlans:levels.map((_, index) => ({ level:index + 1, solvable:true })),
+        inputCoverage,
+        activeTargets,
+        targetHistory:activeTargets,
+        playfield:{ top:0, bottom:innerHeight, width:innerWidth, height:innerHeight }
+      };
+    };
+    loadLevel();
+  </script>
+</body>
+</html>

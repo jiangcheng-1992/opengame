@@ -9,6 +9,7 @@ export type TaskStepState = "done" | "active" | "pending" | "failed";
 export type TaskStep = {
   label: string;
   state: TaskStepState;
+  description?: string;
 };
 
 type TaskMetaItem = {
@@ -133,7 +134,10 @@ export function TaskProgressPanel({
           {steps.map((step) => (
             <li key={step.label} className={step.state}>
               <TaskStepIcon state={step.state} />
-              <span>{step.label}</span>
+              <span className="task-step-copy">
+                <span>{step.label}</span>
+                {step.description ? <small>{step.description}</small> : null}
+              </span>
             </li>
           ))}
         </ul>

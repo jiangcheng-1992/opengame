@@ -7,6 +7,7 @@ import { mergeProgress, progressForJobStatus, progressFromPhaseAndLog } from "@/
 import { getOpenGameModelForKey, normalizeGenerationModelKey, type GenerationModelKey } from "@/lib/minimax-config";
 import { buildPlayabilityValidatorScript } from "@/lib/playability-validator-script";
 import { tailLines } from "@/lib/status";
+import { normalizeContentType, type ContentTypeValue } from "@/lib/content-type";
 import {
   describeSandboxError,
   isSandboxUnrecoverableProvisioningError,
@@ -613,6 +614,50 @@ set_phase() {
   printf "%s" "$1" > "$PHASE_FILE"
 }
 
+log_visual_director() {
+  echo "[quality][visual-director] Applying premium generation contract: coherent gameplay archetype, authored theme, compact responsive framing, and Astrocade-grade presentation."
+  echo "[quality][visual-director] Required UI layers: background, playfield, actors/targets, HUD, feedback, and result overlay."
+  echo "[quality][visual-director] Required polish signals: unified palette, rounded panels, shadows/glow, tactile motion, start cover, multi-module HUD, and replay-ready result card."
+  echo "[quality][mobile] Must fit 390x844 phone portrait and 960x640 desktop landscape without clipped HUD, controls, or gameplay targets."
+}
+
+log_validation_summary() {
+  if [ ! -s "$VALIDATION_REPORT" ]; then
+    echo "[quality][validation] No validation report was produced."
+    return
+  fi
+
+  node - "$VALIDATION_REPORT" <<'NODE'
+const fs = require("fs");
+const reportPath = process.argv[2];
+let report = {};
+try {
+  report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+} catch (error) {
+  console.log("[quality][validation] Failed to parse validation report: " + error.message);
+  process.exit(0);
+}
+const reasons = Array.isArray(report.reasons) ? report.reasons : report.reason ? [report.reason] : [];
+const metrics = report.metrics || {};
+console.log("[quality][validation] ok=" + Boolean(report.ok) + " reasons=" + reasons.length);
+for (const reason of reasons.slice(0, 8)) console.log("[quality][validation][reason] " + reason);
+if (Object.keys(metrics).length) {
+  const summary = {
+    colors: metrics.colors,
+    gradients: metrics.gradients,
+    radii: metrics.radii,
+    shadows: metrics.shadows,
+    visibleElementCount: metrics.visibleElementCount,
+    defaultControls: metrics.defaultControls,
+    hudSignals: metrics.hudSignals,
+    endSignals: metrics.endSignals,
+    feedbackSignals: metrics.feedbackSignals,
+  };
+  console.log("[quality][validation][metrics] " + JSON.stringify(summary));
+}
+NODE
+}
+
 ensure_tools() {
   local missing_core=""
   for tool in git node npm; do
@@ -715,6 +760,7 @@ run_opengame() {
 
   if [ "$continue_requested" = "1" ] && printf "%s" "$HELP_OUTPUT" | grep -q -- "--continue"; then
     echo "[opengame] Running continue pass in $GENERATED_DIR"
+    echo "[quality][repair] Continue mode keeps existing source while enforcing quality and playability fixes."
     if [ "$OPENGAME_MODE" = "node" ]; then
       node "$OPENGAME_BIN" --continue -p "$prompt" --yolo
     else
@@ -722,6 +768,7 @@ run_opengame() {
     fi
   else
     echo "[opengame] Starting generation in $GENERATED_DIR"
+    log_visual_director
     if [ "$OPENGAME_MODE" = "node" ]; then
       node "$OPENGAME_BIN" -p "$prompt" --yolo
     else
@@ -756,12 +803,17 @@ validate_playable() {
   set_phase "VALIDATING"
   echo "[validation] Opening generated game in headless Chromium..."
   node "$VALIDATOR_SCRIPT" "$GENERATED_DIR" "$VALIDATION_REPORT" >> "$PROGRESS_LOG" 2>> "$VALIDATION_LOG"
+  local validation_status="$?"
+  log_validation_summary
+  return "$validation_status"
 }
 
 write_repair_prompt() {
   local attempt="$1"
   local report
   report="$(cat "$VALIDATION_REPORT" 2>/dev/null)"
+  echo "[quality][repair] Building repair prompt for attempt $attempt/$MAX_REPAIR_ATTEMPTS from validation report."
+  log_validation_summary
   {
     echo "Repair this existing HTML5 game so it is actually playable."
     echo
@@ -777,7 +829,11 @@ write_repair_prompt() {
     echo "- Avoid full-screen overlays that keep intercepting clicks after the game starts."
     echo "- Keep a non-empty index.html as the playable entry."
     echo "- Do not remove the user's theme; simplify mechanics if needed to make the game playable."
+    echo "- Fix gameplay coherence failures: rules shown in the UI must match actual interactions, the win condition must be achievable, restart/retry must work, and level/puzzle layouts must not be deadlocked or impossible."
+    echo "- Expose window.__OPENGAME_DEBUG__ with inputCoverage and solvability fields such as totalLevels, solvable, allLevelsSolvable, levelPlans, activeTargets, and playfield."
     echo "- Preserve the visual quality contract; do not replace designed backgrounds, HUD, characters, or effects with bare placeholders while repairing mechanics."
+    echo "- Preserve and improve premium UI polish: consistent palette, layered background, authored HUD modules, tactile feedback, motion accents, start cover screen, and result overlay."
+    echo "- Keep mobile composition intact: on 390x844 the playfield, HUD, primary action, and result/retry controls must all remain visible and reachable."
     echo "- Do not create or run Playwright, Puppeteer, Selenium, npm test, or browser-install test suites; the platform performs validation after generation."
     echo "- Focus only on fixing the self-contained playable index.html quickly."
     echo "- Do not spend tokens narrating plans, checklists, or self-tests. Modify the playable files directly and finish quickly."
@@ -804,6 +860,7 @@ main() {
 
   attempt=0
   while [ "$attempt" -le "$MAX_REPAIR_ATTEMPTS" ]; do
+    echo "[quality][attempt] Starting generation attempt $((attempt + 1))/$((MAX_REPAIR_ATTEMPTS + 1))."
     if [ "$attempt" -gt 0 ]; then
       set_phase "REPAIRING"
       echo "[repair] Attempt $attempt/$MAX_REPAIR_ATTEMPTS after playable validation failed."
@@ -834,9 +891,11 @@ main() {
       printf "yes" > "$PLAYABLE_MARKER"
       set_phase "PLAYABLE"
       echo "[validation] Playable validation passed. Build is ready to publish."
+      echo "[quality][publish-gate] Passed playability, visual polish, feedback, HUD, responsive layout, and result-state checks."
       return 0
     fi
 
+    echo "[quality][attempt] Attempt $((attempt + 1)) failed quality/playability gate; preparing next repair if available."
     attempt=$((attempt + 1))
   done
 
@@ -851,7 +910,69 @@ exit "$status"
 `;
 }
 
-export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkeletonKey) {
+function buildApplicationPrompt(prompt: string) {
+  return [
+    "Build a polished, production-ready HTML5 web application from the user's request.",
+    "",
+    "User application request:",
+    prompt,
+    "",
+    "Application direction:",
+    "- This is an application, not a game. Do not force win/lose rules, enemies, lives, levels, waves, or combat unless the user explicitly asks for game mechanics.",
+    "- Focus on a useful interactive workflow: input, edit, filter, preview, organize, calculate, generate, compare, save locally, or present information clearly depending on the request.",
+    "- The app must be self-contained in index.html unless the user provided explicit HTTPS asset URLs.",
+    "- Include a polished landing/header area, a clear primary task area, helpful empty states, loading/processing feedback, validation/error feedback, and a useful result/detail state.",
+    "- Design for mobile first at 390x844 and desktop at 960x640 with no clipped controls, no horizontal overflow, and all primary actions reachable.",
+    "- Use a consistent design system: 3-5 colors, typography scale, spacing, radius, shadows/glow, tactile button states, card surfaces, and responsive layout.",
+    "- Provide meaningful sample content only when needed to demonstrate the workflow; never pretend to call external services or use real user data.",
+    "- Expose window.__OPENGAME_DEBUG__ when possible with { appState, inputCoverage, activeTargets, primaryActions, responsiveReady } so validation can inspect interactivity.",
+    "- Keyboard, pointer, and touch should all have a usable path for primary actions. Forms, cards, tabs, filters, sliders, or drag areas must respond visibly.",
+    "",
+    "Quality bar:",
+    "- The first screen should look like a finished app, not a game shell or raw prototype.",
+    "- Avoid default browser UI, unstyled forms, blank backgrounds, debug text, placeholder rectangles, or inaccessible tiny controls.",
+    "- The final result should feel like a shareable mini app/tool page with clear value in the first 5 seconds.",
+  ].join("\n");
+}
+
+function shouldUseFullPromptContract() {
+  return process.env.OPENGAME_PROMPT_PROFILE === "full";
+}
+
+function buildFastGamePrompt(prompt: string, skeletonKey?: GameplaySkeletonKey) {
+  return [
+    "Build a polished, playable, self-contained HTML5 game from the user's request. Write files directly, especially index.html. Do not run installs, browser tests, Playwright/Puppeteer/Selenium, npm test, smoke tests, or long self-check scripts.",
+    "",
+    "User creative request:",
+    prompt,
+    "",
+    "Gameplay blueprint:",
+    ...buildGameplayBlueprintSection(prompt, skeletonKey),
+    "",
+    "Non-negotiable playability contract:",
+    "- The first visible start/play CTA must respond to click/tap and enter gameplay.",
+    "- Provide keyboard arrows/WASD/Space plus pointer/touch equivalents for the core action.",
+    "- Include at least 3 levels, waves, rounds, stages, or difficulty tiers. Show progress in the HUD.",
+    "- Include clear rule hints, score/progress/lives/timer modules, win/lose/retry feedback, and restart.",
+    "- Keep all targets, controls, HUD, exits, cards, vehicles, bullets, fruit, and result actions fully visible on 390x844 phone portrait and 960x640 desktop landscape.",
+    "- Expose window.__OPENGAME_DEBUG__ with gameState, score, level/wave/round, inputCoverage, playfield, activeTargets, solvable/allLevelsSolvable/levelPlans when applicable.",
+    "- For traffic jam / parking escape puzzles: smaller vehicles, larger fully visible grid, real path-clear escape rule, blocked shake cue, at least 4 vehicles in level 1, one opening move, and every level solvable.",
+    "",
+    "Premium UI contract:",
+    "- Make it look like a finished arcade mini-game, not a prototype: designed start cover, layered background, framed playfield, compact HUD, tactile feedback, and polished result overlay.",
+    "- Use a coherent palette, CSS variables/constants, rounded panels, shadows/glow, gradients, motion accents, hit/miss/blocked feedback, and responsive safe zones.",
+    "- Avoid blank backgrounds, default browser buttons, plain circles/rectangles as final art, debug text, pixelated/8-bit styling unless explicitly requested.",
+    "",
+    "Speed instruction:",
+    "- Prefer a reliable single-file implementation with programmatic art. Reduce feature count before sacrificing playability, visual completeness, or mobile fit.",
+    "- Do not narrate plans. Create the playable deliverable quickly and finish.",
+  ].join("\n");
+}
+
+export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkeletonKey, contentType: ContentTypeValue = "GAME") {
+  if (normalizeContentType(contentType) === "APPLICATION") return buildApplicationPrompt(prompt);
+  if (!shouldUseFullPromptContract()) return buildFastGamePrompt(prompt, skeletonKey);
+
   return [
     "Build a playable HTML5 game from the user's creative request.",
     "",
@@ -862,6 +983,7 @@ export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkelet
     "- Treat this as a premium, publish-ready HTML5 mini-game, not a raw prototype.",
     "- Prefer a tightly-scoped, beautifully-presented single-screen experience over an ambitious but messy multi-system design.",
     "- Use one coherent gameplay archetype, one strong theme, and one polished interaction loop.",
+    "- Act as a gameplay director and UI art director before coding: pick a camera/framing model, a color palette, a readable HUD structure, and a tactile feedback language that all match the user's theme.",
     "",
     ...buildGameplayBlueprintSection(prompt, skeletonKey),
     "",
@@ -881,7 +1003,11 @@ export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkelet
     "- Show progression in the HUD or overlay with labels such as Level/Wave/Round/Stage/目标进度, and advance it during play.",
     "- Include clear failure, win, score, or restart feedback; simplify the mechanics if needed to make it reliable.",
     "- Do not leave a modal, overlay, or intro screen permanently intercepting player input after start.",
-    "- Expose a lightweight window.__OPENGAME_DEBUG__ hook for validation when possible. It may return { gameState, score, lives, level, wave, round, maxLevel, maxWave, inputCoverage, playfield, activeTargets }, where inputCoverage can mark keyboard, pointer, and touch as supported/observed.",
+    "- Expose a lightweight window.__OPENGAME_DEBUG__ hook for validation. It should return { gameState, score, lives, level, wave, round, maxLevel, maxWave, totalLevels, inputCoverage, playfield, activeTargets, solvable, allLevelsSolvable, levelPlans }, where inputCoverage marks keyboard/pointer/touch support and levelPlans marks each designed level as solvable when applicable.",
+    "- Gameplay must be self-explanatory inside the game UI: show a concise rule card or first-level hint that says what to click/tap, what is blocked, what counts as success, and how to restart. Do not rely on the gallery description to explain the rules.",
+    "- The game rules must be internally coherent: every action described in the UI must work, the win condition must be achievable, restart/retry must be available, and no generated level may start in a deadlock or unwinnable state.",
+    "- For traffic jam, parking escape, unblock-car, or vehicle-grid puzzle games, implement the real escape rule: multiple vehicles occupy lanes and can block one another; tapping/clicking a vehicle only lets it drive away if every cell/path ahead of its facing direction is clear until the exit edge; blocked vehicles should shake or show a 'blocked' cue instead of moving; the player wins only after all vehicles have escaped. Include at least 3 increasingly crowded layouts.",
+    "- Vehicle-grid puzzle quality gate: use smaller vehicles if needed and a larger visible map/playfield, but the full grid, all exits, all vehicles, and the HUD must fit inside the visible play area on desktop and phone screens without clipping. Level 1 must contain at least 4 vehicles, at least one immediately movable vehicle, and a clearly solvable sequence. Every later level must also be solvable by design; do not create deadlocked starting layouts where all vehicles are blocked.",
     "",
     "Baseline visual quality contract:",
     "- Treat visual design as part of the playable deliverable, not decoration added after the mechanics.",
@@ -890,6 +1016,9 @@ export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkelet
     "- Do not ship a prototype-looking game: avoid blank white or gray backgrounds, plain circles/rectangles as final characters, default browser buttons, unstyled text, and collisions with no visible effect.",
     "- Create programmatic art when image assets are unavailable: Canvas/CSS gradients, parallax layers, starfields or texture patterns, shaped characters, enemy silhouettes, collectible icons, projectile effects, hit flashes, and score/life panels.",
     "- The first screen, active play scene, win/lose state, restart affordance, and HUD should all feel like the same designed game world.",
+    "- Every generated game needs a clear visual hierarchy: background layer, playfield layer, actors/targets layer, HUD layer, feedback layer, and modal/result layer. These layers must not fight for attention.",
+    "- Use a small design system: CSS variables or constants for palette, type scale, spacing, radius, shadows/glow, motion duration, and z-index. Reuse it instead of one-off styles.",
+    "- Make interactive elements tactile: hover/press states, tap feedback, hit flashes, blocked shakes, score popups, transition easing, and short celebratory effects for success.",
     "",
     "Presentation shell contract:",
     "- Start screen: include a designed hero section with game title, a short one-line hook, a clear start CTA, and visible theme framing before gameplay begins.",
@@ -898,10 +1027,23 @@ export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkelet
     "- Layout: use layered background, framed playfield, spacing rhythm, and a clear content hierarchy so the game looks like a finished product page, not a blank canvas.",
     "- Keep the full playable scene inside the visible viewport: the start CTA, main playfield, HUD, and restart/result actions must remain fully visible without browser zoom, clipped edges, or off-screen controls.",
     "- Reserve a true play-safe zone separate from HUD and overlays. Gameplay objects must not be hidden under decorative chrome, mobile browser edges, or fixed panels.",
+    "- Build responsive layout from the start, not as an afterthought: support at least 390x844 phone portrait and 960x640 desktop landscape with no horizontal overflow, no clipped critical controls, and no unreachable gameplay targets.",
+    "- Keep the game camera/framed playfield centered and fully visible. If letterboxing is needed, use designed background fill, but never crop the actual game board or hide vehicles, cards, enemies, fruit, bullets, buttons, exits, or HUD.",
+    "- Prioritize a complete, playable core loop over visual ambition. If a mechanic risks deadlock, unclear rules, invisible targets, unresponsive input, or offscreen content, simplify it before finalizing.",
+    "- Add an in-game 'how to play' hint on the first level or start screen. It must explain the core click/tap/drag rule, the win condition, and what feedback means when an action is blocked or invalid.",
+    "- Mobile composition is a first-class design target: on 390x844, the title/HUD should be compact, the main playfield should get most of the height, primary actions should sit in a thumb-safe area, and no important content may hide below the fold.",
+    "",
+    "Premium UI polish rubric:",
+    "- Start screen must feel like a real game cover: title treatment, one-line hook, visual motif, primary CTA, and at least one animated or layered decorative element.",
+    "- HUD must be compact but expressive: use icons/badges/cards for score, level, lives, target, timer, or combo; avoid plain unstyled text rows.",
+    "- Gameplay scene must have authored visual identity: styled player/target/obstacle shapes, themed background, depth or parallax, and feedback for every important state change.",
+    "- End/result screen must include outcome, performance summary, next/retry CTA, and a polished card or overlay, not just alert() or bare text.",
+    "- If a requested genre is puzzle, sports, racing, shooting, slicing, platforming, or matching, use genre-appropriate feedback conventions such as trajectory guides, lane markers, impact particles, combo labels, route highlights, blocked cues, or target reticles.",
     "",
     "Level design contract:",
     "- Design at least 3 playable stages. Examples: 3 waves of enemies, 5 timed rounds, 3 puzzle rooms, escalating speed tiers, route checkpoints, or progressive objectives.",
     "- Each stage should introduce a small readable change such as speed, target count, pattern, obstacle layout, scoring goal, timer pressure, or enemy behavior.",
+    "- For puzzle or level-based games, predefine each level so it has at least one valid opening move and a clear path to completion. If the design cannot guarantee solvability, simplify the level until it can.",
     "- Do not mark the game complete after the first success. After one stage ends, advance to the next stage until the final win/lose result.",
     "",
     "Visual quality contract:",
@@ -980,6 +1122,7 @@ export async function startOpenGameJob({
   prompt,
   modelKey = "standard",
   skeletonKey = "auto",
+  contentType = "GAME",
   sourceUrl,
   useContinue = false,
 }: {
@@ -988,6 +1131,7 @@ export async function startOpenGameJob({
   prompt: string;
   modelKey?: GenerationModelKey;
   skeletonKey?: GameplaySkeletonKey;
+  contentType?: ContentTypeValue;
   sourceUrl?: string | null;
   useContinue?: boolean;
 }) {
@@ -1069,7 +1213,7 @@ export async function startOpenGameJob({
   };
 
   await sandboxWriteFiles(sandbox, [
-    { path: `${WORKSPACE_ROOT}/prompt.txt`, content: buildPlayablePrompt(prompt, normalizedSkeletonKey) },
+    { path: `${WORKSPACE_ROOT}/prompt.txt`, content: buildPlayablePrompt(prompt, normalizedSkeletonKey, contentType) },
     { path: RUN_SCRIPT, content: buildOpenGameScript() },
     { path: VALIDATOR_SCRIPT, content: buildPlayabilityValidatorScript() },
   ]);
@@ -1352,6 +1496,7 @@ export async function retryOpenGameJob(jobId: string, errorMsg: string, options:
     prompt: retryPrompt,
     modelKey: normalizeGenerationModelKey(retryJob.modelKey),
     skeletonKey: normalizedSkeletonKey,
+    contentType: job.game.contentType,
     sourceUrl: retryJob.sourceUrl,
     useContinue: retryJob.useContinue,
   }).catch(async (error) => {

@@ -1,7 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { WandSparkles } from "lucide-react";
+import { AuthPanel } from "@/components/auth-panel";
 import { GameFeed } from "@/components/game-feed";
+import { LogoutButton } from "@/components/logout-button";
+import { getCurrentAccount } from "@/lib/auth";
 import { hasMineGames, listGames, type MineStatusFilter, normalizeMineStatusFilter } from "@/lib/games";
 
 export const dynamic = "force-dynamic";
@@ -69,9 +72,19 @@ function MineStatusTabs({ active }: { active: MineStatusFilter }) {
 export default async function MePage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string; status?: string }>;
+  searchParams: Promise<{ cursor?: string; status?: string; next?: string }>;
 }) {
   const params = await searchParams;
+  const account = await getCurrentAccount();
+  const nextPath = params.next?.startsWith("/") ? params.next : "/create";
+  if (!account) {
+    return (
+      <div className="page me-page">
+        <AuthPanel nextPath={nextPath} />
+      </div>
+    );
+  }
+
   const mineStatus = normalizeMineStatusFilter(params.status);
   const activeMineTab = mineStatusTabs.find((item) => item.value === mineStatus) ?? mineStatusTabs[0];
   const data = await listGames("mine", params.cursor, mineStatus)
@@ -84,9 +97,12 @@ export default async function MePage({
       <section className="mobile-page-head">
         <div>
           <p className="eyebrow">我的</p>
-          <h1>草稿、生成中和已完成作品</h1>
+          <h1>{account.displayName || account.email} 的作品</h1>
         </div>
-        <p className="helper">继续修改、修失败作品、查看已完成版本都从这里进入。</p>
+        <div className="mine-account-row">
+          <p className="helper">已登录：{account.email}。继续修改、修失败作品、查看已完成版本都从这里进入。</p>
+          <LogoutButton />
+        </div>
       </section>
 
       {data.unavailable ? (

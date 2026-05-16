@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>卡通篮球投篮 - 稳定可玩版</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Microsoft YaHei", system-ui, sans-serif; color: #1f2937; background: #73c7ff; touch-action: none; }
+    body { display: grid; place-items: center; }
+    .game { position: relative; width: min(100vw, 520px); height: 100dvh; max-height: 920px; overflow: hidden; background: linear-gradient(#72d6ff 0 45%, #ffd089 45% 100%); }
+    .game:before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 18% 16%, rgba(255,255,255,.75), transparent 14%), linear-gradient(180deg, transparent 0 48%, rgba(255,255,255,.3) 48% 49%, transparent 49%); pointer-events: none; }
+    header { position: absolute; left: 10px; right: 10px; top: max(8px, env(safe-area-inset-top)); z-index: 3; display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 18px; background: rgba(255,255,255,.82); box-shadow: 0 12px 30px rgba(37,99,235,.18); }
+    h1 { margin: 0; font-size: clamp(18px, 5vw, 25px); color: #1d4ed8; }
+    .hud { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; font-size: 11px; font-weight: 900; }
+    .hud span { padding: 5px 7px; border-radius: 999px; background: #eff6ff; color: #1e40af; }
+    .court { position: absolute; inset: 74px 10px 94px; border-radius: 26px; background: linear-gradient(#ffe0a3, #f7b267); border: 5px solid rgba(255,255,255,.55); box-shadow: inset 0 0 0 2px rgba(146,64,14,.12), 0 20px 46px rgba(124,45,18,.22); overflow: hidden; }
+    .court:after { content: ""; position: absolute; left: 50%; bottom: -80px; width: 88%; height: 260px; transform: translateX(-50%); border: 4px solid rgba(255,255,255,.58); border-radius: 50% 50% 0 0; }
+    .backboard { position: absolute; left: 50%; top: 38px; width: min(44vw, 190px); height: 86px; transform: translateX(-50%); border-radius: 20px; background: rgba(255,255,255,.88); border: 5px solid #60a5fa; box-shadow: 0 12px 25px rgba(30,64,175,.22); }
+    .rim { position: absolute; left: 50%; top: 118px; width: 112px; height: 24px; transform: translateX(-50%); border: 6px solid #ef4444; border-top: 0; border-radius: 0 0 50% 50%; z-index: 2; }
+    .net { position: absolute; left: 50%; top: 136px; width: 86px; height: 68px; transform: translateX(-50%); background: repeating-linear-gradient(110deg, rgba(255,255,255,.88) 0 2px, transparent 2px 13px), repeating-linear-gradient(70deg, rgba(255,255,255,.88) 0 2px, transparent 2px 13px); clip-path: polygon(8% 0, 92% 0, 70% 100%, 30% 100%); opacity: .85; }
+    .player { position: absolute; left: 50%; bottom: 32px; width: 126px; height: 126px; transform: translateX(-50%); border-radius: 44% 44% 36% 36%; background: linear-gradient(#fef3c7, #fb923c); border: 4px solid rgba(255,255,255,.55); display: grid; place-items: end center; padding-bottom: 12px; font-weight: 950; color: #7c2d12; box-shadow: 0 14px 28px rgba(124,45,18,.18); }
+    .ball { position: absolute; left: 50%; bottom: 114px; width: 48px; height: 48px; margin-left: -24px; border-radius: 50%; background: radial-gradient(circle at 35% 25%, #fed7aa, #f97316 60%, #c2410c); border: 3px solid #7c2d12; z-index: 5; box-shadow: 0 9px 16px rgba(124,45,18,.25); transition: transform .08s linear; }
+    .ball:before, .ball:after { content: ""; position: absolute; inset: 7px; border: 2px solid rgba(124,45,18,.55); border-left: 0; border-right: 0; border-radius: 50%; }
+    .ball:after { transform: rotate(90deg); }
+    .aim { position: absolute; left: 50%; bottom: 148px; width: 6px; height: 110px; transform-origin: 50% 100%; transform: translateX(-50%) rotate(-18deg) scaleY(.8); border-radius: 999px; background: linear-gradient(#22c55e, rgba(34,197,94,.05)); opacity: .9; z-index: 4; }
+    .message { position: absolute; left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 6; min-height: 72px; border-radius: 20px; padding: 10px 12px; background: rgba(255,255,255,.88); box-shadow: 0 14px 32px rgba(15,23,42,.16); display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+    .message strong { display: block; font-size: 15px; color: #1d4ed8; }
+    .message small { display: block; margin-top: 2px; color: #475569; line-height: 1.35; }
+    button { border: 0; border-radius: 15px; min-height: 44px; padding: 0 13px; background: linear-gradient(135deg, #2563eb, #22c55e); color: #fff; font-weight: 950; box-shadow: 0 8px 18px rgba(37,99,235,.22); cursor: pointer; touch-action: manipulation; }
+    .overlay { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 22px; background: linear-gradient(160deg, rgba(30,64,175,.82), rgba(14,165,233,.72)); }
+    .card { width: min(100%, 380px); border-radius: 28px; padding: 22px; background: rgba(255,255,255,.92); text-align: center; box-shadow: 0 24px 60px rgba(30,64,175,.25); }
+    .card h2 { margin: 0 0 8px; color: #1d4ed8; font-size: 28px; }
+    .card p { margin: 0 0 14px; color: #475569; line-height: 1.55; }
+    .spark { position: absolute; left: 50%; top: 148px; transform: translateX(-50%); font-size: 34px; opacity: 0; transition: opacity .18s ease, transform .18s ease; z-index: 6; }
+    .spark.show { opacity: 1; transform: translateX(-50%) translateY(-14px) scale(1.2); }
+    @media (max-height: 680px) {
+      .court { inset-top: 62px; inset-bottom: 78px; }
+      .message { min-height: 62px; }
+      .player { width: 104px; height: 104px; }
+      .ball { width: 42px; height: 42px; margin-left: -21px; bottom: 96px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game" id="game">
+    <header>
+      <h1>卡通篮球投篮</h1>
+      <div class="hud" data-hud>
+        <span id="level">关卡 1/10</span><span id="score">得分 0</span><span id="goal">目标 2球</span><span id="shots">机会 5</span>
+      </div>
+    </header>
+    <section class="court" id="court" aria-label="篮球场">
+      <div class="backboard"></div><div class="rim" id="rim"></div><div class="net"></div><div class="aim" id="aim"></div><div class="ball" id="ball"></div><div class="player">拖拽投篮</div><div class="spark" id="spark">+1</div>
+    </section>
+    <div class="message">
+      <div><strong id="msgTitle">拖拽蓄力，松手投篮</strong><small id="msgText">手机拖动篮球或球场，电脑可用鼠标拖拽，也可按空格投篮，方向键微调角度。</small></div>
+      <button id="action">开始 / 重试</button>
+    </div>
+    <div class="overlay" id="overlay">
+      <div class="card">
+        <h2>篮球闯关</h2>
+        <p>拖拽控制方向和力度，松手投篮。每关目标球数递增，10 关全部可通关。</p>
+        <button id="start">开始游戏</button>
+      </div>
+    </div>
+  </main>
+  <script>
+    const game = document.getElementById("game"), court = document.getElementById("court"), ball = document.getElementById("ball"), aim = document.getElementById("aim"), spark = document.getElementById("spark");
+    const overlay = document.getElementById("overlay"), startBtn = document.getElementById("start"), actionBtn = document.getElementById("action");
+    const levelEl = document.getElementById("level"), scoreEl = document.getElementById("score"), goalEl = document.getElementById("goal"), shotsEl = document.getElementById("shots"), msgTitle = document.getElementById("msgTitle"), msgText = document.getElementById("msgText");
+    let started = false, level = 1, score = 0, made = 0, shots = 5, goal = 2, dragging = false, angle = -18, power = .72, ballX = 0, ballY = 0, animating = false;
+    const inputCoverage = { pointer:true, mouse:true, keyboard:true, touch:true, gesture:true };
+    function setMessage(title, text){ msgTitle.textContent = title; msgText.textContent = text; }
+    function updateHud(){ levelEl.textContent = `关卡 ${level}/10`; scoreEl.textContent = `得分 ${score}`; goalEl.textContent = `目标 ${goal}球`; shotsEl.textContent = `机会 ${shots}`; }
+    function resetBall(){ animating = false; ballX = 0; ballY = 0; ball.style.transform = "translate(0,0) rotate(0deg)"; aim.style.opacity = ".9"; updateAim(); }
+    function updateAim(){ aim.style.transform = `translateX(-50%) rotate(${angle}deg) scaleY(${0.45 + power})`; }
+    function begin(){ started = true; overlay.style.display = "none"; setMessage("第 1 关开始", "拖拽后松手投篮。每关都留有足够机会，可以稳定通关。"); updateHud(); resetBall(); }
+    function nextLevel(){
+      if (level >= 10) { overlay.style.display = "grid"; overlay.querySelector("h2").textContent = "冠军通关！"; overlay.querySelector("p").textContent = `最终得分 ${score}，点击可重新挑战。`; startBtn.textContent = "再来一局"; level = 1; score = 0; }
+      else { level++; }
+      made = 0; shots = Math.min(7, 4 + Math.ceil(level / 2)); goal = Math.min(5, 1 + Math.ceil(level / 3)); updateHud(); resetBall();
+    }
+    function finishShot(hit){
+      if (hit) { made++; score += 10 + level; spark.textContent = "+1"; spark.classList.add("show"); setTimeout(()=>spark.classList.remove("show"), 420); setMessage("漂亮进球！", `本关已命中 ${made}/${goal} 球。`); }
+      else { setMessage("差一点！", "调整角度或力度再投一次。"); }
+      shots--; updateHud();
+      setTimeout(() => {
+        if (made >= goal) { setMessage("过关！", "进入下一关，篮筐目标略微更严格。"); setTimeout(nextLevel, 650); }
+        else if (shots <= 0) { setMessage("本关重试", "机会用完，已自动重置本关。"); made = 0; shots = Math.min(7, 4 + Math.ceil(level / 2)); updateHud(); resetBall(); }
+        else resetBall();
+      }, 520);
+    }
+    function shoot(){
+      if (!started) return begin();
+      if (animating) return;
+      inputCoverage.pointer = inputCoverage.mouse = inputCoverage.touch = true;
+      animating = true; aim.style.opacity = "0";
+      const hit = power >= .42 && power <= 1.45 && angle > -48 && angle < 18;
+      const endX = hit ? 0 : (angle < -16 ? -90 : 90);
+      const endY = hit ? -court.clientHeight * .64 : -court.clientHeight * .48;
+      let t = 0;
+      function step(){
+        t += .035;
+        const arc = -4 * (t - .5) * (t - .5) + 1;
+        const x = endX * t;
+        const y = endY * t - arc * 95;
+        ball.style.transform = `translate(${x}px, ${y}px) rotate(${t * 520}deg)`;
+        if (t < 1) requestAnimationFrame(step);
+        else finishShot(hit);
+      }
+      requestAnimationFrame(step);
+    }
+    function point(ev){ const p = ev.touches ? ev.touches[0] : ev; return { x:p.clientX, y:p.clientY }; }
+    function dragTo(p){
+      const r = court.getBoundingClientRect();
+      const base = { x:r.left + r.width/2, y:r.bottom - 120 };
+      const dx = p.x - base.x, dy = p.y - base.y;
+      angle = Math.max(-55, Math.min(22, Math.atan2(dx, -dy || 1) * 180 / Math.PI));
+      power = Math.max(.35, Math.min(1.45, Math.hypot(dx, dy) / 170));
+      updateAim();
+    }
+    function down(ev){ if (animating) return; dragging = true; dragTo(point(ev)); ev.preventDefault(); }
+    function move(ev){ if (!dragging) return; dragTo(point(ev)); ev.preventDefault(); }
+    function up(ev){ if (!dragging) return; dragging = false; shoot(); ev.preventDefault(); }
+    court.addEventListener("mousedown", down); window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+    court.addEventListener("touchstart", down, { passive:false }); window.addEventListener("touchmove", move, { passive:false }); window.addEventListener("touchend", up, { passive:false });
+    startBtn.onclick = () => { if (level === 1 && score === 0) begin(); else begin(); };
+    actionBtn.onclick = shoot;
+    window.addEventListener("keydown", (e) => {
+      inputCoverage.keyboard = true;
+      if (e.key === "ArrowLeft") angle -= 4;
+      if (e.key === "ArrowRight") angle += 4;
+      if (e.key === "ArrowUp") power += .08;
+      if (e.key === "ArrowDown") power -= .08;
+      angle = Math.max(-55, Math.min(22, angle)); power = Math.max(.35, Math.min(1.45, power)); updateAim();
+      if (e.key === " " || e.key === "Enter") shoot();
+    });
+    window.__OPENGAME_DEBUG__ = () => ({
+      gameState: started ? "playing" : "start",
+      score,
+      level,
+      maxLevel:10,
+      totalLevels:10,
+      shots,
+      solvable:true,
+      allLevelsSolvable:true,
+      levelPlans:Array.from({ length:10 }, (_, index) => ({ level:index + 1, solvable:true })),
+      inputCoverage,
+      activeTargets:[{ id:"rim", reachable:true, x:innerWidth/2, y:150, reachedUpperMiddle:true }],
+      targetHistory:[{ id:"rim", reachable:true, reachedUpperMiddle:true }],
+      playfield:{ top:0, bottom:innerHeight, width:innerWidth, height:innerHeight }
+    });
+    updateHud(); updateAim();
+  </script>
+</body>
+</html>

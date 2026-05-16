@@ -1,10 +1,11 @@
 import { execFile, spawn } from "node:child_process";
-import { access, chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, appendFile, chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { normalizeGameplaySkeletonKey, type GameplaySkeletonKey } from "../lib/gameplay-skeleton";
+import { normalizeContentType, type ContentTypeValue } from "../lib/content-type";
 import { progressFromPhaseAndLog } from "../lib/job-progress";
 import { getOpenGameModelForKey } from "../lib/minimax-config";
 import { buildPlayabilityValidatorScript } from "../lib/playability-validator-script";
@@ -16,7 +17,7 @@ loadDotEnv();
 
 const execFileAsync = promisify(execFile);
 const MAX_LOG_CHARS = 8000;
-const MAX_GENERATION_ATTEMPTS = Number(process.env.OPENGAME_WORKER_MAX_ATTEMPTS || "2");
+const MAX_GENERATION_ATTEMPTS = Math.max(1, Number(process.env.OPENGAME_WORKER_MAX_ATTEMPTS || "1") || 1);
 
 const requestedJobId: string | null | undefined = process.argv[2] || process.env.JOB_ID || process.env.INPUT_JOB_ID;
 let claimedJobId: string | null = null;
@@ -26,6 +27,7 @@ type ClaimedJob = {
   gameId: string;
   modelKey?: string | null;
   skeletonKey?: GameplaySkeletonKey | null;
+  contentType?: ContentTypeValue | null;
   prompt: string;
   sourceUrl?: string | null;
   useContinue?: boolean;
@@ -42,6 +44,11 @@ function hostPath(filePath: string) {
 
 async function readText(filePath: string) {
   return readFile(hostPath(filePath), "utf8").catch(() => "");
+}
+
+async function appendProgressLog(message: string) {
+  const timestamp = new Date().toISOString();
+  await appendFile(hostPath(sandboxPaths.progressLog), `[worker][${timestamp}] ${message}\n`).catch(() => undefined);
 }
 
 async function exists(filePath: string) {
@@ -131,9 +138,10 @@ async function markFailed(jobId: string, error: unknown) {
   });
 }
 
-function promptForAttempt(prompt: string, attempt: number, skeletonKey?: GameplaySkeletonKey) {
+function promptForAttempt(prompt: string, attempt: number, skeletonKey?: GameplaySkeletonKey, contentType?: ContentTypeValue | null) {
   const normalizedSkeletonKey = normalizeGameplaySkeletonKey(skeletonKey);
-  if (attempt <= 1) return buildPlayablePrompt(prompt, normalizedSkeletonKey);
+  const normalizedContentType = normalizeContentType(contentType);
+  if (attempt <= 1) return buildPlayablePrompt(prompt, normalizedSkeletonKey, normalizedContentType);
 
   return buildPlayablePrompt(
     [
@@ -145,9 +153,11 @@ function promptForAttempt(prompt: string, attempt: number, skeletonKey?: Gamepla
       "Do not create or run Playwright, Puppeteer, Selenium, npm test, smoke_test, test.js, or any browser-download test harness; the platform validates the result after generation.",
       "Do not spend tokens narrating plans, checklists, or self-tests. Modify the playable files directly and finish quickly.",
       "It must also pass product-grade visual validation: non-pixel-art, no 8-bit/blocky/pixelated styling, a designed hero/start screen, a readable multi-module HUD, a replay-ready end-state overlay, polished modern UI, gradients, rounded controls, shadows/glow, strong spacing hierarchy, and responsive layout.",
+      "Preserve premium UI polish while simplifying: consistent design system, layered background, authored game objects, tactile hit/miss/blocked feedback, mobile-safe composition, and a curated result screen.",
       "Reduce scope if needed, but the result must feel premium and curated, similar to a high-quality arcade template rather than a raw prototype.",
     ].join("\n"),
     normalizedSkeletonKey,
+    normalizedContentType,
   );
 }
 
@@ -237,6 +247,7 @@ async function sourceArchiveBase64(jobId: string) {
 }
 
 async function publishJob(job: ClaimedJob) {
+  await appendProgressLog("Publishing only after playable marker and index.html are present.");
   const { log } = await currentLog();
   await callWorkerApi(`/api/github-worker/jobs/${job.id}/publish`, {
     method: "POST",
@@ -261,10 +272,12 @@ async function prepareWorkspace(job: ClaimedJob) {
     rm(hostPath(`${sandboxPaths.workspaceRoot}/source.zip`), { force: true }),
     rm(hostPath(`${sandboxPaths.workspaceRoot}/original-prompt.txt`), { force: true }),
   ]);
-  await writeFile(hostPath(`${sandboxPaths.workspaceRoot}/prompt.txt`), promptForAttempt(job.prompt, 1, job.skeletonKey ?? undefined));
+  await writeFile(hostPath(`${sandboxPaths.workspaceRoot}/prompt.txt`), promptForAttempt(job.prompt, 1, job.skeletonKey ?? undefined, job.contentType));
   await writeFile(hostPath(sandboxPaths.runScript), buildOpenGameScript());
   await chmod(hostPath(sandboxPaths.runScript), 0o755);
   await writeFile(hostPath(sandboxPaths.validatorScript), buildPlayabilityValidatorScript());
+  await appendProgressLog(`Prepared workspace for game=${job.gameId}, model=${job.modelKey || "default"}, skeleton=${job.skeletonKey || "auto"}, contentType=${normalizeContentType(job.contentType)}.`);
+  await appendProgressLog("Quality plan injected: visual director, premium UI system, mobile-safe composition, feedback cues, and validator polish gate.");
 }
 
 async function runUntilPlayable(job: ClaimedJob, env: NodeJS.ProcessEnv) {
@@ -273,10 +286,12 @@ async function runUntilPlayable(job: ClaimedJob, env: NodeJS.ProcessEnv) {
   for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt += 1) {
     if (attempt > 1) {
       console.log(`[github-worker] Retry ${attempt}/${MAX_GENERATION_ATTEMPTS}: regenerating with a simpler playable-first prompt.`);
+      await appendProgressLog(`Reliability retry ${attempt}/${MAX_GENERATION_ATTEMPTS}: previous build failed validation, regenerating with repair-focused quality prompt.`);
       await rm(hostPath(sandboxPaths.generatedDir), { recursive: true, force: true });
-      await writeFile(hostPath(`${sandboxPaths.workspaceRoot}/prompt.txt`), promptForAttempt(job.prompt, attempt, job.skeletonKey ?? undefined));
+      await writeFile(hostPath(`${sandboxPaths.workspaceRoot}/prompt.txt`), promptForAttempt(job.prompt, attempt, job.skeletonKey ?? undefined, job.contentType));
     }
 
+    await appendProgressLog(`Starting OpenGame attempt ${attempt}/${MAX_GENERATION_ATTEMPTS}; enforcing playable core loop, visual polish, HUD, result screen, and responsive layout.`);
     const exitCode = await runOpenGameProcess({
       ...env,
       OPENGAME_RELIABILITY_ATTEMPT: String(attempt),
@@ -285,6 +300,7 @@ async function runUntilPlayable(job: ClaimedJob, env: NodeJS.ProcessEnv) {
 
     const playable = await exists(sandboxPaths.playableMarker);
     const indexExists = await exists(`${sandboxPaths.generatedDir}/index.html`);
+    await appendProgressLog(`Attempt ${attempt}/${MAX_GENERATION_ATTEMPTS} finished: exitCode=${exitCode}, playable=${playable}, indexHtml=${indexExists}.`);
     if (exitCode === 0 && playable && indexExists) return;
 
     const { log } = await currentLog();
@@ -321,7 +337,7 @@ async function main() {
 
   const interval = setInterval(() => {
     syncProgress(job.id).catch((error) => console.error("[progress]", error));
-  }, 5000);
+  }, 2000);
 
   try {
     await runUntilPlayable(job, env);

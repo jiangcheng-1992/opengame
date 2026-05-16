@@ -9,6 +9,7 @@ export type GameCardGame = {
     title: string;
     coverUrl?: string | null;
     status: string;
+    contentType?: string;
     summary?: string | null;
     genre?: string | null;
     tags?: string[];

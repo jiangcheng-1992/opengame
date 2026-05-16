@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { Check, Heart, Play, PlayCircle, RotateCcw, Share2, X } from "lucide-react";
+import { Check, Heart, Play, PlayCircle, Share2 } from "lucide-react";
 import type { GameCardGame } from "@/components/game-card";
 import { ResponsiveGameFrame } from "@/components/responsive-game-frame";
 
@@ -13,6 +13,15 @@ function formatCount(value: number) {
 
 type GameReelsFeedProps = {
   games: GameCardGame[];
+  pangleFeedAd?: PangleFeedAdConfig | null;
+};
+
+export type PangleFeedAdConfig = {
+  appId: string;
+  slotId: string;
+  sdkUrl: string;
+  interval: number;
+  startIndex: number;
 };
 
 type FeedActionState = {
@@ -25,6 +34,35 @@ type FeedActionState = {
   playedTracked: boolean;
   likeBurst: number;
   sharePulse: number;
+};
+
+type FeedItem =
+  | { type: "game"; game: GameCardGame; gameIndex: number }
+  | { type: "ad"; id: string; adIndex: number };
+
+type PangleSdkPayload = {
+  appId: string;
+  codeId: string;
+  slotId: string;
+  adSlotId: string;
+  adCount: number;
+  width: number;
+  height: number;
+  container: HTMLElement;
+  containerId: string;
+};
+
+type PangleSdk = {
+  init?: (config: { appId: string }) => unknown;
+  showFeedAd?: (payload: PangleSdkPayload) => unknown;
+  loadFeedAd?: (payload: PangleSdkPayload) => unknown;
+  loadNativeExpressAd?: (payload: PangleSdkPayload) => unknown;
+  renderFeedAd?: (payload: PangleSdkPayload) => unknown;
+};
+
+type PangleWindow = Window & {
+  pangle?: PangleSdk;
+  __pangleFeedSdkPromise?: Promise<void>;
 };
 
 function createFeedActionState(game: GameCardGame): FeedActionState {
@@ -63,14 +101,126 @@ function controlHintsFor(game: GameCardGame) {
   return deduped.slice(0, 3);
 }
 
-export function GameReelsFeed({ games }: GameReelsFeedProps) {
+function buildFeedItems(games: GameCardGame[], pangleFeedAd?: PangleFeedAdConfig | null): FeedItem[] {
+  if (!pangleFeedAd || games.length < pangleFeedAd.startIndex) {
+    return games.map((game, gameIndex) => ({ type: "game", game, gameIndex }));
+  }
+
+  const items: FeedItem[] = [];
+  let adIndex = 0;
+  games.forEach((game, gameIndex) => {
+    items.push({ type: "game", game, gameIndex });
+    const position = gameIndex + 1;
+    const shouldInsertAd = position >= pangleFeedAd.startIndex && (position - pangleFeedAd.startIndex) % pangleFeedAd.interval === 0 && position < games.length;
+    if (shouldInsertAd) {
+      adIndex += 1;
+      items.push({ type: "ad", id: `pangle-feed-ad-${adIndex}`, adIndex });
+    }
+  });
+  return items;
+}
+
+function loadPangleSdk(sdkUrl: string) {
+  const pangleWindow = window as PangleWindow;
+  if (pangleWindow.pangle) return Promise.resolve();
+  if (pangleWindow.__pangleFeedSdkPromise) return pangleWindow.__pangleFeedSdkPromise;
+
+  pangleWindow.__pangleFeedSdkPromise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[data-pangle-sdk="${sdkUrl}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Pangle SDK failed to load.")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = sdkUrl;
+    script.async = true;
+    script.dataset.pangleSdk = sdkUrl;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Pangle SDK failed to load."));
+    document.head.appendChild(script);
+  });
+
+  return pangleWindow.__pangleFeedSdkPromise;
+}
+
+function PangleFeedAdCard({ adId, config }: { adId: string; config: PangleFeedAdConfig }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function renderAd() {
+      const container = containerRef.current;
+      if (!container) return;
+
+      try {
+        await loadPangleSdk(config.sdkUrl);
+        if (cancelled) return;
+
+        const pangle = (window as PangleWindow).pangle;
+        if (!pangle) throw new Error("Pangle SDK global is missing.");
+
+        pangle.init?.({ appId: config.appId });
+        const payload: PangleSdkPayload = {
+          appId: config.appId,
+          codeId: config.slotId,
+          slotId: config.slotId,
+          adSlotId: config.slotId,
+          adCount: 1,
+          width: Math.max(320, Math.round(container.clientWidth || 390)),
+          height: 0,
+          container,
+          containerId: adId,
+        };
+        const renderers = [pangle.showFeedAd, pangle.loadFeedAd, pangle.loadNativeExpressAd, pangle.renderFeedAd].filter(
+          (renderer): renderer is (payload: PangleSdkPayload) => unknown => typeof renderer === "function",
+        );
+
+        if (!renderers.length) throw new Error("Pangle feed renderer is missing.");
+        await Promise.resolve(renderers[0](payload));
+        if (!cancelled) setStatus("ready");
+      } catch (error) {
+        console.warn("[pangle-feed-ad]", error);
+        if (!cancelled) setStatus("failed");
+      }
+    }
+
+    void renderAd();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [adId, config.appId, config.sdkUrl, config.slotId]);
+
+  if (status === "failed") return null;
+
+  return (
+    <article className="reel-card reel-ad-card" aria-label="信息流广告">
+      <div className="reel-stage reel-ad-stage">
+        <div className="reel-ad-shell">
+          <div className="reel-ad-head">
+            <span>广告</span>
+            <small>赞助内容</small>
+          </div>
+          <div id={adId} ref={containerRef} className="pangle-feed-ad-container" data-code-id={config.slotId}>
+            {status === "loading" ? <span className="reel-ad-loading">广告加载中...</span> : null}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export function GameReelsFeed({ games, pangleFeedAd }: GameReelsFeedProps) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [gameState, setGameState] = useState(() =>
     Object.fromEntries(
       games.map((game) => [game.id, createFeedActionState(game)]),
     ),
   );
-  const [replaySeed, setReplaySeed] = useState<Record<string, number>>({});
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
   const autoScrollLockUntilRef = useRef(0);
   const shareResetTimers = useRef<Map<string, number>>(new Map());
@@ -323,12 +473,11 @@ export function GameReelsFeed({ games }: GameReelsFeedProps) {
     const currentCard = cardRefs.current.get(playingId);
     if (!currentCard) return;
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => {
       currentCard.scrollIntoView({
         block: "center",
         inline: "nearest",
-        behavior: prefersReducedMotion ? "auto" : "smooth",
+        behavior: "auto",
       });
     });
 
@@ -355,9 +504,16 @@ export function GameReelsFeed({ games }: GameReelsFeedProps) {
     return () => observer.disconnect();
   }, [playingId]);
 
+  const feedItems = buildFeedItems(games, pangleFeedAd);
+
   return (
     <section className="reels-feed" aria-label="游戏信息流">
-      {games.map((game) => {
+      {feedItems.map((item) => {
+        if (item.type === "ad") {
+          return pangleFeedAd ? <PangleFeedAdCard key={item.id} adId={item.id} config={pangleFeedAd} /> : null;
+        }
+
+        const { game, gameIndex: index } = item;
         const isPlaying = playingId === game.id;
         const playable = Boolean(game.playUrl);
         const state = gameState[game.id] ?? createFeedActionState(game);
@@ -435,7 +591,7 @@ export function GameReelsFeed({ games }: GameReelsFeedProps) {
                     </div>
                   ) : null}
                   <ResponsiveGameFrame
-                    key={`reel-frame-${game.id}-${replaySeed[game.id] ?? 0}`}
+                    key={`reel-frame-${game.id}`}
                     title={game.title}
                     src={game.playUrl!}
                     shellClassName="reel-frame-shell responsive-game-shell"
@@ -443,28 +599,6 @@ export function GameReelsFeed({ games }: GameReelsFeedProps) {
                     fallbackWidth={1280}
                     fallbackHeight={800}
                   />
-                  <div className="reel-live-controls">
-                    <span>正在试玩当前卡片</span>
-                    <div className="reel-live-actions">
-                      <button
-                        className="button secondary reel-close-button"
-                        type="button"
-                        onClick={() =>
-                          setReplaySeed((state) => ({
-                            ...state,
-                            [game.id]: (state[game.id] ?? 0) + 1,
-                          }))
-                        }
-                      >
-                        <RotateCcw size={16} aria-hidden />
-                        重玩
-                      </button>
-                      <button className="button secondary reel-close-button" type="button" onClick={() => setPlayingId(null)}>
-                        <X size={16} aria-hidden />
-                        关闭试玩
-                      </button>
-                    </div>
-                  </div>
                 </>
               ) : (
                 <>
@@ -473,9 +607,9 @@ export function GameReelsFeed({ games }: GameReelsFeedProps) {
                       src={game.coverUrl}
                       alt={`${game.title} 封面`}
                       fill
-                      sizes="100vw"
+                      sizes="(max-width: 760px) 100vw, 720px"
                       className="reel-cover"
-                      priority
+                      priority={index < 2}
                     />
                   ) : (
                     <div className="reel-fallback-cover" aria-hidden />
@@ -491,7 +625,7 @@ export function GameReelsFeed({ games }: GameReelsFeedProps) {
                       className="button primary reel-play-button"
                       type="button"
                       onClick={() => {
-                        autoScrollLockUntilRef.current = Date.now() + 1000;
+                        autoScrollLockUntilRef.current = Date.now() + 450;
                         setPlayingId(game.id);
                       }}
                       disabled={!playable}

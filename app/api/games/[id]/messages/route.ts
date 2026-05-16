@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAnonId, getClientIp } from "@/lib/auth";
+import { getAnonId, getClientIp, requireAccount } from "@/lib/auth";
 import { DEFAULT_GAMEPLAY_SKELETON_KEY, normalizeGameplaySkeletonKey } from "@/lib/gameplay-skeleton";
 import { progressForJobStatus } from "@/lib/job-progress";
 import { enforceGenerationLimit } from "@/lib/rate-limit";
@@ -13,6 +13,10 @@ import { retryOpenGameJob, startOpenGameJob } from "@/lib/sandbox";
 const ACTIVE_JOB_STATUSES = new Set(["QUEUED", "RUNNING", "VALIDATING", "REPAIRING", "FINISHING"]);
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const account = await requireAccount();
+  if (!account) {
+    return NextResponse.json({ error: "请先登录后再继续修改。" }, { status: 401 });
+  }
   const { id } = await context.params;
   const anonId = await getAnonId();
   const game = await prisma.game.findUnique({
@@ -90,6 +94,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       prompt,
       modelKey,
       skeletonKey,
+      contentType: game.contentType,
       sourceUrl: isFailureRetry ? null : game.sourceUrl,
       useContinue: canUseContinue,
     });

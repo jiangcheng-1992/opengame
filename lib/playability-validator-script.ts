@@ -338,6 +338,58 @@ function assessProgression(before, after, mobileAfter, gameplayDebug) {
   };
 }
 
+function assessGameplayCoherence(before, after, mobileAfter, gameplayDebug) {
+  const debug = gameplayDebug || {};
+  const source = [
+    before?.fullText,
+    after?.fullText,
+    mobileAfter?.fullText,
+    JSON.stringify(debug),
+  ].filter(Boolean).join(" ");
+  const reasons = [];
+  const ruleSignals =
+    source.match(/\b(click|tap|drag|swipe|move|shoot|jump|collect|avoid|match|clear|escape|block|blocked|aim|release)\b|点击|轻触|拖拽|滑动|移动|发射|跳跃|收集|躲避|消除|清空|逃离|挡住|阻挡|瞄准|松手/gi) || [];
+  const winSignals =
+    source.match(/\b(win|victory|clear|complete|goal|target|finish|pass|score|level up)\b|胜利|通关|过关|目标|完成|清空|得分|命中|逃离/gi) || [];
+  const restartSignals =
+    source.match(/\b(restart|retry|again|replay|reset|next level)\b|重玩|重试|再来|重新|复位|下一关|继续/gi) || [];
+  const impossibleSignals =
+    source.match(/\b(deadlock|impossible|unreachable|unwinnable|unsolvable|stuck forever)\b|死局|无解|无法通关|不可达|永远卡住/gi) || [];
+  const explicitSolvable =
+    debug.solvable === true ||
+    debug.canWin === true ||
+    debug.allLevelsSolvable === true ||
+    (Array.isArray(debug.levels) && debug.levels.length > 0 && debug.levels.every((level) => level && level.solvable !== false)) ||
+    (Array.isArray(debug.levelPlans) && debug.levelPlans.length > 0 && debug.levelPlans.every((level) => level && level.solvable !== false));
+  const explicitlyImpossible =
+    debug.solvable === false ||
+    debug.canWin === false ||
+    debug.allLevelsSolvable === false ||
+    impossibleSignals.length > 0 ||
+    (Array.isArray(debug.levels) && debug.levels.some((level) => level && level.solvable === false)) ||
+    (Array.isArray(debug.levelPlans) && debug.levelPlans.some((level) => level && level.solvable === false));
+
+  if (ruleSignals.length < 1) reasons.push("Game rules are not explained clearly in the UI or debug contract.");
+  if (winSignals.length < 1) reasons.push("Win/goal condition is unclear; players must know how to clear the game.");
+  if (restartSignals.length < 1) reasons.push("Restart/retry/next-step feedback is missing or unclear.");
+  if (explicitlyImpossible) reasons.push("Generated game reports or implies an impossible, unreachable, or unsolvable state.");
+  if (!explicitSolvable && /traffic|parking|unblock|puzzle|关卡|闯关|解谜|堵车|挪车|篮球|投篮/i.test(source)) {
+    reasons.push("Puzzle/level game does not expose a solvability signal; generated levels must be designed as clearable.");
+  }
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    metrics: {
+      ruleSignals: ruleSignals.slice(0, 8),
+      winSignals: winSignals.slice(0, 8),
+      restartSignals: restartSignals.slice(0, 8),
+      explicitSolvable,
+      explicitlyImpossible,
+    },
+  };
+}
+
 function assessVisualQuality(before, after) {
   const visual = after.visual || before.visual || {};
   const hero = before.hero || after.hero || null;
@@ -347,9 +399,11 @@ function assessVisualQuality(before, after) {
   const reasons = [];
   const polishSignals = Number(visual.gradients || 0) + Number(visual.shadows || 0) + Number(visual.radii || 0);
   const hasEnoughPolish = polishSignals >= 4 || (Number(visual.radii || 0) >= 2 && Number(visual.colors || 0) >= 5);
+  const hasPremiumPolish = polishSignals >= 8 && Number(visual.colors || 0) >= 5 && Number(visual.visibleElementCount || 0) >= 16;
   const hasDesignedControls = Number(visual.defaultControls || 0) === 0 || Number(visual.radii || 0) > 0 || Number(visual.gradients || 0) > 0;
   const hudSignals = (hud.text || "").match(/\b(score|combo|wave|time|level|life|lives|health|hp|ammo|coins|goal|progress)\b|得分|连击|波次|时间|等级|生命|血量|金币|目标|进度/gi) || [];
   const endSignals = (overlay.text || after.text || before.fullText || after.fullText || "").match(/\b(restart|retry|play again|continue|victory|defeat|game over|mission over|you win|result|final score)\b|再来|重试|继续|胜利|失败|游戏结束|结果|最终得分/gi) || [];
+  const feedbackSignals = (after.fullText || before.fullText || after.text || before.text || "").match(/\b(combo|hit|perfect|blocked|miss|bonus|level up|clear|shake|flash|trail|particle|impact)\b|连击|命中|完美|阻挡|挡住|失败|奖励|升级|过关|清空|抖动|闪光|轨迹|粒子|冲击/gi) || [];
   const hasHud = (hud.count || 0) >= 1 ? hudSignals.length >= 2 : hudSignals.length >= 3;
   const hasEndState = endSignals.length >= 1 || (/play again|restart|retry|再来|重试/i.test(after.text || "") && /score|time|wave|result|得分|时间|波次|结果/i.test(after.text || ""));
   const hasHero = Boolean(hero && hero.text && hero.text.length >= 12) || (Boolean(before.startGate) && Number(visual.visibleElementCount || 0) >= 20 && hasEnoughPolish);
@@ -361,15 +415,17 @@ function assessVisualQuality(before, after) {
   if (Number(viewport.overflowY || 0) > Math.max(120, Number(viewport.height || 0) * 0.12)) reasons.push("Layout requires excessive vertical scrolling; keep the whole playable scene inside the viewport.");
   if (viewport.offscreenCritical) reasons.push("Important gameplay UI appears partially off-screen or clipped.");
   if (!hasEnoughPolish) reasons.push("UI lacks enough polish signals such as gradients, rounded panels, shadows/glow, or color depth.");
+  if (!hasPremiumPolish) reasons.push("UI does not yet meet the premium polish bar; expected richer visual hierarchy, color depth, rounded panels, shadows/glow, and authored UI surfaces.");
   if (!hasDesignedControls) reasons.push("Visible controls look like default browser UI.");
   if (!hasHero) reasons.push("Missing a designed first screen or hero section with title/hook/CTA framing.");
   if (!hasHud) reasons.push("HUD is too weak; expected multiple readable state modules such as score, lives, timer, wave, or progress.");
   if (!hasEndState) reasons.push("Missing a designed end-state or replay-ready result overlay.");
+  if (feedbackSignals.length < 1) reasons.push("Gameplay feedback is too weak; expected visible hit/miss/blocked/score/level-up cues or similar state-change feedback.");
 
   return {
     ok: reasons.length === 0,
     reasons,
-    metrics: { ...visual, hero, hud, overlay, hudSignals: hudSignals.slice(0, 8), endSignals: endSignals.slice(0, 8) },
+    metrics: { ...visual, hero, hud, overlay, hudSignals: hudSignals.slice(0, 8), endSignals: endSignals.slice(0, 8), feedbackSignals: feedbackSignals.slice(0, 8) },
   };
 }
 
@@ -513,6 +569,7 @@ async function runValidation() {
     const startGate = Boolean(before.startGate || (target.text && /start|play|begin|go|restart|开始|冒险|启动|进入|开局|再来|重玩|播放/i.test(target.text)));
     const visualQuality = assessVisualQuality(before, after);
     const progression = assessProgression(before, after, mobileAfter, gameplayDebug);
+    const gameplayCoherence = assessGameplayCoherence(before, after, mobileAfter, gameplayDebug);
     const blockingVisualReasons = visualQuality.reasons.filter((reason) =>
       /pixelated|pixel-art|8-bit|low-resolution scaled canvas|default browser UI|off-screen|clipped|overflows horizontally|vertical scrolling/i.test(reason),
     );
@@ -534,6 +591,9 @@ async function runValidation() {
     const progressionReasons = progression.ok
       ? []
       : ["Game progression is too shallow; expected at least 3 levels, waves, rounds, stages, puzzles, or difficulty tiers."];
+    const gameplayCoherenceReasons = gameplayCoherence.ok
+      ? []
+      : gameplayCoherence.reasons;
 
     const checks = {
       loaded: true,
@@ -546,6 +606,7 @@ async function runValidation() {
       targetReachabilityOk,
       inputCoverageOk,
       progressionOk: progression.ok,
+      gameplayCoherenceOk: gameplayCoherence.ok,
       runtimeErrorCount: runtimeErrors.length,
       networkErrorCount: networkErrors.length,
       consoleErrorCount: consoleErrors.length,
@@ -558,6 +619,7 @@ async function runValidation() {
     if (ok && targetReachabilityReasons.length > 0) ok = false;
     if (ok && inputCoverageReasons.length > 0) ok = false;
     if (ok && progressionReasons.length > 0) ok = false;
+    if (ok && gameplayCoherenceReasons.length > 0) ok = false;
 
     const report = {
       ok,
@@ -568,10 +630,11 @@ async function runValidation() {
       after: { text: after.text.slice(0, 240), controls: after.controls, canvasCount: after.canvasCount, screenshotHash: afterShot, visual: after.visual },
       inputCoverage,
       progression,
+      gameplayCoherence,
       gameplayDebug,
       visualQuality: {
         ...visualQuality,
-        blockingReasons: blockingVisualReasons.concat(targetReachabilityReasons, inputCoverageReasons, progressionReasons),
+        blockingReasons: blockingVisualReasons.concat(targetReachabilityReasons, inputCoverageReasons, progressionReasons, gameplayCoherenceReasons),
       },
       runtimeErrors: summarizeErrors(runtimeErrors),
       consoleErrors: summarizeErrors(consoleErrors),

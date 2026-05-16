@@ -100,6 +100,7 @@ export function JobWatcher({
   const [isBlockerOpen, setIsBlockerOpen] = useState(false);
   const [dismissedBlockerKey, setDismissedBlockerKey] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [lastProgressAt, setLastProgressAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   const normalizedStatus = progress?.status?.toLowerCase();
   const isSettled = normalizedStatus === "done" || normalizedStatus === "failed";
@@ -108,16 +109,32 @@ export function JobWatcher({
   const stageMaxPercent = clampProgress(progressMaxForJobStatus(normalizedStatus, isFinalizing));
   const [displayPercent, setDisplayPercent] = useState(serverPercent);
   const elapsedText = isSettled ? "" : `已运行 ${formatElapsed(now - startedAt)}`;
+  const stalledForMs = isSettled ? 0 : now - lastProgressAt;
+  const activityText =
+    stalledForMs > 45_000
+      ? "仍在生成中，模型可能正在写入大段代码或等待自动试玩结果。"
+      : stalledForMs > 22_000
+        ? "进度暂无新节点，后台仍在工作。"
+        : statusDescription(isFinalizing ? "finishing" : normalizedStatus);
   const blocker = progress?.blocker ?? null;
   const blockerKey = blocker ? `${jobId ?? "none"}:${blocker.kind}:${blocker.title}` : null;
 
   useEffect(() => {
-    setDisplayPercent((current) => (isSettled ? serverPercent : Math.max(current, serverPercent)));
+    setDisplayPercent((current) => {
+      const next = isSettled ? serverPercent : Math.max(current, serverPercent);
+      if (next > current) setLastProgressAt(Date.now());
+      return next;
+    });
   }, [isSettled, serverPercent]);
 
   useEffect(() => {
-    setDisplayPercent(serverPercent);
-  }, [jobId]);
+    setDisplayPercent((current) => Math.max(current, serverPercent));
+    setLastProgressAt(Date.now());
+  }, [jobId, serverPercent]);
+
+  useEffect(() => {
+    setLastProgressAt(Date.now());
+  }, [normalizedStatus, progress?.log]);
 
   useEffect(() => {
     if (isSettled) return;
@@ -126,7 +143,9 @@ export function JobWatcher({
       setDisplayPercent((current) => {
         const floor = Math.max(current, serverPercent);
         if (floor >= stageMaxPercent) return floor;
-        return Math.min(stageMaxPercent, floor + 1);
+        const next = Math.min(stageMaxPercent, floor + 1);
+        if (next > current) setLastProgressAt(Date.now());
+        return next;
       });
     }, 1200);
     return () => clearInterval(timer);
@@ -135,6 +154,7 @@ export function JobWatcher({
   useEffect(() => {
     setJobId(requestedJobId);
     setStartedAt(Date.now());
+    setLastProgressAt(Date.now());
   }, [requestedJobId]);
 
   useEffect(() => {
@@ -248,7 +268,7 @@ export function JobWatcher({
         )}
         {isRedirecting ? redirectLabel : isFinalizing ? "发布中" : statusLabel(normalizedStatus)}
       </p>
-      <p className="job-description">{isRedirecting ? "正在切换到下一步页面。" : statusDescription(isFinalizing ? "finishing" : normalizedStatus)}</p>
+      <p className="job-description">{isRedirecting ? "正在切换到下一步页面。" : activityText}</p>
       <div className="job-progress-wrap">
         <div className="job-progress-meta">
           <span>{isFinalizing ? "发布中" : statusLabel(normalizedStatus)}</span>

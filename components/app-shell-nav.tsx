@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, WandSparkles } from "lucide-react";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 
@@ -22,8 +23,15 @@ const navItems = [
 
 export function AppShellNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
+
+  useEffect(() => {
+    for (const item of navItems) {
+      router.prefetch(item.href);
+    }
+  }, [router]);
 
   return (
     <header className="app-topbar" aria-label="主导航">

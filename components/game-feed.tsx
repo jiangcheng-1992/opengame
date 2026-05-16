@@ -4,12 +4,14 @@ import { useState } from "react";
 import { ChevronDown, LoaderCircle, RefreshCw } from "lucide-react";
 import { GameCard, type GameCardGame } from "@/components/game-card";
 import type { MineStatusFilter } from "@/lib/games";
+import type { ContentTypeTab } from "@/lib/content-type";
 
 type GameFeedProps = {
   initialGames: GameCardGame[];
   initialNextCursor?: string | null;
   tab: "all" | "mine";
   mineStatus: MineStatusFilter;
+  contentTab?: ContentTypeTab;
   surface: "gallery" | "studio";
 };
 
@@ -19,12 +21,13 @@ type GamesPayload = {
   error?: unknown;
 };
 
-function gamesUrl(tab: "all" | "mine", mineStatus: MineStatusFilter, cursor: string) {
+function gamesUrl(tab: "all" | "mine", mineStatus: MineStatusFilter, contentTab: ContentTypeTab, cursor: string) {
   const params = new URLSearchParams();
   if (tab === "mine") {
     params.set("tab", "mine");
     if (mineStatus !== "all") params.set("status", mineStatus);
   }
+  params.set("content", contentTab);
   params.set("cursor", cursor);
   return `/api/games?${params.toString()}`;
 }
@@ -34,7 +37,7 @@ function payloadError(payload: GamesPayload, fallback: string) {
   return fallback;
 }
 
-export function GameFeed({ initialGames, initialNextCursor = null, tab, mineStatus, surface }: GameFeedProps) {
+export function GameFeed({ initialGames, initialNextCursor = null, tab, mineStatus, contentTab = "game", surface }: GameFeedProps) {
   const [games, setGames] = useState(initialGames);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [loading, setLoading] = useState(false);
@@ -46,7 +49,7 @@ export function GameFeed({ initialGames, initialNextCursor = null, tab, mineStat
     setError("");
 
     try {
-      const response = await fetch(gamesUrl(tab, mineStatus, nextCursor), { cache: "no-store" });
+      const response = await fetch(gamesUrl(tab, mineStatus, contentTab, nextCursor), { cache: "no-store" });
       const payload = (await response.json().catch(() => ({}))) as GamesPayload;
 
       if (!response.ok) {

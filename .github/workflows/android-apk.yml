@@ -1,0 +1,39 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "WebView URL"
+        required: false
+        default: "https://opengame.zz-fancy.cloud"
+        type: string
+
+jobs:
+  build:
+    name: Build WebView APK
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build APK
+        env:
+          OPENGAME_APP_URL: ${{ inputs.app_url || 'https://opengame.zz-fancy.cloud' }}
+          OPENGAME_ANDROID_KEYSTORE_BASE64: ${{ secrets.OPENGAME_ANDROID_KEYSTORE_BASE64 }}
+          OPENGAME_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.OPENGAME_ANDROID_KEYSTORE_PASSWORD }}
+          OPENGAME_ANDROID_KEY_ALIAS: ${{ secrets.OPENGAME_ANDROID_KEY_ALIAS }}
+          OPENGAME_ANDROID_KEY_PASSWORD: ${{ secrets.OPENGAME_ANDROID_KEY_PASSWORD }}
+        run: npm run android:apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opengame-apk
+          path: public/downloads/opengame.apk

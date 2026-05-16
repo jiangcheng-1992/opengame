@@ -4,6 +4,7 @@ import { Play, Plus, WandSparkles } from "lucide-react";
 import { GameFeed } from "@/components/game-feed";
 import type { GameCardGame } from "@/components/game-card";
 import { hasMineGames, listGames, type MineStatusFilter, normalizeMineStatusFilter } from "@/lib/games";
+import { normalizeContentTypeTab, type ContentTypeTab } from "@/lib/content-type";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +40,14 @@ const mineStatusTabs: {
   },
 ];
 
-function pageHref(tab: "all" | "mine", status: MineStatusFilter) {
+const contentTabs: Array<{ value: ContentTypeTab; label: string; description: string }> = [
+  { value: "game", label: "游戏", description: "可玩的 HTML5 游戏作品" },
+  { value: "application", label: "应用", description: "工具、展示、互动页面和轻应用" },
+];
+
+function pageHref(tab: "all" | "mine", status: MineStatusFilter, content: ContentTypeTab = "game") {
   const params = new URLSearchParams();
+  if (content !== "game") params.set("content", content);
   if (tab === "mine") {
     params.set("tab", "mine");
     if (status !== "all") params.set("status", status);
@@ -62,7 +69,7 @@ function featureLabel(game: GameCardGame) {
   return game.isBuiltin ? "内置精选" : game.genre || "公开作品";
 }
 
-function FeaturedGameHeader({ games }: { games: GameCardGame[] }) {
+function FeaturedGameHeader({ games, contentTab }: { games: GameCardGame[]; contentTab: ContentTypeTab }) {
   const hero = games[0];
   const sideGames = games.slice(1, 5);
   if (!hero) return null;
@@ -71,7 +78,7 @@ function FeaturedGameHeader({ games }: { games: GameCardGame[] }) {
     <section className="featured-games" aria-labelledby="featured-games-title">
       <div className="section-head featured-head">
         <div>
-          <h2 id="featured-games-title">今日先玩</h2>
+          <h2 id="featured-games-title">{contentTab === "application" ? "今日应用" : "今日先玩"}</h2>
         </div>
       </div>
 
@@ -127,6 +134,27 @@ function FeaturedGameHeader({ games }: { games: GameCardGame[] }) {
   );
 }
 
+function ContentTypeTabs({ active, tab, status }: { active: ContentTypeTab; tab: "all" | "mine"; status: MineStatusFilter }) {
+  return (
+    <nav className="content-type-tabs" aria-label="作品类型">
+      {contentTabs.map((item) => {
+        const selected = item.value === active;
+        return (
+          <Link
+            key={item.value}
+            href={pageHref(tab, status, item.value)}
+            className={selected ? "active" : ""}
+            aria-current={selected ? "page" : undefined}
+          >
+            <strong>{item.label}</strong>
+            <span>{item.description}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 function MineHero() {
   return (
     <section className="mine-hero" aria-labelledby="mine-hero-title">
@@ -153,7 +181,7 @@ function MineHero() {
   );
 }
 
-function MineStatusTabs({ active }: { active: MineStatusFilter }) {
+function MineStatusTabs({ active, contentTab }: { active: MineStatusFilter; contentTab: ContentTypeTab }) {
   return (
     <nav className="mine-status-tabs" aria-label="我的作品状态分类">
       {mineStatusTabs.map((item) => {
@@ -161,7 +189,7 @@ function MineStatusTabs({ active }: { active: MineStatusFilter }) {
         return (
           <Link
             key={item.value}
-            href={pageHref("mine", item.value)}
+            href={pageHref("mine", item.value, contentTab)}
             className={selected ? "active" : ""}
             aria-current={selected ? "page" : undefined}
           >
@@ -176,13 +204,14 @@ function MineStatusTabs({ active }: { active: MineStatusFilter }) {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; cursor?: string; status?: string }>;
+  searchParams: Promise<{ tab?: string; cursor?: string; status?: string; content?: string }>;
 }) {
   const params = await searchParams;
   const tab = params.tab === "mine" ? "mine" : "all";
   const mineStatus = normalizeMineStatusFilter(params.status);
+  const contentTab = normalizeContentTypeTab(params.content);
   const activeMineTab = mineStatusTabs.find((item) => item.value === mineStatus) ?? mineStatusTabs[0];
-  const data = await listGames(tab, params.cursor, mineStatus)
+  const data = await listGames(tab, params.cursor, mineStatus, contentTab)
     .then((payload) => ({ ...payload, unavailable: false }))
     .catch(() => ({
       games: [] as Awaited<ReturnType<typeof listGames>>["games"],
@@ -205,17 +234,19 @@ export default async function Home({
         </section>
       ) : tab === "mine" ? (
         <>
+          <ContentTypeTabs active={contentTab} tab={tab} status={mineStatus} />
           {hasAnyMineGames ? (
             <>
-              <MineStatusTabs active={mineStatus} />
+              <MineStatusTabs active={mineStatus} contentTab={contentTab} />
               {games.length ? (
                 <section className="feed-section" aria-label="我的作品列表">
                   <GameFeed
-                    key={`${tab}-${mineStatus}`}
+                    key={`${tab}-${mineStatus}-${contentTab}`}
                     initialGames={games}
                     initialNextCursor={data.nextCursor}
                     tab={tab}
                     mineStatus={mineStatus}
+                    contentTab={contentTab}
                     surface="studio"
                   />
                 </section>
@@ -230,9 +261,12 @@ export default async function Home({
             <MineHero />
           )}
         </>
-      ) : games.length ? (
+      ) : (
         <>
-          <FeaturedGameHeader games={featuredGames} />
+          <ContentTypeTabs active={contentTab} tab={tab} status={mineStatus} />
+          {games.length ? (
+            <>
+          <FeaturedGameHeader games={featuredGames} contentTab={contentTab} />
           {feedGames.length ? (
             <section className="feed-section" aria-labelledby="home-feed-title">
               <div className="section-head">
@@ -241,25 +275,30 @@ export default async function Home({
                 </div>
               </div>
               <GameFeed
-                key={`${tab}-${mineStatus}`}
+                key={`${tab}-${mineStatus}-${contentTab}`}
                 initialGames={feedGames}
                 initialNextCursor={data.nextCursor}
                 tab={tab}
                 mineStatus={mineStatus}
+                contentTab={contentTab}
                 surface="gallery"
               />
             </section>
           ) : null}
+            </>
+          ) : (
+            <section className="panel empty-panel">
+              <h2>{contentTab === "application" ? "应用广场还是空的" : "作品广场还是空的"}</h2>
+              <p className="helper">
+                {contentTab === "application" ? "先创建一个互动工具、生成器或展示页，完成后会出现在应用 Tab。" : "先生成一个最小游戏，确认 OpenGame 真链路能跑，再扩展更多玩法。"}
+              </p>
+              <Link href="/create" className="button primary">
+                <Plus size={18} aria-hidden />
+                {contentTab === "application" ? "创建第一个应用" : "创建第一个游戏"}
+              </Link>
+            </section>
+          )}
         </>
-      ) : (
-        <section className="panel empty-panel">
-          <h2>作品广场还是空的</h2>
-          <p className="helper">先生成一个最小游戏，确认 OpenGame 真链路能跑，再扩展更多玩法。</p>
-          <Link href="/create" className="button primary">
-            <Plus size={18} aria-hidden />
-            创建第一个游戏
-          </Link>
-        </section>
       )}
     </div>
   );

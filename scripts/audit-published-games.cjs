@@ -222,6 +222,37 @@ function progressionOk(before, after, mobileAfter, debug) {
   return { ok: maxProgression >= 3 || explicit || signals.length >= 2, maxProgression, signals: signals.slice(0, 8) };
 }
 
+function gameplayCoherenceOk(before, after, mobileAfter, debug) {
+  const source = [before?.fullText, after?.fullText, mobileAfter?.fullText, JSON.stringify(debug || {})].join(" ");
+  const ruleSignals = source.match(/\b(click|tap|drag|swipe|move|shoot|jump|collect|avoid|match|clear|escape|block|blocked|aim|release)\b|点击|轻触|拖拽|滑动|移动|发射|跳跃|收集|躲避|消除|清空|逃离|挡住|阻挡|瞄准|松手/gi) || [];
+  const winSignals = source.match(/\b(win|victory|clear|complete|goal|target|finish|pass|score|level up)\b|胜利|通关|过关|目标|完成|清空|得分|命中|逃离/gi) || [];
+  const restartSignals = source.match(/\b(restart|retry|again|replay|reset|next level)\b|重玩|重试|再来|重新|复位|下一关|继续/gi) || [];
+  const impossibleSignals = source.match(/\b(deadlock|impossible|unreachable|unwinnable|unsolvable|stuck forever)\b|死局|无解|无法通关|不可达|永远卡住/gi) || [];
+  const explicitSolvable =
+    debug?.solvable === true ||
+    debug?.canWin === true ||
+    debug?.allLevelsSolvable === true ||
+    (Array.isArray(debug?.levels) && debug.levels.length > 0 && debug.levels.every((level) => level && level.solvable !== false)) ||
+    (Array.isArray(debug?.levelPlans) && debug.levelPlans.length > 0 && debug.levelPlans.every((level) => level && level.solvable !== false));
+  const explicitlyImpossible =
+    debug?.solvable === false ||
+    debug?.canWin === false ||
+    debug?.allLevelsSolvable === false ||
+    impossibleSignals.length > 0 ||
+    (Array.isArray(debug?.levels) && debug.levels.some((level) => level && level.solvable === false)) ||
+    (Array.isArray(debug?.levelPlans) && debug.levelPlans.some((level) => level && level.solvable === false));
+  const needsSolvability = /traffic|parking|unblock|puzzle|关卡|闯关|解谜|堵车|挪车|篮球|投篮/i.test(source);
+
+  return {
+    ok: ruleSignals.length > 0 && winSignals.length > 0 && restartSignals.length > 0 && !explicitlyImpossible && (!needsSolvability || explicitSolvable),
+    ruleSignals: ruleSignals.slice(0, 8),
+    winSignals: winSignals.slice(0, 8),
+    restartSignals: restartSignals.slice(0, 8),
+    explicitSolvable,
+    explicitlyImpossible,
+  };
+}
+
 async function click(client, x, y) {
   await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
   await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
@@ -330,6 +361,7 @@ async function auditGame(client, game) {
   const touchOk = Boolean(touchChanged || debugInputCoverage.touch || debugInputCoverage.gesture);
   const overallChanged = changed(before, mobileAfter, beforeShot, mobileAfterShot) || pointerOk || keyboardOk || touchOk;
   const progression = progressionOk(before, keyboardAfter, mobileAfter, debug);
+  const gameplayCoherence = gameplayCoherenceOk(before, keyboardAfter, mobileAfter, debug);
   const activeTargets = Array.isArray(debug?.activeTargets) ? debug.activeTargets : [];
   const targetHistory = Array.isArray(debug?.targetHistory) ? debug.targetHistory : [];
   const targetReachabilityOk =
@@ -351,6 +383,7 @@ async function auditGame(client, game) {
   if (!touchOk) issues.push({ code: "touch_no_response", weight: 35, message: "手机触摸/滑动未观察到明显响应。" });
   if (!targetReachabilityOk) issues.push({ code: "target_unreachable", weight: 50, message: "目标存在但未进入上/中部可触达区域。" });
   if (!progression.ok) issues.push({ code: "shallow_progression", weight: 20, message: "未识别到 3 个以上关卡/波次/阶段。" });
+  if (!gameplayCoherence.ok) issues.push({ code: "gameplay_incoherent_or_unsolvable", weight: 70, message: "规则说明、胜负目标、重试反馈或关卡可通关信号不完整。" });
 
   return {
     id: game.id,
@@ -370,6 +403,7 @@ async function auditGame(client, game) {
       touchChanged: touchOk,
       targetReachabilityOk,
       progressionOk: progression.ok,
+      gameplayCoherenceOk: gameplayCoherence.ok,
       desktopViewport: before.viewport,
       mobileViewport: mobileAfter.viewport,
       runtimeErrorCount: runtimeErrors.length,
@@ -377,6 +411,7 @@ async function auditGame(client, game) {
     },
     clicked: target,
     progression,
+    gameplayCoherence,
     debug,
   };
 }

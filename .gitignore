@@ -14,3 +14,9 @@ dist
 coverage
 prisma/*.db
 prisma/*.db-journal
+.android-build
+android-shell/.gradle
+android-shell/**/build
+android-shell/local.properties
+*.jks
+*.keystore

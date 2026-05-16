@@ -11,8 +11,35 @@ model AnonUser {
   id        String     @id
   createdAt DateTime   @default(now())
   lastSeen  DateTime   @default(now())
+  account   Account?
   games     Game[]
   reactions Reaction[]
+}
+
+model Account {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  passwordHash  String
+  displayName   String?
+  primaryAnonId String        @unique
+  primaryAnon   AnonUser      @relation(fields: [primaryAnonId], references: [id])
+  sessions      AuthSession[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([createdAt])
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([expiresAt])
 }
 
 model Game {
@@ -28,6 +55,7 @@ model Game {
   coverUrl     String?
   status       GameStatus @default(DRAFT)
   visibility   Visibility @default(PUBLIC)
+  contentType  ContentType @default(GAME)
   playUrl      String?
   sourceUrl    String?
   version      Int        @default(1)
@@ -43,6 +71,7 @@ model Game {
   updatedAt    DateTime   @updatedAt
 
   @@index([visibility, createdAt])
+  @@index([contentType, visibility, createdAt])
   @@index([ownerId, createdAt])
 }
 
@@ -56,6 +85,11 @@ enum GameStatus {
 enum Visibility {
   PUBLIC
   PRIVATE
+}
+
+enum ContentType {
+  GAME
+  APPLICATION
 }
 
 model Message {

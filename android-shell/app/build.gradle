@@ -1,0 +1,51 @@
+plugins {
+    id "com.android.application"
+}
+
+def appUrl = (project.findProperty("OPENGAME_APP_URL") ?: System.getenv("OPENGAME_APP_URL") ?: "https://opengame.zz-fancy.cloud").toString()
+def releaseStoreFile = System.getenv("OPENGAME_ANDROID_KEYSTORE_PATH")
+def releaseStorePassword = System.getenv("OPENGAME_ANDROID_KEYSTORE_PASSWORD")
+def releaseKeyAlias = System.getenv("OPENGAME_ANDROID_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("OPENGAME_ANDROID_KEY_PASSWORD")
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
+android {
+    namespace "cloud.zz_fancy.opengame"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "cloud.zz_fancy.opengame"
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName "0.1.0"
+        buildConfigField "String", "OPENGAME_APP_URL", "\"${appUrl}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (!hasReleaseSigning) {
+                throw new GradleException("Release signing is not configured. Run npm run android:keystore or provide OPENGAME_ANDROID_KEYSTORE_PATH, OPENGAME_ANDROID_KEYSTORE_PASSWORD, OPENGAME_ANDROID_KEY_ALIAS and OPENGAME_ANDROID_KEY_PASSWORD.")
+            }
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+

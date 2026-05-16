@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAnonId } from "@/lib/auth";
+import { getAnonId, requireAccount } from "@/lib/auth";
 import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { createGameSchema } from "@/lib/schemas";
 import { listGames, normalizeMineStatusFilter } from "@/lib/games";
+import { normalizeContentTypeTab } from "@/lib/content-type";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tab = searchParams.get("tab") === "mine" ? "mine" : "all";
   const cursor = searchParams.get("cursor");
-  const payload = await listGames(tab, cursor, normalizeMineStatusFilter(searchParams.get("status")));
+  const payload = await listGames(tab, cursor, normalizeMineStatusFilter(searchParams.get("status")), normalizeContentTypeTab(searchParams.get("content")));
   return NextResponse.json(payload);
 }
 
 export async function POST(req: NextRequest) {
+  const account = await requireAccount();
+  if (!account) {
+    return NextResponse.json({ error: "请先登录后再创建游戏。" }, { status: 401 });
+  }
   const anonId = await getAnonId();
   const parsed = createGameSchema.safeParse(await req.json().catch(() => ({})));
 
@@ -32,6 +37,7 @@ export async function POST(req: NextRequest) {
       controls: metadata.controls,
       coverPrompt: metadata.coverPrompt,
       visibility: parsed.data.visibility,
+      contentType: parsed.data.contentType,
       status: "DRAFT",
       messages: {
         create: {

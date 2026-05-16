@@ -88,8 +88,11 @@ export function ResponsiveGameFrame({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const fallbackSizeRef = useRef<FrameSize>({ width: fallbackWidth, height: fallbackHeight });
+  const loaderHideTimerRef = useRef<number | null>(null);
   const [frameSize, setFrameSize] = useState<FrameSize>(fallbackSizeRef.current);
   const [frameScale, setFrameScale] = useState(1);
+  const [isFrameLoading, setIsFrameLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(8);
 
   const updateFit = useCallback(() => {
     const shell = shellRef.current;
@@ -151,7 +154,29 @@ export function ResponsiveGameFrame({
     fallbackSizeRef.current = { width: fallbackWidth, height: fallbackHeight };
     setFrameSize(fallbackSizeRef.current);
     setFrameScale(1);
+    setIsFrameLoading(true);
+    setLoadProgress(8);
+    if (loaderHideTimerRef.current) {
+      window.clearTimeout(loaderHideTimerRef.current);
+      loaderHideTimerRef.current = null;
+    }
   }, [fallbackHeight, fallbackWidth, src]);
+
+  useEffect(() => {
+    if (!isFrameLoading) return;
+
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const slowLoadBoost = elapsed > 1800 ? 4 : 2;
+      setLoadProgress((current) => {
+        const next = current + Math.max(1, slowLoadBoost - current / 35);
+        return Math.min(92, Math.round(next));
+      });
+    }, 260);
+
+    return () => window.clearInterval(intervalId);
+  }, [isFrameLoading, src]);
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -168,6 +193,12 @@ export function ResponsiveGameFrame({
     const handleLoad = () => {
       attachFrameObservers();
       updateFit();
+      setLoadProgress(100);
+      if (loaderHideTimerRef.current) window.clearTimeout(loaderHideTimerRef.current);
+      loaderHideTimerRef.current = window.setTimeout(() => {
+        setIsFrameLoading(false);
+        loaderHideTimerRef.current = null;
+      }, 260);
     };
 
     iframe.addEventListener("load", handleLoad);
@@ -178,6 +209,10 @@ export function ResponsiveGameFrame({
       iframe.removeEventListener("load", handleLoad);
       cleanupRef.current?.();
       cleanupRef.current = null;
+      if (loaderHideTimerRef.current) {
+        window.clearTimeout(loaderHideTimerRef.current);
+        loaderHideTimerRef.current = null;
+      }
     };
   }, [attachFrameObservers, updateFit, src]);
 
@@ -196,6 +231,17 @@ export function ResponsiveGameFrame({
           transform: `translate(-50%, -50%) scale(${frameScale})`,
         }}
       />
+      {isFrameLoading ? (
+        <div className="game-frame-loader" aria-live="polite" aria-label="游戏正在启动">
+          <div className="game-frame-loader-card">
+            <span>正在启动游戏</span>
+            <strong>{loadProgress}%</strong>
+          </div>
+          <div className="game-frame-loader-track" aria-hidden>
+            <span style={{ width: `${loadProgress}%` }} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

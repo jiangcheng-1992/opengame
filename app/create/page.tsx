@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { AuthPanel } from "@/components/auth-panel";
 import { CreateGameForm } from "@/components/create-game-form";
+import { getCurrentAccount } from "@/lib/auth";
 import { getCreateDraft, getGameDetail } from "@/lib/games";
 
 export default async function CreatePage({
@@ -8,6 +10,15 @@ export default async function CreatePage({
   searchParams: Promise<{ prompt?: string; game?: string }>;
 }) {
   const params = await searchParams;
+  const account = await getCurrentAccount();
+  if (!account) {
+    const nextPath = params.prompt ? `/create?prompt=${encodeURIComponent(params.prompt)}` : params.game ? `/create?game=${params.game}` : "/create";
+    return (
+      <div className="page create-page">
+        <AuthPanel nextPath={nextPath} />
+      </div>
+    );
+  }
   const draft = params.game ? await getCreateDraft(params.game) : null;
   if (params.game && !draft) {
     const game = await getGameDetail(params.game);

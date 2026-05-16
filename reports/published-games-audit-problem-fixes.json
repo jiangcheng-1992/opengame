@@ -1,0 +1,356 @@
+{
+  "generatedAt": "2026-05-15T14:35:42.493Z",
+  "gameCount": 2,
+  "issueCount": 0,
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9358/devtools/browser/d6ae22f1-a7a3-4652-ab18-d469d997f352",
+    "[24712:5180:0515/223530.756:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+  ],
+  "results": [
+    {
+      "id": "cmp6s731m0001pvm84eqynqhk",
+      "title": "卡通风格篮球投篮游戏",
+      "version": 3,
+      "visibility": "PUBLIC",
+      "auditUrl": "http://localhost:3000/api/games/cmp6s731m0001pvm84eqynqhk/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp6s731m0001pvm84eqynqhk/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": true,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "gameplayCoherenceOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 672,
+        "y": 591,
+        "text": "开始 / 重试"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 10,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "gameplayCoherence": {
+        "ok": true,
+        "ruleSignals": [
+          "拖拽",
+          "拖拽",
+          "松手",
+          "拖拽",
+          "拖拽",
+          "松手",
+          "tap",
+          "aim"
+        ],
+        "winSignals": [
+          "得分",
+          "目标",
+          "目标",
+          "通关",
+          "score",
+          "得分",
+          "goal",
+          "目标"
+        ],
+        "restartSignals": [
+          "重试",
+          "重试",
+          "重新",
+          "再来",
+          "下一关",
+          "重试",
+          "重试",
+          "重试"
+        ],
+        "explicitSolvable": true,
+        "explicitlyImpossible": false
+      },
+      "debug": {
+        "gameState": "playing",
+        "score": 11,
+        "level": 1,
+        "maxLevel": 10,
+        "totalLevels": 10,
+        "shots": 4,
+        "solvable": true,
+        "allLevelsSolvable": true,
+        "levelPlans": [
+          {
+            "level": 1,
+            "solvable": true
+          },
+          {
+            "level": 2,
+            "solvable": true
+          },
+          {
+            "level": 3,
+            "solvable": true
+          },
+          {
+            "level": 4,
+            "solvable": true
+          },
+          {
+            "level": 5,
+            "solvable": true
+          },
+          {
+            "level": 6,
+            "solvable": true
+          },
+          {
+            "level": 7,
+            "solvable": true
+          },
+          {
+            "level": 8,
+            "solvable": true
+          },
+          {
+            "level": 9,
+            "solvable": true
+          },
+          {
+            "level": 10,
+            "solvable": true
+          }
+        ],
+        "inputCoverage": {
+          "pointer": true,
+          "mouse": true,
+          "keyboard": true,
+          "touch": true,
+          "gesture": true
+        },
+        "activeTargets": [
+          {
+            "id": "rim",
+            "reachable": true,
+            "x": 195,
+            "y": 150,
+            "reachedUpperMiddle": true
+          }
+        ],
+        "targetHistory": [
+          {
+            "id": "rim",
+            "reachable": true,
+            "reachedUpperMiddle": true
+          }
+        ],
+        "playfield": {
+          "top": 0,
+          "bottom": 844,
+          "width": 390,
+          "height": 844
+        }
+      }
+    },
+    {
+      "id": "cmp6d0g7f0001pvq0e7046a6q",
+      "title": "堵车大作战",
+      "version": 6,
+      "visibility": "PUBLIC",
+      "auditUrl": "http://localhost:3000/api/games/cmp6d0g7f0001pvq0e7046a6q/files/index.html",
+      "playUrl": "https://agmj7snfhafyctkz.public.blob.vercel-storage.com/games/cmp6d0g7f0001pvq0e7046a6q/play/index.html",
+      "severity": 0,
+      "issues": [],
+      "checks": {
+        "loaded": true,
+        "startGate": false,
+        "overallChanged": true,
+        "pointerChanged": true,
+        "keyboardChanged": true,
+        "touchChanged": true,
+        "targetReachabilityOk": true,
+        "progressionOk": true,
+        "gameplayCoherenceOk": true,
+        "desktopViewport": {
+          "width": 960,
+          "height": 640,
+          "overflowX": 0,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "mobileViewport": {
+          "width": 390,
+          "height": 844,
+          "overflowX": 19,
+          "overflowY": 0,
+          "offscreenCritical": false
+        },
+        "runtimeErrorCount": 0,
+        "networkErrorCount": 0
+      },
+      "clicked": {
+        "x": 471,
+        "y": 191,
+        "text": "A →"
+      },
+      "progression": {
+        "ok": true,
+        "maxProgression": 3,
+        "signals": [
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡",
+          "关卡"
+        ]
+      },
+      "gameplayCoherence": {
+        "ok": true,
+        "ruleSignals": [
+          "点击",
+          "挡住",
+          "清空",
+          "挡住",
+          "tap",
+          "blocked",
+          "点击",
+          "挡住"
+        ],
+        "winSignals": [
+          "Goal",
+          "目标",
+          "Score",
+          "清空",
+          "过关",
+          "Goal",
+          "目标",
+          "Score"
+        ],
+        "restartSignals": [
+          "重试",
+          "restart",
+          "重试",
+          "重玩",
+          "restart",
+          "重试",
+          "restart",
+          "重试"
+        ],
+        "explicitSolvable": true,
+        "explicitlyImpossible": false
+      },
+      "debug": {
+        "gameState": "playing",
+        "level": 1,
+        "maxLevel": 3,
+        "totalLevels": 3,
+        "moves": 2,
+        "solvable": true,
+        "allLevelsSolvable": true,
+        "levelPlans": [
+          {
+            "level": 1,
+            "solvable": true
+          },
+          {
+            "level": 2,
+            "solvable": true
+          },
+          {
+            "level": 3,
+            "solvable": true
+          }
+        ],
+        "inputCoverage": {
+          "pointer": true,
+          "mouse": true,
+          "keyboard": true,
+          "touch": true,
+          "gesture": true
+        },
+        "activeTargets": [
+          {
+            "id": "B",
+            "reachable": true,
+            "x": 2,
+            "y": 3,
+            "reachedUpperMiddle": true
+          },
+          {
+            "id": "D",
+            "reachable": true,
+            "x": 1,
+            "y": 5,
+            "reachedUpperMiddle": true
+          },
+          {
+            "id": "E",
+            "reachable": false,
+            "x": 6,
+            "y": 5,
+            "reachedUpperMiddle": false
+          }
+        ],
+        "targetHistory": [
+          {
+            "id": "B",
+            "reachable": true,
+            "x": 2,
+            "y": 3,
+            "reachedUpperMiddle": true
+          },
+          {
+            "id": "D",
+            "reachable": true,
+            "x": 1,
+            "y": 5,
+            "reachedUpperMiddle": true
+          },
+          {
+            "id": "E",
+            "reachable": false,
+            "x": 6,
+            "y": 5,
+            "reachedUpperMiddle": false
+          }
+        ],
+        "playfield": {
+          "top": 0,
+          "bottom": 844,
+          "width": 390,
+          "height": 844
+        }
+      }
+    }
+  ]
+}

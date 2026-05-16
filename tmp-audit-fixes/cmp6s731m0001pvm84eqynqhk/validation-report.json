@@ -1,0 +1,260 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:50050/index.html",
+  "checks": {
+    "loaded": true,
+    "hasVisualSurface": true,
+    "startGate": true,
+    "changed": true,
+    "hasGameSignals": true,
+    "visualQualityOk": true,
+    "blockingVisualIssueCount": 0,
+    "targetReachabilityOk": true,
+    "inputCoverageOk": true,
+    "progressionOk": true,
+    "gameplayCoherenceOk": true,
+    "runtimeErrorCount": 0,
+    "networkErrorCount": 0,
+    "consoleErrorCount": 1
+  },
+  "clicked": {
+    "x": 672,
+    "y": 591,
+    "text": "开始 / 重试"
+  },
+  "before": {
+    "text": "卡通篮球投篮 关卡 1/10 得分 0 目标 2球 机会 5 拖拽投篮 +1 拖拽蓄力，松手投篮 手机拖动篮球或球场，电脑可用鼠标拖拽，也可按空格投篮，方向键微调角度。 开始 / 重试 篮球闯关 拖拽控制方向和力度，松手投篮。每关目标球数递增，10 关全部可通关。 开始游戏",
+    "controls": [
+      "开始 / 重试",
+      "开始游戏"
+    ],
+    "canvasCount": 0,
+    "screenshotHash": "ef4f457fa9eb6193",
+    "visual": {
+      "gradients": 9,
+      "shadows": 9,
+      "radii": 15,
+      "colors": 11,
+      "pixelatedElements": 0,
+      "pixelTerms": [],
+      "defaultControls": 0,
+      "lowResScaledCanvas": false,
+      "visibleElementCount": 27
+    }
+  },
+  "after": {
+    "text": "卡通篮球投篮 关卡 1/10 得分 11 目标 2球 机会 4 拖拽投篮 +1 漂亮进球！ 本关已命中 1/2 球。 开始 / 重试",
+    "controls": [
+      "开始 / 重试"
+    ],
+    "canvasCount": 0,
+    "screenshotHash": "2cd36790fdddb734",
+    "visual": {
+      "gradients": 7,
+      "shadows": 7,
+      "radii": 13,
+      "colors": 10,
+      "pixelatedElements": 0,
+      "pixelTerms": [],
+      "defaultControls": 0,
+      "lowResScaledCanvas": false,
+      "visibleElementCount": 22
+    }
+  },
+  "inputCoverage": {
+    "pointer": true,
+    "keyboard": true,
+    "touch": true
+  },
+  "progression": {
+    "ok": true,
+    "maxProgression": 10,
+    "signals": [
+      "关卡",
+      "关卡",
+      "关卡",
+      "level",
+      "level",
+      "level",
+      "level",
+      "level"
+    ]
+  },
+  "gameplayCoherence": {
+    "ok": true,
+    "reasons": [],
+    "metrics": {
+      "ruleSignals": [
+        "拖拽",
+        "拖拽",
+        "松手",
+        "拖拽",
+        "拖拽",
+        "松手",
+        "tap",
+        "aim"
+      ],
+      "winSignals": [
+        "得分",
+        "目标",
+        "目标",
+        "通关",
+        "得分",
+        "目标",
+        "命中",
+        "得分"
+      ],
+      "restartSignals": [
+        "重试",
+        "重试",
+        "重试"
+      ],
+      "explicitSolvable": true,
+      "explicitlyImpossible": false
+    }
+  },
+  "gameplayDebug": {
+    "gameState": "playing",
+    "score": 11,
+    "level": 1,
+    "maxLevel": 10,
+    "totalLevels": 10,
+    "shots": 4,
+    "solvable": true,
+    "allLevelsSolvable": true,
+    "levelPlans": [
+      {
+        "level": 1,
+        "solvable": true
+      },
+      {
+        "level": 2,
+        "solvable": true
+      },
+      {
+        "level": 3,
+        "solvable": true
+      },
+      {
+        "level": 4,
+        "solvable": true
+      },
+      {
+        "level": 5,
+        "solvable": true
+      },
+      {
+        "level": 6,
+        "solvable": true
+      },
+      {
+        "level": 7,
+        "solvable": true
+      },
+      {
+        "level": 8,
+        "solvable": true
+      },
+      {
+        "level": 9,
+        "solvable": true
+      },
+      {
+        "level": 10,
+        "solvable": true
+      }
+    ],
+    "inputCoverage": {
+      "pointer": true,
+      "mouse": true,
+      "keyboard": true,
+      "touch": true,
+      "gesture": true
+    },
+    "activeTargets": [
+      {
+        "id": "rim",
+        "reachable": true,
+        "x": 195,
+        "y": 150,
+        "reachedUpperMiddle": true
+      }
+    ],
+    "targetHistory": [
+      {
+        "id": "rim",
+        "reachable": true,
+        "reachedUpperMiddle": true
+      }
+    ],
+    "playfield": {
+      "top": 0,
+      "bottom": 844,
+      "width": 390,
+      "height": 844
+    }
+  },
+  "visualQuality": {
+    "ok": true,
+    "reasons": [],
+    "metrics": {
+      "gradients": 7,
+      "shadows": 7,
+      "radii": 13,
+      "colors": 10,
+      "pixelatedElements": 0,
+      "pixelTerms": [],
+      "defaultControls": 0,
+      "lowResScaledCanvas": false,
+      "visibleElementCount": 22,
+      "hero": {
+        "tag": "div",
+        "text": "篮球闯关 拖拽控制方向和力度，松手投篮。每关目标球数递增，10 关全部可通关。 开始游戏",
+        "area": 332800,
+        "gradient": true,
+        "shadow": false,
+        "radius": false
+      },
+      "hud": {
+        "count": 2,
+        "text": "卡通篮球投篮 关卡 1/10 得分 11 目标 2球 机会 4 关卡 1/10 得分 11 目标 2球 机会 4 卡通篮球投篮 关卡 1/10 得分 11 目标 2球 机会 4 拖拽投篮 +1 漂亮进球！ 本关已命中 1/2 球。 开始 / 重试",
+        "modules": [
+          {
+            "text": "卡通篮球投篮 关卡 1/10 得分 11 目标 2球 机会 4",
+            "count": 5
+          },
+          {
+            "text": "关卡 1/10 得分 11 目标 2球 机会 4",
+            "count": 4
+          }
+        ]
+      },
+      "overlay": {
+        "count": 0,
+        "text": ""
+      },
+      "hudSignals": [
+        "得分",
+        "目标",
+        "得分",
+        "目标",
+        "得分",
+        "目标"
+      ],
+      "endSignals": [
+        "重试"
+      ]
+    },
+    "blockingReasons": []
+  },
+  "runtimeErrors": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "networkErrors": [],
+  "chromeErrors": [
+    "DevTools listening on ws://127.0.0.1:9358/devtools/browser/d854df7f-4b28-48f7-b82c-41086435247a",
+    "[31532:30188:0515/223045.705:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+  ],
+  "reason": "Playable smoke passed; non-blocking visual warnings may remain."
+}

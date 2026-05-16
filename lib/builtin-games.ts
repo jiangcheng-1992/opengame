@@ -406,6 +406,7 @@ export function toBuiltinClientGame(game: BuiltinGame) {
     coverUrl: `${basePath}/cover.png`,
     status: "ready",
     visibility: "public",
+    contentType: "game",
     playUrl: `${basePath}/index.html`,
     blobPlayUrl: null,
     sourceUrl: null,

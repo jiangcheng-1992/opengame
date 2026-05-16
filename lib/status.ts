@@ -22,6 +22,7 @@ export function toClientGame(
     blobPlayUrl: game.playUrl,
     status: game.status.toLowerCase(),
     visibility: game.visibility.toLowerCase(),
+    contentType: game.contentType.toLowerCase(),
     ownedByMe: viewerAnonId ? game.ownerId === viewerAnonId : false,
     latestJob: game.jobs?.[0]
       ? {

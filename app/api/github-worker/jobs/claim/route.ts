@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ job: null });
   }
 
-  const job = await prisma.job.findUniqueOrThrow({ where: { id: candidate.id } });
+  const job = await prisma.job.findUniqueOrThrow({ where: { id: candidate.id }, include: { game: { select: { contentType: true } } } });
 
   return NextResponse.json({
     job: {
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       gameId: job.gameId,
       modelKey: job.modelKey,
       skeletonKey: job.skeletonKey,
+      contentType: job.game.contentType,
       prompt: job.prompt,
       sourceUrl: job.sourceUrl,
       useContinue: job.useContinue,

@@ -19,12 +19,33 @@ function isStandaloneApp() {
   );
 }
 
+function apkDownloadUrl() {
+  const configured = process.env.NEXT_PUBLIC_ANDROID_APK_URL?.trim();
+  return configured || "/downloads/opengame.apk";
+}
+
+function hasConfiguredApkUrl() {
+  return Boolean(process.env.NEXT_PUBLIC_ANDROID_APK_URL?.trim());
+}
+
 export function PwaInstallButton() {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [hasApkDownload, setHasApkDownload] = useState(false);
+  const apkUrl = apkDownloadUrl();
+  const configuredApkUrl = hasConfiguredApkUrl();
 
   useEffect(() => {
     setIsStandalone(isStandaloneApp());
+    if (configuredApkUrl) {
+      setHasApkDownload(true);
+      return;
+    }
+    if (apkUrl) {
+      fetch(apkUrl, { method: "HEAD", cache: "no-store" })
+        .then((response) => setHasApkDownload(response.ok))
+        .catch(() => setHasApkDownload(false));
+    }
 
     const handlePrompt = (event: Event) => {
       event.preventDefault();
@@ -42,7 +63,16 @@ export function PwaInstallButton() {
       window.removeEventListener("beforeinstallprompt", handlePrompt);
       window.removeEventListener("appinstalled", handleInstalled);
     };
-  }, []);
+  }, [apkUrl, configuredApkUrl]);
+
+  if (hasApkDownload) {
+    return (
+      <a className="install-app-button" href={apkUrl} download aria-label="下载 OpenGame 安卓 APK">
+        <Download size={17} aria-hidden />
+        <span className="install-app-label">安装</span>
+      </a>
+    );
+  }
 
   if (isStandalone || !promptEvent) return null;
 

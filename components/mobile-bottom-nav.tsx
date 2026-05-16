@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Home, PlaySquare, PlusSquare, User } from "lucide-react";
 
 const items = [
@@ -19,6 +20,13 @@ function isActive(pathname: string, href: string) {
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    for (const item of items) {
+      router.prefetch(item.href);
+    }
+  }, [router]);
 
   return (
     <nav className="mobile-bottom-nav" aria-label="移动端主导航">
