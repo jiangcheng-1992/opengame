@@ -32,7 +32,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `MINIMAX_QUALITY_TEXT_MODEL` 或 `MINIMAX_TEXT_MODEL_QUALITY`：可选；创建页选择“高质”模型时优先使用，缺失时回退到 `MINIMAX_TEXT_MODEL`
 - `SANDBOX_PROVIDER`：可选；默认 `github`；Railway 生产保持默认即可
 - `GITHUB_DISPATCH_TOKEN`：生产建议必配；Railway 生产环境配置后会即时触发 GitHub Actions workflow。推荐使用 fine-grained token，只授权本仓库 `Actions: Read and write`。本地默认不 dispatch 远端 workflow，而是自动启动本地 GitHub 兼容 worker；如需强制本地也 dispatch 远端 workflow，可设置 `FORCE_GITHUB_DISPATCH=1`
-- `GITHUB_DISPATCH_REPO`：默认 `zhang1590424-rgb/opengame-astrocade-mvp`
+- `GITHUB_DISPATCH_REPO`：默认 `jiangcheng-1992/opengame`
 - `GITHUB_DISPATCH_WORKFLOW`：默认 `opengame-generate.yml`
 - `GITHUB_DISPATCH_REF`：默认 `main`
 - `E2B_API_KEY`：仅 `SANDBOX_PROVIDER=e2b` 时必需
