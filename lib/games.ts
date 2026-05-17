@@ -104,9 +104,28 @@ function clientPlayUrl(gameId: string, playUrl: string | null) {
   return `/api/games/${gameId}/files/index.html`;
 }
 
+function clientCoverUrl(coverUrl: string | null) {
+  if (!coverUrl) return null;
+  if (coverUrl.startsWith("/")) return coverUrl;
+
+  try {
+    const url = new URL(coverUrl);
+    const appBaseUrl = process.env.APP_BASE_URL?.trim();
+    const allowedLocalOrigins = new Set(["http://localhost:3000", "http://127.0.0.1:3000"]);
+    if ((appBaseUrl && url.origin === new URL(appBaseUrl).origin) || allowedLocalOrigins.has(url.origin)) {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+  } catch {
+    return coverUrl;
+  }
+
+  return coverUrl;
+}
+
 function toClientGameListItem(game: GameListRecord, viewerAnonId?: string) {
   return {
     ...game,
+    coverUrl: clientCoverUrl(game.coverUrl),
     playUrl: clientPlayUrl(game.id, game.playUrl),
     blobPlayUrl: game.playUrl,
     status: game.status.toLowerCase(),
@@ -131,6 +150,7 @@ function sortPublicHomeGames<T extends { id: string; createdAt: Date | string }>
 function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
   return {
     ...game,
+    coverUrl: clientCoverUrl(game.coverUrl),
     playUrl: clientPlayUrl(game.id, game.playUrl),
     blobPlayUrl: game.playUrl,
     status: game.status.toLowerCase(),
