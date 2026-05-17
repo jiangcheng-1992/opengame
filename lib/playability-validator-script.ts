@@ -557,9 +557,14 @@ async function runValidation() {
     const touchChanged = snapshotChanged(mobileBefore, mobileAfter, mobileBeforeShot, mobileAfterShot);
     const debugInputCoverage = gameplayDebug?.inputCoverage || {};
     const inputCoverage = {
-      pointer: Boolean(pointerChanged || debugInputCoverage.pointer || debugInputCoverage.mouse),
+      pointer: Boolean(pointerChanged),
       keyboard: Boolean(keyboardChanged || debugInputCoverage.keyboard),
-      touch: Boolean(touchChanged || debugInputCoverage.touch || debugInputCoverage.gesture),
+      touch: Boolean(touchChanged),
+      declared: {
+        pointer: Boolean(debugInputCoverage.pointer || debugInputCoverage.mouse),
+        keyboard: Boolean(debugInputCoverage.keyboard),
+        touch: Boolean(debugInputCoverage.touch || debugInputCoverage.gesture),
+      },
     };
     const inputCoverageOk = inputCoverage.pointer && inputCoverage.keyboard && inputCoverage.touch;
     const changed = snapshotChanged(before, after, beforeShot, afterShot) || pointerChanged || keyboardChanged || touchChanged;
@@ -573,18 +578,22 @@ async function runValidation() {
     const blockingVisualReasons = visualQuality.reasons.filter((reason) =>
       /pixelated|pixel-art|8-bit|low-resolution scaled canvas|default browser UI|off-screen|clipped|overflows horizontally|vertical scrolling/i.test(reason),
     );
+    const declaredTargetCount = Number(gameplayDebug?.activeTargets);
     const activeTargets = Array.isArray(gameplayDebug?.activeTargets) ? gameplayDebug.activeTargets : [];
     const targetHistory = Array.isArray(gameplayDebug?.targetHistory) ? gameplayDebug.targetHistory : [];
+    const hasUninspectableActiveTargets = Number.isFinite(declaredTargetCount) && declaredTargetCount > 0 && activeTargets.length === 0 && targetHistory.length === 0;
     const historicalReachabilityOk =
       targetHistory.length === 0 ||
       targetHistory.some((target) => target && (target.reachedUpperMiddle === true || target.reachable === true));
     const targetReachabilityOk =
-      (activeTargets.length === 0 && targetHistory.length === 0) ||
+      (!hasUninspectableActiveTargets && activeTargets.length === 0 && targetHistory.length === 0) ||
       activeTargets.some((target) => target && (target.reachable === true || Number(target.y) < Number(gameplayDebug?.playfield?.bottom || 640) * 0.68)) ||
       historicalReachabilityOk;
     const targetReachabilityReasons = targetReachabilityOk
       ? []
-      : ["Active gameplay targets are present but none reached the upper/middle playfield during automated play; targets may be too low or unreachable."];
+      : [hasUninspectableActiveTargets
+          ? "Active gameplay targets were reported only as a count; validation needs target positions or hit history to confirm they are reachable."
+          : "Active gameplay targets are present but none reached the upper/middle playfield during automated play; targets may be too low or unreachable."];
     const inputCoverageReasons = inputCoverageOk
       ? []
       : ["Input coverage is incomplete; every game must visibly support mouse/pointer, keyboard, and mobile touch gestures."];
