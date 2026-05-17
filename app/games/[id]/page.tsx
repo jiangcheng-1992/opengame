@@ -81,6 +81,9 @@ export default async function GameDetailPage({
               title={game.title}
               src={playableUrl}
               shellClassName="game-frame play-game-frame-wrap responsive-game-shell"
+              fallbackWidth={720}
+              fallbackHeight={1280}
+              fixedViewport
             />
           </>
         ) : (

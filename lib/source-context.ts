@@ -1,6 +1,7 @@
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { inflateRawSync } from "node:zlib";
+import { isRailwayStorageUrl, readRailwayStoredFile } from "@/lib/blob";
 import { parseBuiltinCopyPlayUrl } from "@/lib/builtin-games";
 
 const TEXT_FILE_RE = /\.(html|css|js|json|ts|tsx|md|txt)$/i;
@@ -77,6 +78,9 @@ function parseZipTextFiles(buffer: Buffer) {
 }
 
 async function fetchAsBuffer(url: string) {
+  if (isRailwayStorageUrl(url)) {
+    return readRailwayStoredFile(url);
+  }
   const response = await fetch(url);
   if (!response.ok) return null;
   return Buffer.from(await response.arrayBuffer());
@@ -142,9 +146,13 @@ export async function buildSourceContext(game: SourceGame) {
   }
 
   if (game.playUrl) {
-    const html = await fetch(game.playUrl)
-      .then(async (response) => (response.ok ? response.text() : ""))
-      .catch(() => "");
+    const html = isRailwayStorageUrl(game.playUrl)
+      ? await readRailwayStoredFile(game.playUrl)
+          .then((body) => body.toString("utf8"))
+          .catch(() => "")
+      : await fetch(game.playUrl)
+          .then(async (response) => (response.ok ? response.text() : ""))
+          .catch(() => "");
     if (html.trim()) {
       return capContext(`Original game title: ${game.title}\nOriginal index.html:\n${html}`);
     }

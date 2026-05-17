@@ -38,10 +38,6 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const AnalyticsComponent =
-    process.env.NODE_ENV === "production"
-      ? (await import("@vercel/analytics/next")).Analytics
-      : null;
   const shouldLoadAnalytics = process.env.NODE_ENV === "production";
 
   return (
@@ -76,7 +72,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <MobileBottomNav />
         </Suspense>
         <PwaRegister />
-        {AnalyticsComponent ? <AnalyticsComponent /> : null}
       </body>
     </html>
   );

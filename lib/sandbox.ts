@@ -8,11 +8,6 @@ import { getOpenGameModelForKey, normalizeGenerationModelKey, type GenerationMod
 import { buildPlayabilityValidatorScript } from "@/lib/playability-validator-script";
 import { tailLines } from "@/lib/status";
 import { normalizeContentType, type ContentTypeValue } from "@/lib/content-type";
-import {
-  describeSandboxError,
-  isSandboxUnrecoverableProvisioningError,
-  sandboxCredentialsFromEnv,
-} from "@/lib/vercel-sandbox-auth";
 
 const WORKSPACE_ROOT = "/tmp/opengame-workspace";
 const OPENGAME_ROOT = `${WORKSPACE_ROOT}/opengame`;
@@ -34,7 +29,7 @@ const RETRY_LIMIT_LOG_MARKER = "[retry] Automatic retry limit reached.";
 const ACTIVE_JOB_STATUSES = ["QUEUED", "RUNNING", "VALIDATING", "REPAIRING", "FINISHING"] as const;
 const localGithubWorkerJobs = new Set<string>();
 
-type SandboxProvider = "github" | "e2b" | "vercel";
+type SandboxProvider = "github" | "e2b";
 
 type SandboxHandle = {
   sandboxId?: string;
@@ -56,23 +51,26 @@ type CommandInput = {
 function sandboxProviderFromEnv(): SandboxProvider {
   const provider = (process.env.SANDBOX_PROVIDER || "github").trim().toLowerCase();
   if (provider === "github") return "github";
-  if (provider === "vercel") return "vercel";
   return "e2b";
+}
+
+function describeSandboxError(error: unknown) {
+  return error instanceof Error ? error.message : "Sandbox 任务失败。";
 }
 
 function githubDispatchRepoFromEnv() {
   const explicit = process.env.GITHUB_DISPATCH_REPO?.trim();
   if (explicit) return explicit;
 
-  const owner = process.env.GITHUB_DISPATCH_OWNER?.trim() || process.env.VERCEL_GIT_REPO_OWNER?.trim();
-  const slug = process.env.GITHUB_DISPATCH_REPO_SLUG?.trim() || process.env.VERCEL_GIT_REPO_SLUG?.trim();
+  const owner = process.env.GITHUB_DISPATCH_OWNER?.trim();
+  const slug = process.env.GITHUB_DISPATCH_REPO_SLUG?.trim();
   if (owner && slug) return `${owner}/${slug}`;
 
   return process.env.GITHUB_REPOSITORY?.trim() || "";
 }
 
 function queuedGithubWorkerLog() {
-  if (process.env.VERCEL) return "Queued for the next scheduled GitHub Actions worker run.";
+  if (isHostedRailway()) return "Queued for GitHub Actions worker on Railway production.";
   if (process.platform === "win32") {
     const lines = [
       "Queued for GitHub Actions worker. Windows local auto-worker is disabled because OpenGame requires a Linux-compatible runtime.",
@@ -134,12 +132,16 @@ function queuedJobBlocker(job: { status: string; createdAt: Date; log?: string |
 }
 
 function shouldDispatchGithubWorkflow() {
-  return Boolean(process.env.VERCEL || process.env.GITHUB_ACTIONS || process.env.FORCE_GITHUB_DISPATCH === "1");
+  return Boolean(isHostedRailway() || process.env.GITHUB_ACTIONS || process.env.FORCE_GITHUB_DISPATCH === "1");
 }
 
 function shouldAutoStartLocalGithubWorker() {
   if (process.platform === "win32") return false;
-  return !process.env.VERCEL && !process.env.GITHUB_ACTIONS && process.env.DISABLE_LOCAL_GITHUB_WORKER !== "1";
+  return !isHostedRailway() && !process.env.GITHUB_ACTIONS && process.env.DISABLE_LOCAL_GITHUB_WORKER !== "1";
+}
+
+function isHostedRailway() {
+  return Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME || process.env.RAILWAY_PROJECT_ID);
 }
 
 function localWorkerBaseUrl() {
@@ -210,19 +212,11 @@ function encodeSandboxId(provider: SandboxProvider, sandboxId: string) {
 
 function decodeSandboxId(value: string): { provider: SandboxProvider; sandboxId: string } {
   const [provider, ...rest] = value.split(":");
-  if (provider === "github" || provider === "e2b" || provider === "vercel") {
+  if (provider === "github" || provider === "e2b") {
     return { provider, sandboxId: rest.join(":") };
   }
 
-  return { provider: "vercel", sandboxId: value };
-}
-
-async function loadSandboxSdk() {
-  const mod = await import("@vercel/sandbox");
-  return (mod as unknown as { Sandbox: unknown }).Sandbox as {
-    create: (input?: unknown) => Promise<SandboxHandle>;
-    get: (input: { sandboxId: string }) => Promise<SandboxHandle>;
-  };
+  return { provider: "e2b", sandboxId: value };
 }
 
 function commandInputToShell(input: unknown) {
@@ -333,16 +327,6 @@ function wrapE2BSandbox(sandbox: unknown): SandboxHandle {
     async stop() {
       await e2bSandbox.kill();
     },
-  };
-}
-
-function wrapVercelSandbox(sandbox: SandboxHandle): SandboxHandle {
-  return {
-    sandboxId: sandbox.sandboxId ? encodeSandboxId("vercel", sandbox.sandboxId) : undefined,
-    runCommand: (input) => sandbox.runCommand(input),
-    readFile: sandbox.readFile ? (file) => sandbox.readFile!(file) : undefined,
-    writeFiles: sandbox.writeFiles ? (files) => sandbox.writeFiles!(files) : undefined,
-    stop: sandbox.stop ? () => sandbox.stop!() : undefined,
   };
 }
 
@@ -955,6 +939,7 @@ function buildFastGamePrompt(prompt: string, skeletonKey?: GameplaySkeletonKey) 
     "- Include at least 3 levels, waves, rounds, stages, or difficulty tiers. Show progress in the HUD.",
     "- Include clear rule hints, score/progress/lives/timer modules, win/lose/retry feedback, and restart.",
     "- Keep all targets, controls, HUD, exits, cards, vehicles, bullets, fruit, and result actions fully visible on 390x844 phone portrait and 960x640 desktop landscape.",
+    "- Treat the phone presentation as the primary shipped surface: design a 9:16 portrait game viewport (720x1280 logical canvas or equivalent CSS layout) that fills a mobile WebView without platform chrome, with all HUD/actions inside safe areas.",
     "- Expose window.__OPENGAME_DEBUG__ with gameState, score, level/wave/round, inputCoverage, playfield, activeTargets, solvable/allLevelsSolvable/levelPlans when applicable.",
     "- For traffic jam / parking escape puzzles: smaller vehicles, larger fully visible grid, real path-clear escape rule, blocked shake cue, at least 4 vehicles in level 1, one opening move, and every level solvable.",
     "",
@@ -1028,6 +1013,7 @@ export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkelet
     "- Keep the full playable scene inside the visible viewport: the start CTA, main playfield, HUD, and restart/result actions must remain fully visible without browser zoom, clipped edges, or off-screen controls.",
     "- Reserve a true play-safe zone separate from HUD and overlays. Gameplay objects must not be hidden under decorative chrome, mobile browser edges, or fixed panels.",
     "- Build responsive layout from the start, not as an afterthought: support at least 390x844 phone portrait and 960x640 desktop landscape with no horizontal overflow, no clipped critical controls, and no unreachable gameplay targets.",
+    "- The primary mobile composition must be a 9:16 portrait game surface (720x1280 logical canvas or equivalent responsive CSS). It should feel full-screen in the mobile APK/WebView, not like a small landscape iframe embedded in a page.",
     "- Keep the game camera/framed playfield centered and fully visible. If letterboxing is needed, use designed background fill, but never crop the actual game board or hide vehicles, cards, enemies, fruit, bullets, buttons, exits, or HUD.",
     "- Prioritize a complete, playable core loop over visual ambition. If a mechanic risks deadlock, unclear rules, invisible targets, unresponsive input, or offscreen content, simplify it before finalizing.",
     "- Add an in-game 'how to play' hint on the first level or start screen. It must explain the core click/tap/drag rule, the win condition, and what feedback means when an action is blocked or invalid.",
@@ -1063,39 +1049,7 @@ export function buildPlayablePrompt(prompt: string, skeletonKey?: GameplaySkelet
   ].join("\n");
 }
 
-async function createVercelSandboxFromSnapshot() {
-  const snapshotId = process.env.OPENGAME_SNAPSHOT_ID;
-  const Sandbox = await loadSandboxSdk();
-
-  if (snapshotId) {
-    try {
-      const sandbox = await Sandbox.create({
-        ...sandboxCredentialsFromEnv(),
-        timeout: MAX_JOB_MS,
-        resources: { vcpus: 2 },
-        source: { type: "snapshot", snapshotId },
-      });
-      return wrapVercelSandbox(sandbox);
-    } catch (error) {
-      if (isSandboxUnrecoverableProvisioningError(error)) throw error;
-      console.warn("Failed to create Sandbox from OPENGAME_SNAPSHOT_ID; falling back to cold setup.", error);
-    }
-  }
-
-  const sandbox = await Sandbox.create({
-    ...sandboxCredentialsFromEnv(),
-    runtime: "node22",
-    timeout: MAX_JOB_MS,
-    resources: { vcpus: 2 },
-  });
-  return wrapVercelSandbox(sandbox);
-}
-
 export async function createSandboxFromSnapshot() {
-  if (sandboxProviderFromEnv() === "vercel") {
-    return createVercelSandboxFromSnapshot();
-  }
-
   if (sandboxProviderFromEnv() === "github") {
     throw new Error("GitHub Actions provider does not create an interactive sandbox.");
   }
@@ -1112,8 +1066,7 @@ export async function getSandbox(sandboxId: string) {
     return connectE2BSandbox(decoded.sandboxId);
   }
 
-  const Sandbox = await loadSandboxSdk();
-  return Sandbox.get({ ...sandboxCredentialsFromEnv(), sandboxId: decoded.sandboxId });
+  throw new Error("Unsupported sandbox provider.");
 }
 
 export async function startOpenGameJob({
@@ -1284,8 +1237,7 @@ export async function hasPlayableBuild(sandboxId: string) {
 async function readSandboxTextOrEmpty(sandboxId: string, path: string) {
   try {
     return await readSandboxText(sandboxId, path);
-  } catch (error) {
-    if (isSandboxUnrecoverableProvisioningError(error)) throw error;
+  } catch {
     return "";
   }
 }
@@ -1297,8 +1249,7 @@ async function readSandboxPhaseOrEmpty(sandboxId: string) {
 async function hasPlayableBuildOrFalse(sandboxId: string) {
   try {
     return await hasPlayableBuild(sandboxId);
-  } catch (error) {
-    if (isSandboxUnrecoverableProvisioningError(error)) throw error;
+  } catch {
     return false;
   }
 }
@@ -1333,6 +1284,7 @@ function buildRetryPrompt(prompt: string, errorMsg: string, log?: string | null,
     "- Ensure the start/click path works and keyboard input changes visible game state.",
     "- Ensure keyboard, mouse/pointer, and mobile touch gestures all change visible game state or have explicit equivalent actions; slice/drag/draw/aim games must respond to automated swipes through the playfield.",
     "- Ensure mobile phone-sized layout and touch gestures work: no off-screen controls, no accidental page scroll, and tap/swipe/drag should be playable.",
+    "- Reframe the repaired output around a 9:16 portrait mobile game surface (720x1280 logical canvas or equivalent CSS layout) while still supporting desktop letterboxing.",
     "- Ensure active targets are reachable and visible: they must enter the upper/middle playfield, not remain trapped near the bottom or outside the safe zone.",
     "- Ensure the game has at least 3 levels/waves/rounds/stages or an equivalent multi-step progression, with HUD/overlay text showing current progression.",
     "- If any feature is risky, remove or simplify it so the playable smoke test passes.",

@@ -8,19 +8,19 @@
 
 ## 安全与环境
 - 密钥只通过环境变量提供，绝不进代码、日志、文档或 Git；完整变量清单以 `README.md` 的“关键环境变量”为准。
-- `.env`、`.env.local`、`.env.*` 不能进 Git，也不能被 Vercel CLI 当源码上传；根目录 `.vercelignore` 必须持续排除它们。
-- 默认生成后端是 `SANDBOX_PROVIDER=github`；只允许 `github`、`e2b`、`vercel` 三种值，不要依赖未知值回退到 E2B 的当前实现。
+- `.env`、`.env.local`、`.env.*` 不能进 Git，也不能被 Railway/GitHub 当源码上传。
+- 默认生成后端是 `SANDBOX_PROVIDER=github`；生产只使用 Railway + GitHub Actions，`e2b` 仅作为历史兼容排查路径。
 - 没有真实凭据时可以完成代码和本地构建，但必须标注未跑真实冒烟；页面可展示依赖不可用状态，不能用假作品/假结果冒充完成。
 
 ## 工程地图
 - Next.js App Router 在 `app/`；复用 UI 在 `components/`；服务端能力和第三方集成在 `lib/`，不要把 SDK 细节散落到 route handler。
 - Prisma schema 在 `prisma/schema.prisma`；数据库变更先改 schema，再改业务；涉及 `Job` 字段或枚举时同步目标数据库。
 - 生成 worker 在 `.github/workflows/opengame-generate.yml` 和 `scripts/run-github-opengame-job.ts`；设计文档放 `docs/YYYY-MM-DD-<topic>-design.md`；脚本放 `scripts/` 且必须可重复执行。
-- Vercel 只负责创建 Job、可选 dispatch workflow，并通过 `/api/github-worker/*` 代理 MiniMax、Blob 上传和 Prisma 回写，生产密钥不放 GitHub Secrets。
-- 本地确认生成后由 Next.js 自动启动本地 GitHub 兼容 worker，回调 `APP_BASE_URL`；只有 Vercel / GitHub Actions / `FORCE_GITHUB_DISPATCH=1` 才 dispatch 远端 workflow。
-- 生产域名是 `https://opengame.zz-fancy.cloud`；日志出现 `Queued GitHub Actions workflow ... @main` 表示即时触发正常，退回 scheduled worker 时先查 `GITHUB_DISPATCH_TOKEN` 和重新部署。
+- Railway 负责生产托管、创建 Job、可选 dispatch workflow，并通过 `/api/github-worker/*` 代理 MiniMax、Railway 存储上传和 Prisma 回写，生产密钥不放 GitHub Secrets。
+- 本地确认生成后由 Next.js 自动启动本地 GitHub 兼容 worker，回调 `APP_BASE_URL`；只有 Railway / GitHub Actions / `FORCE_GITHUB_DISPATCH=1` 才 dispatch 远端 workflow。
+- 生产域名是 `https://opengame-production.up.railway.app`；日志出现 `Queued GitHub Actions workflow ... @main` 表示即时触发正常，退回 scheduled worker 时先查 Railway 的 `GITHUB_DISPATCH_TOKEN` 并重新部署。
 - 内置游戏在 `public/builtin-games/<slug>/`，必须同时有 `index.html` 和位图 `cover.png` 才能进 `lib/builtin-games.ts`；共享引擎只维护 `public/builtin-games/shared/engine.js`。
-- `vercel.json` 必须固定 `"framework": "nextjs"`；不要恢复全局 `middleware.ts` 处理匿名身份，避免影响静态试玩页。
+- 不要恢复全局 `middleware.ts` 处理匿名身份，避免影响静态试玩页。
 
 ## 产品状态机
 - 账号体系使用邮箱/密码注册登录，`auth_session` httpOnly cookie 维持登录态；`anon_id` 继续作为底层 ownerId 兼容旧数据。
@@ -38,14 +38,14 @@
 - `READY` 必须表示已通过自动试玩验证：页面可加载、无 fatal JS error、开始/点击/鼠标拖拽/键盘/移动端触摸手势能让状态变化；失败最多自动修复 2 轮。
 - 每个新生成游戏必须同时设计桌面与手机操作：鼠标点击/拖拽、键盘方向/WASD/空格、手机 tap/swipe/drag 至少有等价可用路径；不允许只支持单一输入方式导致另一端无法游玩。
 - 每个新生成游戏必须有多关卡、多波次、递进难度或连续目标，默认至少 3 个阶段；不能只玩一关/一波/一个谜题就结束。
-- 详情页 iframe 必须走同源 `/api/games/:id/files/...` 代理，不能直接塞 Blob HTML URL，避免 Blob CSP 导致白屏。
+- 详情页 iframe 必须走同源 `/api/games/:id/files/...` 代理，不能直接塞外部 HTML URL，避免 CSP 导致白屏。
 - 封面图和元数据是增强项，失败不能阻塞可玩版本发布。
 - 内置精选只做 onboarding，必须标记“内置精选”，不能冒充 OpenGame 真生成作品。
 - 暂停公开 Remix/二创网络：不展示 remixCount、不中断纯游玩态、不恢复 `/api/games/:id/remix`；但允许从公共 `READY` 作品以及“内置精选”创建“到我的可编辑副本”，副本默认归当前匿名用户且不直接公开，用于后续对话调整；内置精选副本必须保留“模板/内置来源”语义，不能冒充 OpenGame 真生成作品。
 
 ## 生成链路
-- 主链路：brief → `Job(QUEUED)` → GitHub Actions / 本地兼容 worker → OpenGame → Headless Chromium 自动试玩 → Blob 发布 → `Game.READY`。
-- GitHub Actions 默认按 `OPENGAME_GIT_URL` 冷启动安装 OpenGame；`E2B_TEMPLATE_ID` 和 `OPENGAME_SNAPSHOT_ID` 仅是兼容路径加速项。
+- 主链路：brief → `Job(QUEUED)` → GitHub Actions / 本地兼容 worker → OpenGame → Headless Chromium 自动试玩 → Railway 存储发布 → `Game.READY`。
+- GitHub Actions 默认按 `OPENGAME_GIT_URL` 冷启动安装 OpenGame；`E2B_TEMPLATE_ID` 仅是兼容路径加速项。
 - 继续修改优先使用 `sourceUrl` 源码包和 `--continue`；失败修复或不支持继续时，用历史对话、失败原因、源码上下文和新 prompt 降级重建。
 
 ## 验证约定
@@ -53,4 +53,4 @@
 - UI 改动：启动本地服务并打开相关页面验桌面/移动布局、交互、iframe 是否正常。
 - 生成链路改动：本地从创建页确认 brief，日志应进入 `RUNNING` / `VALIDATING` / `READY` 或展示真实失败原因。
 - 生产变更：创建 2-3 个真实作品，覆盖键盘、鼠标、复杂状态/胜负；确认 workflow_dispatch 成功、作品 READY、详情页可交互、Gallery 可见。
-- Sandbox/E2B/Vercel 兼容路径用后必须停止释放；仅排查时临时保留，并在日志/文档说明。
+- Sandbox/E2B/Vercel 兼容路径用后必须停止释放；仅排查历史兼容路径时临时保留，并在日志/文档说明。

@@ -22,7 +22,7 @@ jobs:
     permissions:
       contents: read
     env:
-      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://opengame-astrocade-mvp.vercel.app' }}
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://opengame-production.up.railway.app' }}
       MINIMAX_TEXT_MODEL: ${{ vars.MINIMAX_TEXT_MODEL }}
       OPENGAME_GIT_URL: ${{ vars.OPENGAME_GIT_URL }}
     steps:

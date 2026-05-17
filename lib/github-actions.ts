@@ -6,8 +6,8 @@ function githubDispatchRepo(env: NodeJS.ProcessEnv = process.env) {
   const explicit = env.GITHUB_DISPATCH_REPO?.trim();
   if (explicit) return explicit;
 
-  const owner = env.GITHUB_DISPATCH_OWNER?.trim() || env.VERCEL_GIT_REPO_OWNER?.trim();
-  const slug = env.GITHUB_DISPATCH_REPO_SLUG?.trim() || env.VERCEL_GIT_REPO_SLUG?.trim();
+  const owner = env.GITHUB_DISPATCH_OWNER?.trim();
+  const slug = env.GITHUB_DISPATCH_REPO_SLUG?.trim();
   if (owner && slug) return `${owner}/${slug}`;
 
   return env.GITHUB_REPOSITORY?.trim() || "";
@@ -29,7 +29,7 @@ export async function triggerGithubOpenGameWorkflow({ jobId }: DispatchInput) {
   }
 
   const workflow = process.env.GITHUB_DISPATCH_WORKFLOW?.trim() || "opengame-generate.yml";
-  const ref = process.env.GITHUB_DISPATCH_REF?.trim() || process.env.VERCEL_GIT_COMMIT_REF || "main";
+  const ref = process.env.GITHUB_DISPATCH_REF?.trim() || "main";
   const url = `https://api.github.com/repos/${repo}/actions/workflows/${encodeURIComponent(
     workflow,
   )}/dispatches`;

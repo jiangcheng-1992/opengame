@@ -1,14 +1,16 @@
-import { put } from "@vercel/blob";
+import { writeRailwayGameAsset } from "@/lib/blob";
 import type { GameMetadata } from "@/lib/game-metadata";
 
 type ImageAspectRatio = "1:1" | "16:9";
 
 async function generateImageBlob({
-  blobPath,
+  gameId,
+  assetPath,
   prompt,
   aspectRatio,
 }: {
-  blobPath: string;
+  gameId: string;
+  assetPath: string;
   prompt: string;
   aspectRatio: ImageAspectRatio;
 }) {
@@ -43,14 +45,18 @@ async function generateImageBlob({
   const imageResponse = await fetch(imageUrl);
   if (!imageResponse.ok) return null;
 
-  const blob = await put(blobPath, imageResponse.body!, {
-    access: "public",
-    contentType: imageResponse.headers.get("content-type") ?? "image/png",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
+  const body = Buffer.from(await imageResponse.arrayBuffer());
+  await writeRailwayGameAsset(gameId, assetPath, body);
 
-  return blob.url;
+  return `${appBaseUrl()}/api/games/${gameId}/files/__assets/${assetPath}`;
+}
+
+function appBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_BASE_URL ||
+    "https://opengame-production.up.railway.app"
+  ).replace(/\/$/, "");
 }
 
 export async function generateCoverImage(gameId: string, metadata: Pick<GameMetadata, "title" | "summary" | "coverPrompt">) {
@@ -59,7 +65,8 @@ export async function generateCoverImage(gameId: string, metadata: Pick<GameMeta
     `A polished bright arcade game cover for "${metadata.title}", ${metadata.summary}, clear gameplay subject, vibrant but readable, no text overlay.`;
 
   return generateImageBlob({
-    blobPath: `games/${gameId}/cover.png`,
+    gameId,
+    assetPath: "cover.png",
     prompt,
     aspectRatio: "16:9",
   });
@@ -77,7 +84,8 @@ export async function generateGameArtImage({
   aspectRatio: ImageAspectRatio;
 }) {
   return generateImageBlob({
-    blobPath: `games/${gameId}/art/${name}.png`,
+    gameId,
+    assetPath: `art/${name}.png`,
     prompt,
     aspectRatio,
   });

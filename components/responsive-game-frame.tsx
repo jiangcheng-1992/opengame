@@ -11,6 +11,7 @@ type ResponsiveGameFrameProps = {
   sandbox?: string;
   fallbackWidth?: number;
   fallbackHeight?: number;
+  fixedViewport?: boolean;
 };
 
 type FrameSize = {
@@ -83,6 +84,7 @@ export function ResponsiveGameFrame({
   sandbox = "allow-scripts allow-same-origin allow-pointer-lock",
   fallbackWidth = 1280,
   fallbackHeight = 800,
+  fixedViewport = false,
 }: ResponsiveGameFrameProps) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -99,14 +101,14 @@ export function ResponsiveGameFrame({
     const iframe = iframeRef.current;
     if (!shell || !iframe) return;
 
-    const nextSize = measureFrameSize(iframe, fallbackSizeRef.current);
+    const nextSize = fixedViewport ? fallbackSizeRef.current : measureFrameSize(iframe, fallbackSizeRef.current);
     const rect = shell.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
 
     const nextScale = Math.min(rect.width / nextSize.width, rect.height / nextSize.height, 1);
     setFrameSize((current) => (sameSize(current, nextSize) ? current : nextSize));
     setFrameScale((current) => (Math.abs(current - nextScale) < 0.01 ? current : nextScale));
-  }, []);
+  }, [fixedViewport]);
 
   const attachFrameObservers = useCallback(() => {
     cleanupRef.current?.();

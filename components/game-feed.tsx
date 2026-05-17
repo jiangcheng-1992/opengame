@@ -21,13 +21,13 @@ type GamesPayload = {
   error?: unknown;
 };
 
-function gamesUrl(tab: "all" | "mine", mineStatus: MineStatusFilter, contentTab: ContentTypeTab, cursor: string) {
+function gamesUrl(tab: "all" | "mine", mineStatus: MineStatusFilter, contentTab: ContentTypeTab | undefined, cursor: string) {
   const params = new URLSearchParams();
   if (tab === "mine") {
     params.set("tab", "mine");
     if (mineStatus !== "all") params.set("status", mineStatus);
   }
-  params.set("content", contentTab);
+  if (contentTab) params.set("content", contentTab);
   params.set("cursor", cursor);
   return `/api/games?${params.toString()}`;
 }
@@ -37,7 +37,7 @@ function payloadError(payload: GamesPayload, fallback: string) {
   return fallback;
 }
 
-export function GameFeed({ initialGames, initialNextCursor = null, tab, mineStatus, contentTab = "game", surface }: GameFeedProps) {
+export function GameFeed({ initialGames, initialNextCursor = null, tab, mineStatus, contentTab, surface }: GameFeedProps) {
   const [games, setGames] = useState(initialGames);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [loading, setLoading] = useState(false);

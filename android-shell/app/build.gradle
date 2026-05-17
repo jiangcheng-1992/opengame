@@ -2,7 +2,7 @@ plugins {
     id "com.android.application"
 }
 
-def appUrl = (project.findProperty("OPENGAME_APP_URL") ?: System.getenv("OPENGAME_APP_URL") ?: "https://opengame.zz-fancy.cloud").toString()
+def appUrl = (project.findProperty("OPENGAME_APP_URL") ?: System.getenv("OPENGAME_APP_URL") ?: "https://opengame-production.up.railway.app").toString()
 def releaseStoreFile = System.getenv("OPENGAME_ANDROID_KEYSTORE_PATH")
 def releaseStorePassword = System.getenv("OPENGAME_ANDROID_KEYSTORE_PASSWORD")
 def releaseKeyAlias = System.getenv("OPENGAME_ANDROID_KEY_ALIAS")

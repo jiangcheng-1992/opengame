@@ -145,10 +145,10 @@ function toClientGameDetail(game: GameDetailRecord, viewerAnonId: string) {
   };
 }
 
-export async function listGames(tab: "all" | "mine", cursor?: string | null, mineStatus: MineStatusFilter = "all", contentTab: ContentTypeTab = "game") {
-  const normalizedContentTab = normalizeContentTypeTab(contentTab);
-  const contentType = tabToContentType(normalizedContentTab);
-  const builtinGames = tab === "all" && normalizedContentTab === "game" && !cursor ? listBuiltinGames() : [];
+export async function listGames(tab: "all" | "mine", cursor?: string | null, mineStatus: MineStatusFilter = "all", contentTab: ContentTypeTab | null = "game") {
+  const normalizedContentTab = contentTab ? normalizeContentTypeTab(contentTab) : null;
+  const contentType = normalizedContentTab ? tabToContentType(normalizedContentTab) : null;
+  const builtinGames = tab === "all" && normalizedContentTab !== "application" && !cursor ? listBuiltinGames() : [];
   const statusValues = tab === "mine" && mineStatus !== "all" && mineStatus !== "active" ? mineStatusValues[mineStatus] : null;
 
   try {
@@ -158,14 +158,14 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
         tab === "mine"
           ? {
               ownerId: anonId ?? "",
-              contentType,
+              ...(contentType ? { contentType } : {}),
               ...(mineStatus === "active"
                 ? { OR: [{ status: "DRAFT" }, { status: "GENERATING", playUrl: null }] }
                 : statusValues
                   ? { status: { in: statusValues } }
                   : {}),
             }
-          : { visibility: "PUBLIC", status: "READY", contentType },
+          : { visibility: "PUBLIC", status: "READY", ...(contentType ? { contentType } : {}) },
       orderBy: { createdAt: "desc" },
       take: 13,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

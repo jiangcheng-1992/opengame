@@ -1,29 +1,12 @@
 import { execFile } from "node:child_process";
-import { readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { put } from "@vercel/blob";
 import { getSandbox } from "@/lib/sandbox";
 
 const execFileAsync = promisify(execFile);
 
-const CONTENT_TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".mp3": "audio/mpeg",
-  ".wav": "audio/wav",
-};
-
-function extname(path: string) {
-  const match = path.toLowerCase().match(/\.[a-z0-9]+$/);
-  return match?.[0] ?? "";
-}
+const RAILWAY_STORAGE_PREFIX = "railway://";
 
 function shellQuote(value: string) {
   return "'" + value.replace(/'/g, "'\\''") + "'";
@@ -77,6 +60,54 @@ async function commandStdout(result: unknown) {
     )) ?? "";
   }
   return "";
+}
+
+function storageRoot() {
+  return process.env.OPENGAME_STORAGE_DIR?.trim() || path.join(process.cwd(), ".opengame-storage");
+}
+
+function storedPath(key: string) {
+  const normalized = key.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..") || normalized.startsWith(".")) {
+    throw new Error(`Unsafe storage path: ${key}`);
+  }
+  return path.join(storageRoot(), ...normalized.split("/"));
+}
+
+function railwayStorageUrl(key: string) {
+  return `${RAILWAY_STORAGE_PREFIX}${key.replace(/\\/g, "/").replace(/^\/+/, "")}`;
+}
+
+export function isRailwayStorageUrl(value?: string | null) {
+  return Boolean(value?.startsWith(RAILWAY_STORAGE_PREFIX));
+}
+
+export function railwayStorageKey(value: string) {
+  if (!isRailwayStorageUrl(value)) throw new Error("Invalid Railway storage URL.");
+  return value.slice(RAILWAY_STORAGE_PREFIX.length);
+}
+
+export async function readRailwayStoredFile(storageUrl: string) {
+  return readFile(storedPath(railwayStorageKey(storageUrl)));
+}
+
+export async function readRailwayGameFile(gameId: string, filePath: string) {
+  return readFile(storedPath(`games/${gameId}/play/${safeBlobPath(filePath)}`));
+}
+
+export async function readRailwayGameAsset(gameId: string, filePath: string) {
+  return readFile(storedPath(`games/${gameId}/assets/${safeBlobPath(filePath)}`));
+}
+
+export async function writeRailwayGameAsset(gameId: string, filePath: string, body: Buffer | Uint8Array) {
+  await writeRailwayStoredFile(`games/${gameId}/assets/${safeBlobPath(filePath)}`, body);
+}
+
+async function writeRailwayStoredFile(key: string, body: Buffer | Uint8Array) {
+  const target = storedPath(key);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, body);
+  return railwayStorageUrl(key);
 }
 
 async function sandboxFileToBuffer(sandboxId: string, path: string) {
@@ -145,15 +176,10 @@ export async function uploadLocalGame({ gameId, root }: { gameId: string; root: 
 
   for (const file of files) {
     const body = await readFile(path.join(root, file));
-    const blob = await put(`games/${gameId}/play/${file}`, body, {
-      access: "public",
-      contentType: CONTENT_TYPES[extname(file)] ?? "application/octet-stream",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
+    await writeRailwayStoredFile(`games/${gameId}/play/${safeBlobPath(file)}`, body);
 
     if (file === "index.html") {
-      playUrl = blob.url;
+      playUrl = railwayStorageUrl(`games/${gameId}/play/index.html`);
     }
   }
 
@@ -184,15 +210,10 @@ export async function uploadGameFileBuffers({
 
   for (const file of files) {
     const filePath = safeBlobPath(file.path);
-    const blob = await put(`games/${gameId}/play/${filePath}`, file.body, {
-      access: "public",
-      contentType: CONTENT_TYPES[extname(filePath)] ?? "application/octet-stream",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
+    await writeRailwayStoredFile(`games/${gameId}/play/${filePath}`, file.body);
 
     if (filePath === "index.html") {
-      playUrl = blob.url;
+      playUrl = railwayStorageUrl(`games/${gameId}/play/index.html`);
     }
   }
 
@@ -217,15 +238,10 @@ export async function uploadSandboxGame({
 
   for (const file of files) {
     const body = await sandboxFileToBuffer(sandboxId, `${root}/${file}`);
-    const blob = await put(`games/${gameId}/play/${file}`, body, {
-      access: "public",
-      contentType: CONTENT_TYPES[extname(file)] ?? "application/octet-stream",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
+    await writeRailwayStoredFile(`games/${gameId}/play/${safeBlobPath(file)}`, body);
 
     if (file === "index.html") {
-      playUrl = blob.url;
+      playUrl = railwayStorageUrl(`games/${gameId}/play/index.html`);
     }
   }
 
@@ -265,25 +281,11 @@ export async function uploadLocalSourceArchive({ gameId, root }: { gameId: strin
   );
 
   const body = await readFile(archivePath);
-  const blob = await put(`games/${gameId}/source.zip`, body, {
-    access: "public",
-    contentType: "application/zip",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-
-  return blob.url;
+  return writeRailwayStoredFile(`games/${gameId}/source.zip`, body);
 }
 
 export async function uploadSourceArchiveBuffer({ gameId, body }: { gameId: string; body: Buffer }) {
-  const blob = await put(`games/${gameId}/source.zip`, body, {
-    access: "public",
-    contentType: "application/zip",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-
-  return blob.url;
+  return writeRailwayStoredFile(`games/${gameId}/source.zip`, body);
 }
 
 export async function uploadSourceArchive({
@@ -319,12 +321,5 @@ export async function uploadSourceArchive({
   });
 
   const body = await sandboxFileToBuffer(sandboxId, archivePath);
-  const blob = await put(`games/${gameId}/source.zip`, body, {
-    access: "public",
-    contentType: "application/zip",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-
-  return blob.url;
+  return writeRailwayStoredFile(`games/${gameId}/source.zip`, body);
 }

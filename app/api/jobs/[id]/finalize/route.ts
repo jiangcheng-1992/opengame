@@ -5,7 +5,10 @@ import { fallbackGameMetadata } from "@/lib/game-metadata";
 import { progressForJobStatus } from "@/lib/job-progress";
 import { generateCoverImage } from "@/lib/minimax";
 import { hasPlayableBuild, retryOpenGameJob, sandboxPaths, stopSandbox } from "@/lib/sandbox";
-import { describeSandboxError } from "@/lib/vercel-sandbox-auth";
+
+function describeSandboxError(error: unknown) {
+  return error instanceof Error ? error.message : "Sandbox 任务失败。";
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
   let timeout: NodeJS.Timeout;

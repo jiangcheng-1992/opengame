@@ -20,7 +20,7 @@ $AndroidProject = Join-Path $Root "android-shell"
 $OutputPath = Join-Path $Root $ApkOutput
 
 if ([string]::IsNullOrWhiteSpace($AppUrl)) {
-  $AppUrl = "https://opengame.zz-fancy.cloud"
+  $AppUrl = "https://opengame-production.up.railway.app"
 }
 
 function Get-EnvValue([string]$Name) {

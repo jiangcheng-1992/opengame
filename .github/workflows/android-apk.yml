@@ -6,7 +6,7 @@ on:
       app_url:
         description: "WebView URL"
         required: false
-        default: "https://opengame.zz-fancy.cloud"
+        default: "https://opengame-production.up.railway.app"
         type: string
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
 
       - name: Build APK
         env:
-          OPENGAME_APP_URL: ${{ inputs.app_url || 'https://opengame.zz-fancy.cloud' }}
+          OPENGAME_APP_URL: ${{ inputs.app_url || 'https://opengame-production.up.railway.app' }}
           OPENGAME_ANDROID_KEYSTORE_BASE64: ${{ secrets.OPENGAME_ANDROID_KEYSTORE_BASE64 }}
           OPENGAME_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.OPENGAME_ANDROID_KEYSTORE_PASSWORD }}
           OPENGAME_ANDROID_KEY_ALIAS: ${{ secrets.OPENGAME_ANDROID_KEY_ALIAS }}

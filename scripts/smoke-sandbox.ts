@@ -1,8 +1,11 @@
 import { loadDotEnv } from "./load-env";
 import { createSandboxFromSnapshot, getSandbox, stopSandbox } from "../lib/sandbox";
-import { describeSandboxError } from "../lib/vercel-sandbox-auth";
 
 loadDotEnv();
+
+function describeSandboxError(error: unknown) {
+  return error instanceof Error ? error.message : "Sandbox smoke failed.";
+}
 
 async function commandStdout(result: unknown) {
   if (typeof result === "string") return result;
@@ -30,10 +33,10 @@ try {
       "-lc",
       [
         "cat /tmp/opengame-workspace/smoke.txt",
-        process.env.E2B_TEMPLATE_ID || process.env.OPENGAME_SNAPSHOT_ID
+        process.env.E2B_TEMPLATE_ID
           ? "(test -f /tmp/opengame-workspace/opengame/dist/cli.js || test -f /opt/opengame/dist/cli.js || test -x /opt/opengame/bin/opengame) && echo opengame-ok"
           : "echo cold-start-mode",
-        process.env.E2B_TEMPLATE_ID || process.env.OPENGAME_SNAPSHOT_ID
+        process.env.E2B_TEMPLATE_ID
           ? "(test -d /tmp/opengame-workspace/browser-runtime/node_modules/playwright-chromium || command -v chromium || command -v chromium-browser) && echo browser-runtime-ok"
           : "echo browser-cold-start-mode",
       ].join(" && "),

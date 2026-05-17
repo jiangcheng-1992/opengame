@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAnonId } from "@/lib/auth";
+import { isRailwayStorageUrl, readRailwayGameAsset, readRailwayGameFile, readRailwayStoredFile } from "@/lib/blob";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -34,6 +35,24 @@ function buildBlobFileUrl(playUrl: string, filePath: string) {
   return url;
 }
 
+async function readStoredFile(gameId: string, playUrl: string, filePath: string) {
+  if (filePath.startsWith("__assets/")) {
+    return readRailwayGameAsset(gameId, filePath.slice("__assets/".length));
+  }
+
+  if (isRailwayStorageUrl(playUrl)) {
+    if (filePath === "__source/source.zip") {
+      return readRailwayStoredFile(`railway://games/${gameId}/source.zip`);
+    }
+    return readRailwayGameFile(gameId, filePath);
+  }
+
+  const blobUrl = buildBlobFileUrl(playUrl, filePath);
+  const response = await fetch(blobUrl, { cache: "no-store" });
+  if (!response.ok) return null;
+  return Buffer.from(await response.arrayBuffer());
+}
+
 export async function GET(_: Request, context: { params: Promise<{ id: string; path: string[] }> }) {
   const [{ id, path }, anonId] = await Promise.all([context.params, getAnonId()]);
   const filePath = path.join("/");
@@ -52,7 +71,13 @@ export async function GET(_: Request, context: { params: Promise<{ id: string; p
     },
   });
 
-  if (!game?.playUrl || game.status !== "READY") {
+  if (!game) {
+    return NextResponse.json({ error: "找不到游戏文件。" }, { status: 404 });
+  }
+
+  const isAssetFile = filePath.startsWith("__assets/");
+
+  if (!isAssetFile && (!game.playUrl || game.status !== "READY")) {
     return NextResponse.json({ error: "找不到游戏文件。" }, { status: 404 });
   }
 
@@ -60,10 +85,9 @@ export async function GET(_: Request, context: { params: Promise<{ id: string; p
     return NextResponse.json({ error: "找不到游戏文件。" }, { status: 404 });
   }
 
-  const blobUrl = buildBlobFileUrl(game.playUrl, filePath);
-  const response = await fetch(blobUrl, { cache: "no-store" });
+  const body = await readStoredFile(id, game.playUrl ?? "", filePath).catch(() => null);
 
-  if (!response.ok || !response.body) {
+  if (!body) {
     return NextResponse.json({ error: "找不到游戏文件。" }, { status: 404 });
   }
 
@@ -86,5 +110,5 @@ export async function GET(_: Request, context: { params: Promise<{ id: string; p
     );
   }
 
-  return new Response(response.body, { headers });
+  return new Response(body, { headers });
 }

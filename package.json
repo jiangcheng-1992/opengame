@@ -17,7 +17,6 @@
     "android:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1",
     "android:apk:debug": "powershell -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1 -BuildType debug",
     "android:keystore": "powershell -ExecutionPolicy Bypass -File scripts/create-android-release-keystore.ps1",
-    "sandbox:build-opengame": "tsx scripts/build-opengame-snapshot.ts",
     "worker:github-opengame": "tsx scripts/run-github-opengame-job.ts",
     "smoke:opengame": "tsx scripts/smoke-opengame.ts",
     "smoke:sandbox": "tsx scripts/smoke-sandbox.ts"
@@ -26,9 +25,6 @@
     "@ai-sdk/openai-compatible": "^2.0.47",
     "@ai-sdk/react": "^3.0.179",
     "@prisma/client": "^6.19.0",
-    "@vercel/analytics": "^2.0.1",
-    "@vercel/blob": "^2.3.3",
-    "@vercel/sandbox": "^0.0.21",
     "ai": "^6.0.177",
     "e2b": "^2.19.5",
     "lucide-react": "^0.468.0",

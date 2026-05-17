@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tab = searchParams.get("tab") === "mine" ? "mine" : "all";
   const cursor = searchParams.get("cursor");
-  const payload = await listGames(tab, cursor, normalizeMineStatusFilter(searchParams.get("status")), normalizeContentTypeTab(searchParams.get("content")));
+  const content = searchParams.get("content");
+  const contentTab = content ? normalizeContentTypeTab(content) : tab === "all" ? null : undefined;
+  const payload = await listGames(tab, cursor, normalizeMineStatusFilter(searchParams.get("status")), contentTab);
   return NextResponse.json(payload);
 }
 
