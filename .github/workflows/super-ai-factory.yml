@@ -1,0 +1,45 @@
+name: Super AI Factory
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: "How many ideas to launch"
+        required: false
+        default: "2"
+        type: string
+      dry_run:
+        description: "Only plan ideas without creating jobs"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  schedule:
+    - cron: "17 */4 * * *"
+
+jobs:
+  run:
+    name: Trigger Super AI Factory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger Railway factory endpoint
+        env:
+          APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://opengame-production.up.railway.app' }}
+          SUPER_AI_FACTORY_TOKEN: ${{ secrets.SUPER_AI_FACTORY_TOKEN }}
+          BATCH_SIZE: ${{ inputs.batch_size || '2' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPER_AI_FACTORY_TOKEN}" ]; then
+            echo "Missing SUPER_AI_FACTORY_TOKEN secret."
+            exit 1
+          fi
+
+          curl --fail-with-body \
+            -X POST "${APP_BASE_URL%/}/api/super-ai-factory/run" \
+            -H "Authorization: Bearer ${SUPER_AI_FACTORY_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "{\"batchSize\":${BATCH_SIZE},\"dryRun\":${DRY_RUN}}"

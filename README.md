@@ -38,6 +38,12 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - `E2B_API_KEY`：仅 `SANDBOX_PROVIDER=e2b` 时必需
 - `E2B_TEMPLATE_ID`：可选；有预构建 E2B OpenGame 环境时使用
 - `OPENGAME_GIT_URL`：可选；GitHub Actions 和 Sandbox 冷启动都会按它安装 OpenGame
+- `SUPER_AI_FACTORY_TOKEN`：超级 AI 工厂触发密钥；生产必配，同名值也要写入 GitHub Secrets，供定时 workflow 调用 Railway 接口
+- `SUPER_AI_FACTORY_OWNER_ID`：可选；自动生成作品归属的底层 ownerId，默认 `super-ai-factory`
+- `SUPER_AI_FACTORY_BATCH_SIZE`：可选；每轮自动启动数量，默认 `2`，最大建议 `5`
+- `SUPER_AI_FACTORY_MAX_ACTIVE`：可选；超级 AI 工厂同时进行中的最大 Job 数，默认 `3`
+- `SUPER_AI_FACTORY_DAILY_LIMIT`：可选；超级 AI 工厂每日最多创建数量，默认 `12`
+- `SUPER_AI_FACTORY_MODEL_KEY`：可选；`standard` 或 `quality`，默认 `standard`
 - `DISABLE_LOCAL_GITHUB_WORKER`：可选；本地设为 `1` 时不自动启动本地 worker，仅保留排队 Job 供手动排查
 - `NEXT_PUBLIC_PANGLE_APP_ID` / `NEXT_PUBLIC_PANGLE_FEED_SLOT_ID` / `NEXT_PUBLIC_PANGLE_SDK_URL`：可选；配置完整后 `/feed` 会在游戏卡片间插入穿山甲信息流广告卡片。未配置完整时不加载 SDK、不展示广告。
 - `NEXT_PUBLIC_PANGLE_FEED_INTERVAL` / `NEXT_PUBLIC_PANGLE_FEED_START_INDEX`：可选；默认第 3 张游戏后开始插入，之后每 4 张游戏插入 1 张广告。
@@ -50,6 +56,7 @@ OpenGame × Astrocade 风格的内部 MVP：输入 prompt，生成可玩的 HTML
 - Railway 构建命令使用 `npm ci`，构建脚本使用 `npm run build`，启动命令使用 `npm run start`。
 - 生产部署前先在 Railway Variables 配置上面的环境变量；不要把真实密钥提交到仓库。
 - GitHub Actions worker 不保存生产密钥；它通过 Railway 的 `/api/github-worker/*` 代理访问 MiniMax、Railway 存储和数据库。仓库 Variables 必须把 `APP_BASE_URL` 配置为 `https://opengame-production.up.railway.app`，可选配置 `MINIMAX_TEXT_MODEL`、`MINIMAX_STANDARD_TEXT_MODEL`、`MINIMAX_QUALITY_TEXT_MODEL`、`OPENGAME_GIT_URL`。
+- 超级 AI 工厂由 `.github/workflows/super-ai-factory.yml` 定时触发 Railway 的 `/api/super-ai-factory/run`，会自动策划短视频爆款风格小游戏/轻应用，并复用 OpenGame 自动试玩、自动修复和 READY 门禁；GitHub Secrets 必须配置 `SUPER_AI_FACTORY_TOKEN`，且值与 Railway Variables 一致。
 - Railway 需要持久卷保存生成作品文件，推荐挂载到 `/data` 并设置 `OPENGAME_STORAGE_DIR=/data/opengame-storage`。
 - 部署前仍需本地跑 `npx prisma generate`、`npm run lint`、`npm run build`。
 - 匿名身份由服务端按需写入 `anon_id` cookie；公开试玩页不经过全局 middleware，避免中间层故障影响静态游戏。

@@ -19,6 +19,7 @@
 - Railway 负责生产托管、创建 Job、可选 dispatch workflow，并通过 `/api/github-worker/*` 代理 MiniMax、Railway 存储上传和 Prisma 回写，生产密钥不放 GitHub Secrets。
 - 本地确认生成后由 Next.js 自动启动本地 GitHub 兼容 worker，回调 `APP_BASE_URL`；只有 Railway / GitHub Actions / `FORCE_GITHUB_DISPATCH=1` 才 dispatch 远端 workflow。
 - 生产域名是 `https://opengame-production.up.railway.app`；日志出现 `Queued GitHub Actions workflow ... @main` 表示即时触发正常，退回 scheduled worker 时先查 Railway 的 `GITHUB_DISPATCH_TOKEN` 并重新部署。
+- 超级 AI 工厂通过 `/api/super-ai-factory/run` 和 `.github/workflows/super-ai-factory.yml` 批量创建自动生成作品；必须用 `SUPER_AI_FACTORY_TOKEN` 保护，并受 `SUPER_AI_FACTORY_MAX_ACTIVE` / `SUPER_AI_FACTORY_DAILY_LIMIT` 控制，不能实现无上限刷任务。
 - 内置游戏在 `public/builtin-games/<slug>/`，必须同时有 `index.html` 和位图 `cover.png` 才能进 `lib/builtin-games.ts`；共享引擎只维护 `public/builtin-games/shared/engine.js`。
 - 不要恢复全局 `middleware.ts` 处理匿名身份，避免影响静态试玩页。
 
