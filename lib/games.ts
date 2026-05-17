@@ -14,6 +14,7 @@ import { toClientGame } from "@/lib/status";
 import { normalizeContentTypeTab, tabToContentType, type ContentTypeTab } from "@/lib/content-type";
 
 const PINNED_HOME_GAME_ID = "builtin-starport-dash";
+let hasLoggedPublicGamesFallback = false;
 
 type SelectedJob = {
   id: string;
@@ -122,6 +123,17 @@ function clientCoverUrl(coverUrl: string | null) {
   return coverUrl;
 }
 
+function describeDatabaseFallback(error: unknown) {
+  if (error instanceof Error) return error.message.replace(/\s+/g, " ").trim();
+  return String(error);
+}
+
+function logPublicGamesFallback(error: unknown) {
+  if (hasLoggedPublicGamesFallback) return;
+  hasLoggedPublicGamesFallback = true;
+  process.stderr.write(`[games] Public gallery database unavailable; using builtin games only. ${describeDatabaseFallback(error)}\n`);
+}
+
 function toClientGameListItem(game: GameListRecord, viewerAnonId?: string) {
   return {
     ...game,
@@ -227,7 +239,7 @@ export async function listGames(tab: "all" | "mine", cursor?: string | null, min
     };
   } catch (error) {
     if (tab === "all") {
-      console.error("[games] listGames(all) fallback to builtin only.", error);
+      logPublicGamesFallback(error);
       return { games: builtinGames, nextCursor: null };
     }
     throw error;
