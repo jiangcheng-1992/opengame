@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runSuperAiFactory } from "@/lib/super-ai-factory";
+import { getSuperAiFactoryLocalRuntimeStatus, runSuperAiFactory } from "@/lib/super-ai-factory";
 
 export const maxDuration = 60;
 
@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     product: "OpenGame Super AI Factory",
     description: "自动策划短视频爆款风格小游戏/轻应用，并交给 OpenGame 生成和自动试玩校验。",
     enabled: Boolean(process.env.SUPER_AI_FACTORY_TOKEN || process.env.NODE_ENV !== "production"),
+    runtime: getSuperAiFactoryLocalRuntimeStatus(),
   });
 }
 
@@ -39,5 +40,5 @@ export async function POST(req: NextRequest) {
   const dryRun = body?.dryRun === true;
 
   const result = await runSuperAiFactory({ batchSize, dryRun });
-  return NextResponse.json(result);
+  return NextResponse.json(result, { status: result.ok === false ? 503 : 200 });
 }

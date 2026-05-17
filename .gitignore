@@ -13,6 +13,7 @@ debug-*.md
 tsconfig.tsbuildinfo
 dist
 coverage
+.opengame-storage
 prisma/*.db
 prisma/*.db-journal
 .android-build

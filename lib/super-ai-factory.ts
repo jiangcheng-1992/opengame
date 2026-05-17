@@ -23,6 +23,99 @@ type FactoryRunOptions = {
   dryRun?: boolean;
 };
 
+export function getSuperAiFactoryLocalRuntimeStatus() {
+  const missing: string[] = [];
+  if (!process.env.MINIMAX_API_KEY?.trim()) missing.push("MINIMAX_API_KEY");
+  if (!process.env.APP_BASE_URL?.trim()) missing.push("APP_BASE_URL");
+  const sandboxProvider = process.env.SANDBOX_PROVIDER?.trim() || "github";
+  const autoStartsLocalWorker = sandboxProvider === "github" && process.platform !== "win32" && process.env.DISABLE_LOCAL_GITHUB_WORKER !== "1";
+  return {
+    ok: missing.length === 0,
+    missing,
+    appBaseUrl: process.env.APP_BASE_URL?.trim() || null,
+    sandboxProvider,
+    platform: process.platform,
+    autoStartsLocalWorker,
+  };
+}
+
+function isLocalAppBaseUrl(url: string) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(url);
+}
+
+async function validateFactoryRuntime() {
+  const local = getSuperAiFactoryLocalRuntimeStatus();
+  if (!local.ok) {
+    return {
+      ok: false,
+      error: "missing_required_environment",
+      message: `超级 AI 工厂缺少关键环境变量：${local.missing.join(", ")}。已阻止创建真实生成任务，避免 worker 空跑。`,
+      missing: local.missing,
+    };
+  }
+
+  const appBaseUrl = local.appBaseUrl ?? "";
+  const token = process.env.SUPER_AI_FACTORY_TOKEN?.trim();
+  if (isLocalAppBaseUrl(appBaseUrl)) {
+    if (local.sandboxProvider === "github" && !local.autoStartsLocalWorker) {
+      return {
+        ok: false,
+        error: "local_worker_not_auto_started",
+        message:
+          "APP_BASE_URL 指向本地地址，但当前平台不会自动启动本地 GitHub 兼容 worker。已阻止创建真实任务；如需本地验证，请先 dryRun 生成创意，再手动运行 scripts/run-github-opengame-job.ts 处理指定 Job。",
+        runtime: local,
+      };
+    }
+    return null;
+  }
+  if (!token) {
+    return {
+      ok: false,
+      error: "remote_preflight_token_missing",
+      message: "APP_BASE_URL 指向线上地址，但本地缺少 SUPER_AI_FACTORY_TOKEN，无法确认 Railway 生产环境是否可生成，已阻止创建真实任务。",
+      missing: ["SUPER_AI_FACTORY_TOKEN"],
+    };
+  }
+
+  try {
+    const response = await fetch(`${appBaseUrl.replace(/\/$/, "")}/api/super-ai-factory/run`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: "remote_preflight_failed",
+        message: `超级 AI 工厂无法确认线上 Railway 环境，远端预检返回 ${response.status}。`,
+      };
+    }
+    const remote = (await response.json()) as { runtime?: { ok?: boolean; missing?: string[] } };
+    if (!remote.runtime) {
+      return {
+        ok: false,
+        error: "remote_preflight_unavailable",
+        message: "线上 Railway 还没有部署超级 AI 工厂运行时预检，已阻止创建真实生成任务。请先等待 Railway 部署最新代码。",
+      };
+    }
+    if (remote.runtime && remote.runtime.ok === false) {
+      return {
+        ok: false,
+        error: "remote_missing_required_environment",
+        message: `Railway 生产站缺少关键环境变量：${(remote.runtime.missing ?? []).join(", ")}。已阻止创建真实生成任务。`,
+        missing: remote.runtime.missing ?? [],
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: "remote_preflight_unreachable",
+      message: `超级 AI 工厂无法访问 APP_BASE_URL 进行远端预检：${error instanceof Error ? error.message : "unknown error"}`,
+    };
+  }
+
+  return null;
+}
+
 const FALLBACK_IDEAS: FactoryIdea[] = [
   {
     title: "尖叫鸭冲冲冲",
@@ -93,6 +186,12 @@ function normalizeIdea(value: unknown): FactoryIdea | null {
   };
 }
 
+function factoryTitle(metadataTitle: string | null | undefined, ideaTitle: string) {
+  const title = metadataTitle?.trim();
+  if (!title || /^超级\s*AI\s*工厂自动策划作品/.test(title)) return ideaTitle;
+  return title;
+}
+
 function parseIdeasFromText(text: string) {
   const cleaned = text
     .trim()
@@ -157,7 +256,7 @@ async function createFactoryJob(ownerId: string, idea: FactoryIdea) {
   const game = await prisma.game.create({
     data: {
       ownerId,
-      title: metadata.title || idea.title,
+      title: factoryTitle(metadata.title, idea.title),
       summary: metadata.summary,
       genre: metadata.genre,
       tags: Array.from(new Set([FACTORY_TAG, "自动生成", idea.contentType === "GAME" ? "小游戏" : "轻应用", ...metadata.tags])).slice(0, 8),
@@ -209,6 +308,9 @@ async function createFactoryJob(ownerId: string, idea: FactoryIdea) {
 }
 
 export async function runSuperAiFactory(options: FactoryRunOptions = {}) {
+  const runtimeError = options.dryRun ? null : await validateFactoryRuntime();
+  if (runtimeError) return runtimeError;
+
   const ownerId = factoryOwnerId();
   const requestedBatch = options.batchSize ?? intFromEnv("SUPER_AI_FACTORY_BATCH_SIZE", 2, 1, 5);
   const maxActive = intFromEnv("SUPER_AI_FACTORY_MAX_ACTIVE", 3, 1, 20);
