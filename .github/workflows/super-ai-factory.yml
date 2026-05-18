@@ -6,7 +6,7 @@ on:
       batch_size:
         description: "How many ideas to launch"
         required: false
-        default: "2"
+        default: "1"
         type: string
       dry_run:
         description: "Only plan ideas without creating jobs"
@@ -17,7 +17,11 @@ on:
           - "false"
           - "true"
   schedule:
-    - cron: "17 */4 * * *"
+    - cron: "*/30 * * * *"
+
+concurrency:
+  group: super-ai-factory
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -29,7 +33,7 @@ jobs:
         env:
           APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://opengame-production.up.railway.app' }}
           SUPER_AI_FACTORY_TOKEN: ${{ secrets.SUPER_AI_FACTORY_TOKEN }}
-          BATCH_SIZE: ${{ inputs.batch_size || '2' }}
+          BATCH_SIZE: ${{ inputs.batch_size || '1' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: |
           set -euo pipefail
@@ -37,6 +41,13 @@ jobs:
             echo "Missing SUPER_AI_FACTORY_TOKEN secret."
             exit 1
           fi
+
+          echo "== Super AI Factory runtime preflight =="
+          curl --fail-with-body \
+            "${APP_BASE_URL%/}/api/super-ai-factory/run" \
+            -H "Authorization: Bearer ${SUPER_AI_FACTORY_TOKEN}"
+          echo
+          echo "== Trigger Super AI Factory =="
 
           curl --fail-with-body \
             -X POST "${APP_BASE_URL%/}/api/super-ai-factory/run" \

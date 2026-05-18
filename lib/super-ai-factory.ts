@@ -56,6 +56,9 @@ async function validateFactoryRuntime() {
 
   const appBaseUrl = local.appBaseUrl ?? "";
   const token = process.env.SUPER_AI_FACTORY_TOKEN?.trim();
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
   if (isLocalAppBaseUrl(appBaseUrl)) {
     if (local.sandboxProvider === "github" && !local.autoStartsLocalWorker) {
       return {
@@ -357,12 +360,30 @@ export async function runSuperAiFactory(options: FactoryRunOptions = {}) {
   }
 
   const created = [];
+  const creationErrors: string[] = [];
   for (const idea of ideas.slice(0, capacity)) {
     try {
       created.push(await createFactoryJob(ownerId, idea));
     } catch (error) {
       console.error("[super-ai-factory] Failed to create factory job.", error);
+      creationErrors.push(
+        `${idea.title}: ${error instanceof Error ? error.message : "unknown error"}`.slice(0, 240),
+      );
     }
+  }
+
+  if (created.length === 0) {
+    return {
+      ok: false,
+      error: "factory_job_creation_failed",
+      message: "超级 AI 工厂已生成创意，但创建真实任务全部失败；请检查 Railway 数据库、MiniMax、GitHub dispatch 与 worker 代理环境。",
+      activeJobs,
+      todayGames,
+      maxActive,
+      dailyLimit,
+      attempts: ideas.map((idea) => idea.title),
+      creationErrors,
+    };
   }
 
   return {
@@ -372,5 +393,6 @@ export async function runSuperAiFactory(options: FactoryRunOptions = {}) {
     todayGames,
     maxActive,
     dailyLimit,
+    creationErrors,
   };
 }
