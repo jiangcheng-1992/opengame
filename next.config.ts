@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["e2b"],
   images: {
+    domains: ["opengame-production.up.railway.app", "localhost", "127.0.0.1"],
     remotePatterns: [
       {
         protocol: "https",

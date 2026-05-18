@@ -38,14 +38,17 @@ export function PwaInstallButton() {
   useEffect(() => {
     setIsStandalone(isStandaloneApp());
     if (configuredApkUrl) {
-      setHasApkDownload(true);
-      return;
-    }
-    if (apkUrl) {
-      fetch(apkUrl, { method: "HEAD", cache: "no-store" })
+      const controller = new AbortController();
+      fetch(apkUrl, { method: "HEAD", cache: "no-store", signal: controller.signal })
         .then((response) => setHasApkDownload(response.ok))
-        .catch(() => setHasApkDownload(false));
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setHasApkDownload(false);
+        });
+
+      return () => controller.abort();
     }
+    setHasApkDownload(true);
 
     const handlePrompt = (event: Event) => {
       event.preventDefault();
