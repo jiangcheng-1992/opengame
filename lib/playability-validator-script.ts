@@ -581,13 +581,19 @@ async function runValidation() {
     const declaredTargetCount = Number(gameplayDebug?.activeTargets);
     const activeTargets = Array.isArray(gameplayDebug?.activeTargets) ? gameplayDebug.activeTargets : [];
     const targetHistory = Array.isArray(gameplayDebug?.targetHistory) ? gameplayDebug.targetHistory : [];
-    const hasUninspectableActiveTargets = Number.isFinite(declaredTargetCount) && declaredTargetCount > 0 && activeTargets.length === 0 && targetHistory.length === 0;
+    const inspectableActiveTargets = activeTargets.filter((target) => target && typeof target === "object");
+    const hasUninspectableActiveTargets =
+      (Number.isFinite(declaredTargetCount) && declaredTargetCount > 0 && activeTargets.length === 0 && targetHistory.length === 0) ||
+      activeTargets.some((target) => !target || typeof target !== "object");
     const historicalReachabilityOk =
-      targetHistory.length === 0 ||
+      targetHistory.length > 0 &&
       targetHistory.some((target) => target && (target.reachedUpperMiddle === true || target.reachable === true));
+    const activeTargetReachabilityOk =
+      inspectableActiveTargets.length > 0 &&
+      inspectableActiveTargets.some((target) => target && (target.reachable === true || Number(target.y) < Number(gameplayDebug?.playfield?.bottom || 640) * 0.68));
     const targetReachabilityOk =
       (!hasUninspectableActiveTargets && activeTargets.length === 0 && targetHistory.length === 0) ||
-      activeTargets.some((target) => target && (target.reachable === true || Number(target.y) < Number(gameplayDebug?.playfield?.bottom || 640) * 0.68)) ||
+      activeTargetReachabilityOk ||
       historicalReachabilityOk;
     const targetReachabilityReasons = targetReachabilityOk
       ? []
