@@ -33,6 +33,12 @@ type ClaimedJob = {
   useContinue?: boolean;
 };
 
+type FailureReport = {
+  retrying?: boolean;
+  status?: string;
+  nextJobId?: string;
+};
+
 function appBaseUrl() {
   return (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 }
@@ -128,7 +134,7 @@ async function syncProgress(jobId: string) {
 async function markFailed(jobId: string, error: unknown) {
   const { log } = await currentLog();
   const fallback = error instanceof Error ? error.message : "GitHub Actions generation failed.";
-  await callWorkerApi(`/api/github-worker/jobs/${jobId}/progress`, {
+  return callWorkerApi<FailureReport>(`/api/github-worker/jobs/${jobId}/progress`, {
     method: "POST",
     body: JSON.stringify({
       status: "FAILED",
@@ -349,7 +355,16 @@ async function main() {
 }
 
 main().catch(async (error) => {
-  if (claimedJobId) await markFailed(claimedJobId, error).catch(() => undefined);
+  if (claimedJobId) {
+    const failureReport = await markFailed(claimedJobId, error).catch(() => null);
+    if (failureReport?.retrying && failureReport.status !== "failed") {
+      console.log(
+        `[github-worker] Current attempt failed, but a follow-up retry job was queued${failureReport.nextJobId ? `: ${failureReport.nextJobId}` : ""}.`,
+      );
+      console.log("[github-worker] Treating this workflow run as recovered to avoid false failure notifications.");
+      return;
+    }
+  }
   console.error(error);
   process.exitCode = 1;
 });
