@@ -112,8 +112,9 @@ function clientCoverUrl(coverUrl: string | null) {
   try {
     const url = new URL(coverUrl);
     const appBaseUrl = process.env.APP_BASE_URL?.trim();
-    const allowedLocalOrigins = new Set(["http://localhost:3000", "http://127.0.0.1:3000"]);
-    if ((appBaseUrl && url.origin === new URL(appBaseUrl).origin) || allowedLocalOrigins.has(url.origin)) {
+    const sameAppOrigins = new Set(["https://opengame-production.up.railway.app", "http://localhost:3000", "http://127.0.0.1:3000"]);
+    if (appBaseUrl) sameAppOrigins.add(new URL(appBaseUrl).origin);
+    if (sameAppOrigins.has(url.origin)) {
       return `${url.pathname}${url.search}${url.hash}`;
     }
   } catch {
